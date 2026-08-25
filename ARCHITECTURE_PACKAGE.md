@@ -1,8 +1,8 @@
 # Architecture Package — Education Commerce Platform
 
-**Version:** 0.1.0-architecture  
+**Version:** 0.1.1-architecture  
 **Date:** 2026-08-25  
-**Status:** COMPLETE — awaiting stakeholder acceptance before any implementation  
+**Status:** COMPLETE — D1–D5 locked; awaiting Phase 5 kickoff authorization  
 **Language:** Technical English (product communications may be Vietnamese)
 
 ---
@@ -10,9 +10,9 @@
 ## How to use this package
 
 1. Read **§1 Executive Summary** and **§35 MVP Scope**.
-2. Review **Open Decisions** (ambiguities that need confirmation).
-3. Approve or request changes to architectural boundaries.
-4. Only then authorize **Phase 5+ implementation**.
+2. Read locked decisions: [architecture/DECISIONS_D1_D5.md](./architecture/DECISIONS_D1_D5.md).
+3. Approve architectural boundaries if anything still conflicts.
+4. Authorize **Phase 5+ implementation** explicitly.
 
 ---
 
@@ -152,19 +152,21 @@ Product/UX patterns observed across creator LMS platforms and Moodle:
 
 ---
 
-## Open decisions (must confirm before implementation)
+## Decisions D1–D5 — LOCKED (2026-08-25)
 
-| ID | Topic | Options | Recommendation | Impact if wrong |
-|----|-------|---------|----------------|-----------------|
-| D1 | Mobile stack | Expo RN vs Flutter | **Expo React Native** (shared TS types with web/API) | High (team skills) |
-| D2 | Cloud | AWS / GCP / Cloudflare+Neon / Azure | **AWS** or **GCP** with S3-compatible storage; local MinIO | High |
-| D3 | VN payment providers | Stripe-only vs Stripe+VNPay/MoMo/ZaloPay | **Adapter interfaces now**; Stripe + one VN PSP in MVP | High (go-to-market) |
-| D4 | Marketplace revenue split | MVP off vs on | **Off in MVP**; schema supports creator_id + future splits | Medium |
-| D5 | Multi-tenant isolation | Shared DB + `app_id` vs schema-per-tenant | **Shared DB + `app_id` (+ optional `org_id`)** | High |
-| D6 | Video transcoder | Self-hosted FFmpeg workers vs Mux/AWS MediaConvert | **Adapter + MediaConvert/Mux for MVP**; FFmpeg optional later | Medium |
-| D7 | Primary region | VN / Singapore / US | **ap-southeast-1** (Singapore) for VN latency | Medium |
+Canonical record: [architecture/DECISIONS_D1_D5.md](./architecture/DECISIONS_D1_D5.md)
 
-**Rule:** Do not implement until D1–D5 are confirmed for production targets. Architecture remains valid either way via adapters.
+| ID | Locked decision |
+|----|-----------------|
+| D1 | **Expo React Native** |
+| D2 | **AWS** (S3 via `IStorageProvider`; local MinIO) |
+| D3 | **Stripe + VNPay** in MVP (MoMo/ZaloPay later); Play/Apple IAP for store apps |
+| D4 | **Marketplace revenue split OFF** in MVP (schema-ready) |
+| D5 | **Shared PostgreSQL + `app_id`** (+ optional `org_id` later) |
+| D6 | **AWS MediaConvert** via `TranscodePort` (follow-on of D2) |
+| D7 | **Region `ap-southeast-1`** (follow-on of D2) |
+
+**Rule:** Changing D1–D5 after implementation starts requires an architecture amendment.
 
 ---
 
@@ -183,6 +185,7 @@ Product/UX patterns observed across creator LMS platforms and Moodle:
 - [x] `/docs` set complete per Master Spec BB
 - [x] `.cursor/rules` set complete per Master Spec AO
 - [x] Core vs App-specific ownership defined
-- [x] Ambiguities listed (not silently decided for D1–D5)
-- [ ] Stakeholder acceptance
+- [x] Ambiguities listed
+- [x] D1–D5 locked ([DECISIONS_D1_D5.md](./architecture/DECISIONS_D1_D5.md))
+- [x] Stakeholder confirmation of D1–D5
 - [ ] Phase 5 kickoff authorized

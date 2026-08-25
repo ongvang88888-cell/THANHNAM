@@ -32,12 +32,13 @@ Fulfillment = grant entitlements (and subscription activation).
 
 ## Providers (planned adapters)
 
-| Provider | Surface |
-|----------|---------|
-| Stripe | Web (+ optional mobile where policy allows) |
-| Google Play Billing | Android digital unlocks in-Play |
-| Apple IAP | iOS digital unlocks |
-| VN PSP (VNPay/MoMo/…) | Web VN market (pending D3) |
+| Provider | Surface | MVP |
+|----------|---------|-----|
+| Stripe | Web (+ optional mobile where policy allows) | Yes (D3) |
+| VNPay | Web VN checkout | Yes (D3) |
+| Google Play Billing | Android digital unlocks in-Play | Yes (store policy) |
+| Apple IAP | iOS digital unlocks | Yes (store policy) |
+| MoMo / ZaloPay | Web VN | Later adapters only |
 
 ## Store policy note
 

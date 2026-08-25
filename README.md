@@ -1,6 +1,6 @@
 # Education Commerce Platform
 
-**Status:** Architecture Package complete — **implementation not started** (per Master Spec BC).
+**Status:** Architecture Package complete · **D1–D5 locked** · **implementation not started** until Phase 5 is authorized.
 
 A production-grade platform for selling video courses, digital documents, bundles/combos, subscriptions, and rewarded-ad unlocks — with Student, Teacher, Admin, and Public Storefront surfaces on Web and Mobile.
 
@@ -10,7 +10,8 @@ A production-grade platform for selling video courses, digital documents, bundle
 |-------|------|--------|
 | 0 | Requirements analysis | Done |
 | 1 | Architecture Package | **Done** |
-| 2+ | Implementation | **Blocked until Architecture Package accepted** |
+| 1b | Decisions D1–D5 | **Locked** — [architecture/DECISIONS_D1_D5.md](./architecture/DECISIONS_D1_D5.md) |
+| 2+ | Implementation | **Blocked until Phase 5 kickoff authorized** |
 
 ## Start here
 

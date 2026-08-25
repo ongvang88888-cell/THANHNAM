@@ -52,4 +52,5 @@ Monetization + entitlement + media protection mistakes are expensive to reverse.
 
 ## Ask of stakeholders
 
-Confirm Open Decisions D1–D5 in `ARCHITECTURE_PACKAGE.md`, then authorize Phase 5 (Shared Core implementation).
+D1–D5 are **locked** — see `architecture/DECISIONS_D1_D5.md`.  
+Next: explicitly authorize **Phase 5 (Shared Core implementation)**.

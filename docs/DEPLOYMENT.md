@@ -4,13 +4,15 @@
 
 `local` · `dev` · `staging` · `production`
 
-## Topology (MVP)
+## Topology (MVP) — AWS `ap-southeast-1` (D2/D7)
 
-- Containerized API + workers (ECS/Cloud Run/Kubernetes — pick with D2)
-- Managed PostgreSQL with PITR
-- Managed Redis
-- Object storage + CDN
-- Separate subnet for workers egress to providers
+- Containerized API + workers on **ECS Fargate**
+- **RDS PostgreSQL** with PITR
+- **ElastiCache Redis** (managed preferred in production)
+- **S3** + **CloudFront** (private origins, signed URLs)
+- **MediaConvert** for video transcode jobs
+- **Secrets Manager** / SSM for secrets
+- Separate subnet/security groups for workers egress to providers
 
 ## CI/CD
 

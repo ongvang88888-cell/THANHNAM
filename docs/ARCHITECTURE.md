@@ -25,10 +25,12 @@ Build a **platform** for education commerce: video courses, digital documents, b
 | Cache | Redis | Sessions, rate limits, hot config |
 | Queue | BullMQ (Redis) | Media, email, webhooks, rewards |
 | Search MVP | Postgres FTS | Simple; OpenSearch later |
-| Object storage | S3-compatible via `IStorageProvider` | Multi-cloud |
-| CDN | CloudFront / Cloudflare / equivalent | Signed URLs |
+| Object storage | Amazon S3 via `IStorageProvider` (MinIO local) | AWS locked (D2); port keeps swap option |
+| CDN | Amazon CloudFront + signed URLs | Private origins |
 | Web | Next.js App Router | Student / Teacher / Admin / Storefront |
-| Mobile | Expo React Native (pending D1) | Shared TS domain types |
+| Mobile | Expo React Native (**D1 locked**) | Shared TS domain types |
+| Region | `ap-southeast-1` (**D7**) | VN latency |
+| Tenancy | Shared DB + `app_id` (**D5**) | Optional `org_id` later |
 | Auth | JWT access + rotating refresh | Stateless API + revoke via session store |
 | Observability | OpenTelemetry + structured logs | Ops readiness |
 
