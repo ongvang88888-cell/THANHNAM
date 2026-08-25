@@ -18,7 +18,7 @@ export type ProductDetail = {
   description: string;
   type: string;
   prices: Array<{ amountMinor: number; currency: string }>;
-  metadataJson?: { playSku?: string };
+  metadataJson?: { playSku?: string; appleSku?: string };
   course?: { id: string; sections?: Array<{ lessons?: Array<{ id: string }> }> } | null;
   document?: { id: string } | null;
 };
@@ -43,6 +43,12 @@ async function request<T>(
   return json;
 }
 
+function platformForProvider(provider: "mock" | "google_play" | "apple_iap") {
+  if (provider === "google_play") return "android";
+  if (provider === "apple_iap") return "ios";
+  return "unknown";
+}
+
 export const api = {
   listProducts: () =>
     request<{ items: ProductListItem[] }>("/products").then((r) => r.items),
@@ -55,7 +61,7 @@ export const api = {
   checkout: (
     token: string,
     productId: string,
-    provider: "mock" | "google_play" = "mock"
+    provider: "mock" | "google_play" | "apple_iap" = "mock"
   ) =>
     request<{
       order: { id: string; status: string };
@@ -65,6 +71,8 @@ export const api = {
           type?: string;
           sku?: string;
           packageName?: string;
+          bundleId?: string;
+          appAccountToken?: string;
         };
       };
     }>("/checkout/sessions", {
@@ -73,7 +81,7 @@ export const api = {
       body: {
         productId,
         provider,
-        platform: provider === "google_play" ? "android" : "unknown",
+        platform: platformForProvider(provider),
         idempotencyKey: `mobile-${provider}-${productId}-${Date.now()}`,
       },
     }),
@@ -83,6 +91,19 @@ export const api = {
   ) =>
     request<{ ok: boolean; fulfilled?: boolean; order: { status: string } }>(
       "/payments/google-play/confirm",
+      { method: "POST", token, body: input }
+    ),
+  confirmAppleIap: (
+    token: string,
+    input: {
+      orderId: string;
+      transactionId: string;
+      productId?: string;
+      signedTransaction?: string;
+    }
+  ) =>
+    request<{ ok: boolean; fulfilled?: boolean; order: { status: string } }>(
+      "/payments/apple-iap/confirm",
       { method: "POST", token, body: input }
     ),
   myLibrary: (token: string) =>

@@ -2,8 +2,11 @@ import { Body, Controller, Get, Headers, Injectable, Module, Param, Post, Req, U
 import { IsIn, IsInt, IsOptional, IsString, Min, MinLength } from "class-validator";
 import {
   assertProviderAllowedForPlatform,
+  assertSkuMatchesExpected,
   buildEntitlementGrants,
+  resolveStoreSku,
   type PaymentProvider,
+  type VerifiedPaymentEvent,
 } from "@edu/monetization-core";
 import { AppError, ErrorCodes, hasAnyRole } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
@@ -13,6 +16,7 @@ import { MockPaymentProvider } from "./providers/mock.provider";
 import { StripePaymentProvider } from "./providers/stripe.provider";
 import { VnpayPaymentProvider } from "./providers/vnpay.provider";
 import { GooglePlayPaymentProvider } from "./providers/google-play.provider";
+import { AppleIapPaymentProvider } from "./providers/apple-iap.provider";
 
 class CheckoutDto {
   @IsString()
@@ -23,8 +27,8 @@ class CheckoutDto {
   idempotencyKey!: string;
 
   @IsOptional()
-  @IsIn(["mock", "stripe", "vnpay", "google_play"])
-  provider?: "mock" | "stripe" | "vnpay" | "google_play";
+  @IsIn(["mock", "stripe", "vnpay", "google_play", "apple_iap"])
+  provider?: "mock" | "stripe" | "vnpay" | "google_play" | "apple_iap";
 
   @IsOptional()
   @IsString()
@@ -42,6 +46,23 @@ class GooglePlayConfirmDto {
   @IsString()
   @MinLength(8)
   purchaseToken!: string;
+
+  @IsOptional()
+  @IsString()
+  productId?: string;
+}
+
+class AppleIapConfirmDto {
+  @IsString()
+  orderId!: string;
+
+  @IsString()
+  @MinLength(8)
+  transactionId!: string;
+
+  @IsOptional()
+  @IsString()
+  signedTransaction?: string;
 
   @IsOptional()
   @IsString()
@@ -71,6 +92,7 @@ export class CommerceService {
       stripe: new StripePaymentProvider(),
       vnpay: new VnpayPaymentProvider(),
       google_play: new GooglePlayPaymentProvider(),
+      apple_iap: new AppleIapPaymentProvider(),
     };
   }
 
@@ -117,8 +139,7 @@ export class CommerceService {
     const currency = product.prices[0].currency;
     const provider = this.provider(providerName);
     const meta = (product.metadataJson ?? {}) as Record<string, unknown>;
-    const playSku =
-      typeof meta.playSku === "string" && meta.playSku.length > 0 ? meta.playSku : product.slug;
+    const storeSku = resolveStoreSku(provider.name, meta, product.slug);
 
     const order = await this.prisma.$transaction(async (tx) => {
       const created = await tx.order.create({
@@ -156,8 +177,9 @@ export class CommerceService {
         metadata: {
           productId: product.id,
           userId: user.userId,
-          playSku,
-          sku: playSku,
+          playSku: storeSku,
+          appleSku: storeSku,
+          sku: storeSku,
           platform,
         },
       });
@@ -170,7 +192,11 @@ export class CommerceService {
           status: "PENDING",
           amountMinor: amount,
           currency,
-          normalizedJson: intent as object,
+          normalizedJson: {
+            ...intent,
+            expectedSku: storeSku,
+            appAccountToken: intent.clientAction.appAccountToken,
+          } as object,
         },
       });
 
@@ -353,65 +379,178 @@ export class CommerceService {
   async handleWebhook(providerName: string, headers: Record<string, string | undefined>, rawBody: string) {
     const provider = this.provider(providerName);
     const event = await provider.verifyWebhook(headers, rawBody);
-    const payment = await this.prisma.payment.findFirst({
-      where: {
-        provider: provider.name,
-        OR: [
-          { providerRef: event.providerRef },
-          ...(event.orderId ? [{ orderId: event.orderId }] : []),
-        ],
-      },
-    });
-    const orderId = event.orderId || payment?.orderId;
+    const orderId = await this.resolveOrderIdForEvent(provider.name, event);
     if (!orderId) throw new AppError(ErrorCodes.NOT_FOUND, "Order not found for webhook", 404);
     if (event.status === "REFUNDED") {
       return this.refundOrderInternal(orderId, {
         reason: "provider_webhook",
         providerEventId: event.providerEventId,
-        amountMinor: event.amountMinor || payment?.amountMinor,
+        // ASN/RTDN often omit amount — treat 0 as "full refund of payment"
+        amountMinor: event.amountMinor > 0 ? event.amountMinor : undefined,
         skipProviderCall: true,
       });
     }
+    await this.assertProviderRefNotReused(provider.name, event.providerRef, orderId);
+    await this.assertEventSkuMatchesPayment(orderId, event);
     return this.fulfillPaidOrder(orderId, event);
   }
 
   async confirmGooglePlay(user: RequestUser, dto: GooglePlayConfirmDto) {
+    return this.confirmStorePurchase(user, {
+      provider: "google_play",
+      orderId: dto.orderId,
+      body: {
+        orderId: dto.orderId,
+        purchaseToken: dto.purchaseToken,
+        productId: dto.productId,
+      },
+    });
+  }
+
+  async confirmAppleIap(user: RequestUser, dto: AppleIapConfirmDto) {
+    return this.confirmStorePurchase(user, {
+      provider: "apple_iap",
+      orderId: dto.orderId,
+      body: {
+        orderId: dto.orderId,
+        transactionId: dto.transactionId,
+        signedTransaction: dto.signedTransaction,
+        productId: dto.productId,
+      },
+    });
+  }
+
+  private async confirmStorePurchase(
+    user: RequestUser,
+    input: { provider: "google_play" | "apple_iap"; orderId: string; body: Record<string, unknown> },
+  ) {
     const order = await this.prisma.order.findFirst({
-      where: { id: String(dto.orderId), userId: user.userId, appId: user.appId },
+      where: { id: String(input.orderId), userId: user.userId, appId: user.appId },
       include: { payments: true, items: true },
     });
     if (!order) throw new AppError(ErrorCodes.NOT_FOUND, "Order not found", 404);
     const payment = order.payments[0];
-    if (!payment || payment.provider !== "google_play") {
-      throw new AppError(ErrorCodes.VALIDATION, "Order is not a Google Play payment", 400);
+    if (!payment || payment.provider !== input.provider) {
+      throw new AppError(ErrorCodes.VALIDATION, `Order is not a ${input.provider} payment`, 400);
     }
     if (order.status === "FULFILLED" || order.status === "PAID") {
       return { ok: true, already: true, order };
     }
 
-    const productId = dto.productId || order.items[0]?.productId;
-    const event = await this.provider("google_play").verifyWebhook(
+    const normalized = (payment.normalizedJson ?? {}) as Record<string, unknown>;
+    const expectedSku =
+      (typeof normalized.expectedSku === "string" && normalized.expectedSku) ||
+      (typeof (normalized.clientAction as { sku?: string } | undefined)?.sku === "string"
+        ? (normalized.clientAction as { sku: string }).sku
+        : undefined);
+
+    const event = await this.provider(input.provider).verifyWebhook(
       {},
       JSON.stringify({
-        orderId: order.id,
-        purchaseToken: dto.purchaseToken,
-        productId,
+        ...input.body,
+        productId: input.body.productId || expectedSku,
         amountMinor: payment.amountMinor,
-        eventId: `gp_confirm_${dto.purchaseToken.slice(0, 16)}`,
+        eventId:
+          input.provider === "google_play"
+            ? `gp_confirm_${String(input.body.purchaseToken || "").slice(0, 16)}`
+            : `apple_confirm_${String(input.body.transactionId || "").slice(0, 16)}`,
       }),
     );
 
+    try {
+      assertSkuMatchesExpected(expectedSku, event.sku);
+    } catch (e) {
+      throw new AppError(
+        ErrorCodes.VALIDATION,
+        e instanceof Error ? e.message : "SKU mismatch",
+        400,
+      );
+    }
+
+    await this.assertProviderRefNotReused(input.provider, event.providerRef, order.id);
+
     await this.prisma.payment.update({
       where: { id: payment.id },
-      data: { providerRef: dto.purchaseToken },
+      data: { providerRef: event.providerRef },
     });
 
-    await this.fulfillPaidOrder(order.id, event);
+    await this.fulfillPaidOrder(order.id, {
+      ...event,
+      amountMinor: event.amountMinor || payment.amountMinor,
+    });
     const updated = await this.prisma.order.findUniqueOrThrow({
       where: { id: order.id },
       include: { items: true, payments: true },
     });
     return { ok: true, order: updated, fulfilled: true };
+  }
+
+  private async resolveOrderIdForEvent(
+    providerName: string,
+    event: VerifiedPaymentEvent,
+  ): Promise<string | undefined> {
+    if (event.orderId) return event.orderId;
+
+    if (event.appAccountToken) {
+      const byToken = await this.prisma.payment.findFirst({
+        where: {
+          provider: providerName,
+          // Prisma JSON path filter
+          normalizedJson: { path: ["appAccountToken"], equals: event.appAccountToken },
+        },
+      });
+      if (byToken) return byToken.orderId;
+    }
+
+    const payment = await this.prisma.payment.findFirst({
+      where: {
+        provider: providerName,
+        OR: [{ providerRef: event.providerRef }],
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return payment?.orderId;
+  }
+
+  /** Prevent the same store purchase token/transaction from fulfilling two orders. */
+  private async assertProviderRefNotReused(
+    provider: string,
+    providerRef: string,
+    currentOrderId: string,
+  ) {
+    if (!providerRef) return;
+    const existing = await this.prisma.payment.findFirst({
+      where: {
+        provider,
+        providerRef,
+        status: { in: ["SUCCEEDED", "REFUNDED", "PARTIALLY_REFUNDED"] },
+        orderId: { not: currentOrderId },
+      },
+    });
+    if (existing) {
+      throw new AppError(
+        ErrorCodes.VALIDATION,
+        "Store purchase token already used for another order",
+        409,
+      );
+    }
+  }
+
+  private async assertEventSkuMatchesPayment(orderId: string, event: VerifiedPaymentEvent) {
+    const payment = await this.prisma.payment.findFirst({ where: { orderId } });
+    if (!payment) return;
+    const normalized = (payment.normalizedJson ?? {}) as Record<string, unknown>;
+    const expectedSku =
+      typeof normalized.expectedSku === "string" ? normalized.expectedSku : undefined;
+    try {
+      assertSkuMatchesExpected(expectedSku, event.sku);
+    } catch (e) {
+      throw new AppError(
+        ErrorCodes.VALIDATION,
+        e instanceof Error ? e.message : "SKU mismatch",
+        400,
+      );
+    }
   }
 
   async refundOrder(actor: RequestUser, orderId: string, dto: RefundDto) {
@@ -453,7 +592,8 @@ export class CommerceService {
 
     const payment = order.payments[0];
     if (!payment) throw new AppError(ErrorCodes.NOT_FOUND, "Payment missing", 404);
-    const amount = opts.amountMinor ?? payment.amountMinor;
+    const amount =
+      opts.amountMinor && opts.amountMinor > 0 ? opts.amountMinor : payment.amountMinor;
     const provider = this.provider(payment.provider);
 
     let providerRefundId = opts.providerEventId || `local_refund_${order.id}`;
@@ -557,6 +697,12 @@ export class CommerceController {
   @UseGuards(AuthGuard)
   confirmPlay(@CurrentUser() user: RequestUser, @Body() dto: GooglePlayConfirmDto) {
     return this.commerce.confirmGooglePlay(user, dto);
+  }
+
+  @Post("payments/apple-iap/confirm")
+  @UseGuards(AuthGuard)
+  confirmApple(@CurrentUser() user: RequestUser, @Body() dto: AppleIapConfirmDto) {
+    return this.commerce.confirmAppleIap(user, dto);
   }
 
   @Post("orders/:id/refund")

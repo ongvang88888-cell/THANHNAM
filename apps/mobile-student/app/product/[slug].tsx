@@ -6,16 +6,20 @@ import {
   StyleSheet,
   Text,
   View,
-  Platform,
 } from "react-native";
 import { api, type ProductDetail } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
+import {
+  defaultProviderForPlatform,
+  purchaseStoreProduct,
+  type StoreProvider,
+} from "../../src/lib/iap";
 
 /**
- * Play Billing purchase path:
- * 1) checkout provider=google_play → SKU
- * 2) On device: react-native-iap / expo-in-app-purchases (wire in EAS build)
- * 3) Dev / Expo Go: confirm with gp_test_* token
+ * Store purchase path (Play / Apple / Mock):
+ * 1) checkout → intent with SKU (+ appAccountToken on Apple)
+ * 2) purchaseStoreProduct (native IAP or gp_test_/iap_test_ bridge)
+ * 3) confirm endpoint → entitlement grant
  */
 export default function ProductScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -23,9 +27,7 @@ export default function ProductScreen() {
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [provider, setProvider] = useState<"mock" | "google_play">(
-    Platform.OS === "android" ? "google_play" : "mock"
-  );
+  const [provider, setProvider] = useState<StoreProvider>(defaultProviderForPlatform());
 
   useEffect(() => {
     if (!slug) return;
@@ -43,23 +45,47 @@ export default function ProductScreen() {
       const result = await api.checkout(token, product.id, provider);
       if (provider === "mock") {
         setMsg(
-          `Đơn hàng: ${result.order.status}${result.fulfilled ? " — đã cấp quyền" : ""}`
+          `Đơn hàng: ${result.order.status}${result.fulfilled ? " — đã cấp quyền" : ""}`,
         );
         return;
       }
 
-      const sku = result.intent?.clientAction?.sku || product.metadataJson?.playSku || product.slug;
-      // Production: launch Play Billing BillingClient.launchBillingFlow({ sku })
-      // Dev bridge: confirm test token so entitlement pipeline is verified end-to-end.
-      const purchaseToken = `gp_test_${result.order.id}_${Date.now()}`;
-      const confirmed = await api.confirmGooglePlay(token, {
+      const sku =
+        result.intent?.clientAction?.sku ||
+        (provider === "apple_iap"
+          ? product.metadataJson?.appleSku
+          : product.metadataJson?.playSku) ||
+        product.slug;
+
+      const purchased = await purchaseStoreProduct({
+        provider,
+        sku,
         orderId: result.order.id,
-        purchaseToken,
+        appAccountToken: result.intent?.clientAction?.appAccountToken,
+      });
+
+      if (provider === "google_play") {
+        const confirmed = await api.confirmGooglePlay(token, {
+          orderId: result.order.id,
+          purchaseToken: purchased.token,
+          productId: sku,
+        });
+        setMsg(
+          `Play (${sku}, ${purchased.mode}): ${confirmed.order.status}` +
+            (confirmed.fulfilled ? " — entitlement granted" : ""),
+        );
+        return;
+      }
+
+      const confirmed = await api.confirmAppleIap(token, {
+        orderId: result.order.id,
+        transactionId: purchased.token,
         productId: sku,
+        signedTransaction: purchased.signedTransaction,
       });
       setMsg(
-        `Play Billing (${sku}): ${confirmed.order.status}` +
-          (confirmed.fulfilled ? " — entitlement granted" : "")
+        `Apple IAP (${sku}, ${purchased.mode}): ${confirmed.order.status}` +
+          (confirmed.fulfilled ? " — entitlement granted" : ""),
       );
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Checkout failed");
@@ -78,6 +104,12 @@ export default function ProductScreen() {
   }
 
   const price = product.prices[0];
+  const buyLabel =
+    provider === "google_play"
+      ? "Mua (Play Billing)"
+      : provider === "apple_iap"
+        ? "Mua (Apple IAP)"
+        : "Mua (Mock)";
 
   return (
     <View style={styles.screen}>
@@ -89,26 +121,25 @@ export default function ProductScreen() {
 
       <Text style={styles.label}>Provider</Text>
       <View style={styles.row}>
-        <Pressable
-          style={[styles.chip, provider === "mock" && styles.chipOn]}
-          onPress={() => setProvider("mock")}
-        >
-          <Text style={[styles.chipText, provider === "mock" && styles.chipTextOn]}>Mock</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.chip, provider === "google_play" && styles.chipOn]}
-          onPress={() => setProvider("google_play")}
-        >
-          <Text style={[styles.chipText, provider === "google_play" && styles.chipTextOn]}>
-            Google Play
-          </Text>
-        </Pressable>
+        {(
+          [
+            ["mock", "Mock"],
+            ["google_play", "Google Play"],
+            ["apple_iap", "Apple IAP"],
+          ] as const
+        ).map(([id, label]) => (
+          <Pressable
+            key={id}
+            style={[styles.chip, provider === id && styles.chipOn]}
+            onPress={() => setProvider(id)}
+          >
+            <Text style={[styles.chipText, provider === id && styles.chipTextOn]}>{label}</Text>
+          </Pressable>
+        ))}
       </View>
 
       <Pressable style={styles.btn} onPress={buy} disabled={busy}>
-        <Text style={styles.btnText}>
-          {busy ? "Đang xử lý…" : provider === "google_play" ? "Mua (Play Billing)" : "Mua (Mock)"}
-        </Text>
+        <Text style={styles.btnText}>{busy ? "Đang xử lý…" : buyLabel}</Text>
       </Pressable>
 
       {product.course?.sections?.[0]?.lessons?.[0]?.id && (
@@ -133,7 +164,7 @@ const styles = StyleSheet.create({
   meta: { color: "#5A6B63" },
   desc: { color: "#3D4A44", lineHeight: 22 },
   label: { color: "#5A6B63", fontWeight: "600" },
-  row: { flexDirection: "row", gap: 8 },
+  row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
     borderWidth: 1,
     borderColor: "#0B3D2E",

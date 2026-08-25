@@ -53,34 +53,56 @@ export class GooglePlayPaymentProvider implements PaymentProvider {
     _headers: Record<string, string | undefined>,
     body: string,
   ): Promise<VerifiedPaymentEvent> {
-    const parsed = JSON.parse(body) as {
+    const envelope = JSON.parse(body) as Record<string, unknown>;
+    // Google Cloud Pub/Sub push envelope for Real-time developer notifications
+    let parsed = envelope as {
       orderId?: string;
       purchaseToken?: string;
       productId?: string;
       amountMinor?: number;
       eventId?: string;
       notificationType?: number;
+      oneTimeProductNotification?: { notificationType?: number; purchaseToken?: string; sku?: string };
+      subscriptionNotification?: { notificationType?: number; purchaseToken?: string; subscriptionId?: string };
+      packageName?: string;
     };
 
-    if (parsed.notificationType === 12 || parsed.notificationType === 13) {
-      // SUBSCRIPTION_REVOKED / refund-like RTDN — treat as refund signal
+    if (envelope.message && typeof envelope.message === "object") {
+      const msg = envelope.message as { data?: string; messageId?: string };
+      if (typeof msg.data === "string") {
+        const decoded = Buffer.from(msg.data, "base64").toString("utf8");
+        parsed = JSON.parse(decoded) as typeof parsed;
+        parsed.eventId = parsed.eventId || msg.messageId;
+      }
+    }
+
+    const oneTime = parsed.oneTimeProductNotification;
+    const sub = parsed.subscriptionNotification;
+    const notificationType = oneTime?.notificationType ?? sub?.notificationType ?? parsed.notificationType;
+    const token =
+      parsed.purchaseToken || oneTime?.purchaseToken || sub?.purchaseToken || undefined;
+    const sku = parsed.productId || oneTime?.sku || sub?.subscriptionId;
+
+    // One-time: 2 = CANCELED. Subscription: 12 = REVOKED, 13 = EXPIRED, 3 = CANCELED
+    const refundTypes = new Set([2, 3, 12, 13]);
+    if (notificationType != null && refundTypes.has(Number(notificationType))) {
       return {
         provider: this.name,
-        providerEventId: parsed.eventId || `gp_rtdn_${parsed.purchaseToken || "unknown"}`,
-        providerRef: parsed.purchaseToken || `gp_order_${parsed.orderId}`,
+        providerEventId: parsed.eventId || `gp_rtdn_${token || "unknown"}`,
+        providerRef: token || `gp_order_${parsed.orderId}`,
         orderId: parsed.orderId,
         status: "REFUNDED",
         amountMinor: parsed.amountMinor || 0,
+        sku,
         raw: parsed as unknown as Record<string, unknown>,
       };
     }
 
-    const token = parsed.purchaseToken;
     if (!token) {
       throw new AppError(ErrorCodes.VALIDATION, "purchaseToken required", 400);
     }
 
-    const verified = await this.verifyPurchaseToken(token, parsed.productId);
+    const verified = await this.verifyPurchaseToken(token, sku);
     if (!verified.ok) {
       throw new AppError(ErrorCodes.FORBIDDEN, verified.reason || "Invalid Play purchase", 401);
     }
@@ -92,6 +114,7 @@ export class GooglePlayPaymentProvider implements PaymentProvider {
       orderId: parsed.orderId,
       status: "SUCCEEDED",
       amountMinor: parsed.amountMinor || 0,
+      sku,
       raw: { ...parsed, verify: verified },
     };
   }

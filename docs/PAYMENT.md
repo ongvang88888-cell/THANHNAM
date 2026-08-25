@@ -42,7 +42,16 @@ Fulfillment = grant entitlements (and subscription activation).
 
 ## Store policy note
 
-Digital content unlocks distributed via App Store / Play often **require** store billing. Encode rules in `PaymentPolicyConfig` per platform/app; update when policies change — do not sprinkle conditionals across UI forever.
+Digital content unlocks distributed via App Store / Play **require** store billing.
+Encode rules in `PaymentPolicyConfig` / `allowedCheckoutProviders(platform)` —
+do not sprinkle conditionals across UI forever.
+
+## Security invariants
+
+- Idempotent fulfill (`Transaction.providerEventId`)
+- Store token/transaction cannot be reused across orders
+- Checkout `expectedSku` must match verified store SKU when present
+- Apple `appAccountToken` (UUID) correlates ASN → order without trusting client alone
 
 ## Entitlement fulfillment
 

@@ -11,12 +11,19 @@ export interface CreatePaymentIntentResult {
   provider: string;
   providerRef: string;
   clientAction: {
-    type: "redirect" | "client_secret" | "noop" | "play_billing";
+    type: "redirect" | "client_secret" | "noop" | "play_billing" | "apple_iap";
     url?: string;
     clientSecret?: string;
-    /** Google Play product ID / SKU */
+    /** Store product ID / SKU (Play or Apple) */
     sku?: string;
     packageName?: string;
+    /** iOS bundle id */
+    bundleId?: string;
+    /**
+     * UUID passed to StoreKit as appAccountToken so ASN/webhooks can
+     * correlate back to our order without trusting client orderId alone.
+     */
+    appAccountToken?: string;
   };
 }
 
@@ -27,6 +34,10 @@ export interface VerifiedPaymentEvent {
   orderId?: string;
   status: "SUCCEEDED" | "FAILED" | "REFUNDED";
   amountMinor: number;
+  /** Verified store SKU when available */
+  sku?: string;
+  /** Apple appAccountToken (UUID) when present */
+  appAccountToken?: string;
   raw: Record<string, unknown>;
 }
 
@@ -51,30 +62,84 @@ export interface PaymentProvider {
   refund?(input: RefundPaymentInput): Promise<RefundPaymentResult>;
 }
 
+export type CheckoutPlatform = "web" | "android" | "ios" | "unknown";
+
+/**
+ * Central store / checkout policy (D3).
+ * Keep platform rules here — never scatter provider allowlists across UI.
+ */
+export const PaymentPolicyConfig = {
+  webProviders: ["mock", "stripe", "vnpay"] as const,
+  androidProviders: ["google_play", "mock"] as const,
+  iosProviders: ["apple_iap", "mock"] as const,
+  /** Dev / unknown clients may hit any adapter for tooling */
+  unknownProviders: ["mock", "stripe", "vnpay", "google_play", "apple_iap"] as const,
+};
+
 /** Store-policy aware checkout providers by client platform. */
-export function allowedCheckoutProviders(
-  platform: "web" | "android" | "ios" | "unknown" = "unknown",
-): string[] {
+export function allowedCheckoutProviders(platform: CheckoutPlatform = "unknown"): string[] {
   switch (platform) {
     case "android":
-      return ["google_play", "mock"];
+      return [...PaymentPolicyConfig.androidProviders];
     case "ios":
-      return ["apple_iap", "mock"];
+      return [...PaymentPolicyConfig.iosProviders];
     case "web":
-      return ["mock", "stripe", "vnpay"];
+      return [...PaymentPolicyConfig.webProviders];
     default:
-      return ["mock", "stripe", "vnpay", "google_play"];
+      return [...PaymentPolicyConfig.unknownProviders];
   }
 }
 
 export function assertProviderAllowedForPlatform(
   provider: string,
-  platform: "web" | "android" | "ios" | "unknown" = "unknown",
+  platform: CheckoutPlatform = "unknown",
 ): void {
   const allowed = allowedCheckoutProviders(platform);
   if (!allowed.includes(provider)) {
     throw new Error(
       `Provider ${provider} is not allowed on platform ${platform}. Allowed: ${allowed.join(", ")}`,
     );
+  }
+}
+
+/** Pick default store provider for a platform (non-mock). */
+export function defaultStoreProvider(platform: CheckoutPlatform): string | null {
+  switch (platform) {
+    case "android":
+      return "google_play";
+    case "ios":
+      return "apple_iap";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Resolve SKU from product metadata for a store provider.
+ * Prefer explicit playSku / appleSku; fall back to slug.
+ */
+export function resolveStoreSku(
+  provider: string,
+  meta: Record<string, unknown>,
+  fallbackSlug: string,
+): string {
+  if (provider === "google_play") {
+    const play = meta.playSku;
+    if (typeof play === "string" && play.length > 0) return play;
+  }
+  if (provider === "apple_iap") {
+    const apple = meta.appleSku;
+    if (typeof apple === "string" && apple.length > 0) return apple;
+  }
+  const generic = meta.sku;
+  if (typeof generic === "string" && generic.length > 0) return generic;
+  return fallbackSlug;
+}
+
+/** Enforce that a verified store SKU matches what we issued at checkout. */
+export function assertSkuMatchesExpected(expectedSku: string | undefined, actualSku: string | undefined): void {
+  if (!expectedSku || !actualSku) return;
+  if (expectedSku !== actualSku) {
+    throw new Error(`Store SKU mismatch: expected ${expectedSku}, got ${actualSku}`);
   }
 }
