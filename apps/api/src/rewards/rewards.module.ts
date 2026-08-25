@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { Body, Controller, Get, Injectable, Module, Post, Query, UseGuards, Inject } from "@nestjs/common";
 import { IsString } from "class-validator";
-import { evaluateRewardEligibility } from "@edu/monetization-core";
+import { evaluateRewardEligibility, verifyAdmobSsvSignature } from "@edu/monetization-core";
 import { AppError, ErrorCodes } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
 import { AuthGuard, CurrentUser, type RequestUser } from "../auth/auth.guard";
@@ -20,9 +20,7 @@ class EligibilityDto {
 
 @Injectable()
 export class RewardsService {
-  constructor(
-  @Inject(PrismaService) private readonly prisma: PrismaService,
-) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   private async rewardedEnabled(appId: string) {
     const cfg = await this.prisma.appConfig.findUnique({
@@ -92,31 +90,18 @@ export class RewardsService {
     };
   }
 
-  /**
-   * AdMob SSV callback — verifies transaction uniqueness and grants entitlement.
-   * Production must ECDSA-verify signature against AdMob keys.
-   * Dev mode accepts signed=dev when ADMOB_SSV_ENFORCE is not true.
-   */
   async handleSsv(query: Record<string, string>) {
-    const enforce = process.env.ADMOB_SSV_ENFORCE === "true";
     const transactionId = query.transaction_id;
     const customData = query.custom_data;
-    const signature = query.signature;
     const userIdParam = query.user_id;
 
     if (!transactionId || !customData) {
       throw new AppError(ErrorCodes.VALIDATION, "Missing SSV params");
     }
 
-    if (enforce) {
-      // Placeholder for ECDSA verification against AdMob key server.
-      if (!signature || !query.key_id) {
-        throw new AppError(ErrorCodes.REWARD_DENIED, "SSV signature required", 401);
-      }
-      // Full ECDSA verify to be completed with Tink/node crypto against
-      // https://gstatic.com/admob/reward/verifier-keys.json
-    } else if (signature && signature !== "dev") {
-      // soft accept in non-enforce environments
+    const verified = await verifyAdmobSsvSignature(query);
+    if (!verified.ok) {
+      throw new AppError(ErrorCodes.REWARD_DENIED, `SSV rejected: ${verified.reason}`, 401);
     }
 
     const session = await this.prisma.rewardSession.findUnique({ where: { nonce: customData } });
@@ -209,13 +194,22 @@ export class RewardsService {
         },
       });
 
+      await tx.notification.create({
+        data: {
+          userId: session.userId,
+          channel: "in_app",
+          title: "Reward unlocked",
+          body: "Bạn đã mở khóa nội dung tạm thời bằng quảng cáo thưởng.",
+          metaJson: { entitlementId: entitlement.id, expiresAt },
+        },
+      });
+
       return { entitlementId: entitlement.id, expiresAt };
     });
 
     return { ok: true, ...result };
   }
 
-  /** Dev-only helper to simulate completed ad + SSV without AdMob. */
   async devComplete(user: RequestUser, rewardSessionId: string) {
     if (process.env.NODE_ENV === "production") {
       throw new AppError(ErrorCodes.FORBIDDEN, "Not available", 403);
@@ -236,9 +230,7 @@ export class RewardsService {
 
 @Controller("rewards")
 export class RewardsController {
-  constructor(
-  @Inject(RewardsService) private readonly rewards: RewardsService,
-) {}
+  constructor(@Inject(RewardsService) private readonly rewards: RewardsService) {}
 
   @Post("eligibility")
   @UseGuards(AuthGuard)

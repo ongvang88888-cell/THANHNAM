@@ -219,13 +219,58 @@ async function main() {
     },
   });
 
+  // Quiz for course
+  const quizCount = await prisma.quiz.count({ where: { courseId: course.id } });
+  if (quizCount === 0) {
+    await prisma.quiz.create({
+      data: {
+        courseId: course.id,
+        title: "TypeScript Basics Check",
+        configJson: { passScore: 70, maxAttempts: 5 },
+        questions: {
+          create: [
+            {
+              type: "mcq",
+              stem: "TypeScript là gì?",
+              position: 1,
+              answers: {
+                create: [
+                  { body: "Superset của JavaScript với static types", isCorrect: true, position: 1 },
+                  { body: "Một database", isCorrect: false, position: 2 },
+                  { body: "Một CSS framework", isCorrect: false, position: 3 },
+                ],
+              },
+            },
+            {
+              type: "true_false",
+              stem: "interface trong TypeScript chỉ tồn tại lúc compile.",
+              position: 2,
+              answers: {
+                create: [
+                  { body: "Đúng", isCorrect: true, position: 1 },
+                  { body: "Sai", isCorrect: false, position: 2 },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  await prisma.featureFlag.upsert({
+    where: { appId_key: { appId: app.id, key: "quiz_enabled" } },
+    update: { enabled: true },
+    create: { appId: app.id, key: "quiz_enabled", enabled: true, valueJson: {} },
+  });
+
   const configs: Record<string, unknown> = {
     ads_enabled: true,
     rewarded_enabled: true,
     reward_limit: 5,
     reward_duration: 24,
     purchase_enabled: true,
-    subscription_enabled: false,
+    subscription_enabled: true,
     maintenance_mode: false,
     minimum_version: "1.0.0",
     recommended_version: "1.0.0",

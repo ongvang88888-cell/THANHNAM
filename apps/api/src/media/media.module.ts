@@ -1,10 +1,12 @@
 import { Body, Controller, Injectable, Module, Param, Post, UseGuards, Inject } from "@nestjs/common";
-import { IsInt, IsString, Min } from "class-validator";
+import { IsString } from "class-validator";
 import {
-  MemoryStorageProvider,
-  NoopTranscodeAdapter,
+  createStorageFromEnv,
+  createTranscodeFromEnv,
   assertAllowedMime,
   buildObjectKey,
+  type IStorageProvider,
+  type TranscodePort,
 } from "@edu/media-core";
 import { AppError, ErrorCodes } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
@@ -31,8 +33,8 @@ class PlaybackDto {
 
 @Injectable()
 export class MediaService {
-  private storage = new MemoryStorageProvider();
-  private transcode = new NoopTranscodeAdapter();
+  private storage: IStorageProvider = createStorageFromEnv();
+  private transcode: TranscodePort = createTranscodeFromEnv();
 
   constructor(
   @Inject(PrismaService) private readonly prisma: PrismaService,

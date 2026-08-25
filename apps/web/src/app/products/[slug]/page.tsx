@@ -110,8 +110,31 @@ export default function ProductPage() {
               </ul>
             </div>
           ))}
+          <CourseQuizzes courseId={product.course.id} token={token} />
         </div>
       )}
     </section>
+  );
+}
+
+function CourseQuizzes({ courseId, token }: { courseId: string; token: string | null }) {
+  const [quizzes, setQuizzes] = useState<Array<{ id: string; title: string }>>([]);
+  useEffect(() => {
+    apiGet<Array<{ id: string; title: string }>>(`/quizzes/by-course/${courseId}`, token)
+      .then(setQuizzes)
+      .catch(() => setQuizzes([]));
+  }, [courseId, token]);
+  if (quizzes.length === 0) return null;
+  return (
+    <div style={{ marginTop: 20 }}>
+      <h3>Quizzes</h3>
+      <ul className="lesson-list">
+        {quizzes.map((q) => (
+          <li key={q.id}>
+            <a href={`/quizzes/${q.id}`}>{q.title}</a>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

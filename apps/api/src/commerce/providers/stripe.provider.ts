@@ -4,9 +4,10 @@ import type {
   PaymentProvider,
   VerifiedPaymentEvent,
 } from "@edu/monetization-core";
+import { verifyStripeWebhookSignature } from "@edu/monetization-core";
 import { AppError, ErrorCodes } from "@edu/shared-core";
 
-/** Stripe adapter skeleton — uses PaymentIntent shape without requiring live keys in local mock mode. */
+/** Stripe adapter — live PaymentIntent when STRIPE_SECRET_KEY set; verifies webhook HMAC when secret set. */
 export class StripePaymentProvider implements PaymentProvider {
   readonly name = "stripe";
 
@@ -47,11 +48,16 @@ export class StripePaymentProvider implements PaymentProvider {
   }
 
   async verifyWebhook(headers: Record<string, string | undefined>, body: string): Promise<VerifiedPaymentEvent> {
-    // Production: verify stripe-signature with STRIPE_WEBHOOK_SECRET.
-    // Local/dev accepts JSON payload with required fields when secret unset.
-    if (process.env.STRIPE_WEBHOOK_SECRET && !headers["stripe-signature"]) {
-      throw new AppError(ErrorCodes.FORBIDDEN, "Missing Stripe signature", 401);
+    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (secret) {
+      const sig = headers["stripe-signature"];
+      if (!verifyStripeWebhookSignature(body, sig, secret)) {
+        throw new AppError(ErrorCodes.FORBIDDEN, "Invalid Stripe signature", 401);
+      }
+    } else if (process.env.NODE_ENV === "production") {
+      throw new AppError(ErrorCodes.FORBIDDEN, "STRIPE_WEBHOOK_SECRET required in production", 500);
     }
+
     const parsed = JSON.parse(body) as {
       id: string;
       type: string;

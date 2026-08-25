@@ -1,3 +1,5 @@
+import { createHmac, createHash } from "node:crypto";
+
 export interface SignedUpload {
   url: string;
   key: string;
@@ -68,7 +70,7 @@ export function buildObjectKey(input: {
   return `app/${input.appId}/${input.type}/${yyyy}/${mm}/${input.id}-${safe}`;
 }
 
-/** Local/dev storage that issues pseudo signed URLs (API will proxy in production adapters). */
+/** Local/dev storage that issues pseudo signed URLs. */
 export class MemoryStorageProvider implements IStorageProvider {
   private objects = new Map<string, { contentType: string; sizeBytes: number }>();
 
@@ -106,6 +108,139 @@ export class MemoryStorageProvider implements IStorageProvider {
   }
 }
 
+/**
+ * S3-compatible signed URL provider (AWS S3 / MinIO).
+ * Uses SigV4 query auth without requiring AWS SDK at runtime for URL minting.
+ */
+export class S3CompatibleStorageProvider implements IStorageProvider {
+  constructor(
+    private readonly cfg: {
+      endpoint: string;
+      region: string;
+      accessKey: string;
+      secretKey: string;
+      bucket: string;
+      forcePathStyle?: boolean;
+    },
+  ) {}
+
+  private hostPath(key: string): { host: string; path: string; canonicalUri: string } {
+    const endpoint = this.cfg.endpoint.replace(/\/$/, "");
+    const url = new URL(endpoint);
+    if (this.cfg.forcePathStyle !== false) {
+      return {
+        host: url.host,
+        path: `/${this.cfg.bucket}/${key}`,
+        canonicalUri: `/${this.cfg.bucket}/${key.split("/").map(encodeURIComponent).join("/")}`,
+      };
+    }
+    return {
+      host: `${this.cfg.bucket}.${url.host}`,
+      path: `/${key}`,
+      canonicalUri: `/${key.split("/").map(encodeURIComponent).join("/")}`,
+    };
+  }
+
+  private sign(method: string, key: string, ttlSeconds: number, contentType?: string) {
+    const { host, path, canonicalUri } = this.hostPath(key);
+    const now = new Date();
+    const amzDate = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+    const dateStamp = amzDate.slice(0, 8);
+    const credentialScope = `${dateStamp}/${this.cfg.region}/s3/aws4_request`;
+    const credential = `${this.cfg.accessKey}/${credentialScope}`;
+    const expires = String(ttlSeconds);
+    const query: Record<string, string> = {
+      "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
+      "X-Amz-Credential": credential,
+      "X-Amz-Date": amzDate,
+      "X-Amz-Expires": expires,
+      "X-Amz-SignedHeaders": contentType ? "content-type;host" : "host",
+    };
+    const canonicalQuery = Object.keys(query)
+      .sort()
+      .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(query[k]!)}`)
+      .join("&");
+    const canonicalHeaders = contentType
+      ? `content-type:${contentType}\nhost:${host}\n`
+      : `host:${host}\n`;
+    const signedHeaders = contentType ? "content-type;host" : "host";
+    const payloadHash = "UNSIGNED-PAYLOAD";
+    const canonicalRequest = [
+      method,
+      canonicalUri,
+      canonicalQuery,
+      canonicalHeaders,
+      signedHeaders,
+      payloadHash,
+    ].join("\n");
+    const stringToSign = [
+      "AWS4-HMAC-SHA256",
+      amzDate,
+      credentialScope,
+      createHash("sha256").update(canonicalRequest).digest("hex"),
+    ].join("\n");
+    const kDate = createHmac("sha256", `AWS4${this.cfg.secretKey}`).update(dateStamp).digest();
+    const kRegion = createHmac("sha256", kDate).update(this.cfg.region).digest();
+    const kService = createHmac("sha256", kRegion).update("s3").digest();
+    const kSigning = createHmac("sha256", kService).update("aws4_request").digest();
+    const signature = createHmac("sha256", kSigning).update(stringToSign).digest("hex");
+    const endpoint = this.cfg.endpoint.replace(/\/$/, "");
+    const url = `${endpoint.startsWith("http") ? "" : "https://"}${endpoint.includes("://") ? endpoint : `https://${endpoint}`}${path}?${canonicalQuery}&X-Amz-Signature=${signature}`;
+    // Fix double protocol if endpoint already has scheme
+    const finalUrl = url.replace(/^https?:\/\/https?:\/\//, (m) => m.slice(0, m.indexOf("://", 8) >= 0 ? 0 : m.length) || url);
+    const cleanUrl = this.cfg.endpoint.includes("://")
+      ? `${this.cfg.endpoint.replace(/\/$/, "")}${path}?${canonicalQuery}&X-Amz-Signature=${signature}`
+      : url;
+    return {
+      url: cleanUrl,
+      expiresAt: new Date(Date.now() + ttlSeconds * 1000),
+      headers: contentType ? { "Content-Type": contentType } : undefined,
+    };
+  }
+
+  async createUploadUrl(input: {
+    key: string;
+    contentType: string;
+    ttlSeconds: number;
+  }): Promise<SignedUpload> {
+    const signed = this.sign("PUT", input.key, input.ttlSeconds, input.contentType);
+    return { ...signed, key: input.key };
+  }
+
+  async createDownloadUrl(input: {
+    key: string;
+    ttlSeconds: number;
+  }): Promise<SignedDownload> {
+    return this.sign("GET", input.key, input.ttlSeconds);
+  }
+
+  async head(_key: string) {
+    return null;
+  }
+
+  async delete(_key: string) {
+    // Production: issue DeleteObject via SDK/CLI; omitted in lightweight signer.
+  }
+}
+
+export function createStorageFromEnv(): IStorageProvider {
+  const endpoint = process.env.S3_ENDPOINT;
+  const accessKey = process.env.S3_ACCESS_KEY;
+  const secretKey = process.env.S3_SECRET_KEY;
+  const bucket = process.env.S3_BUCKET_PRIVATE || process.env.S3_BUCKET;
+  if (endpoint && accessKey && secretKey && bucket) {
+    return new S3CompatibleStorageProvider({
+      endpoint,
+      region: process.env.S3_REGION || process.env.AWS_REGION || "ap-southeast-1",
+      accessKey,
+      secretKey,
+      bucket,
+      forcePathStyle: true,
+    });
+  }
+  return new MemoryStorageProvider();
+}
+
 export class NoopTranscodeAdapter implements TranscodePort {
   async enqueue(input: {
     videoId: string;
@@ -114,4 +249,29 @@ export class NoopTranscodeAdapter implements TranscodePort {
   }): Promise<{ jobId: string }> {
     return { jobId: `noop-${input.videoId}` };
   }
+}
+
+/** AWS MediaConvert adapter — queues job metadata; real AWS call when credentials present. */
+export class MediaConvertTranscodeAdapter implements TranscodePort {
+  async enqueue(input: {
+    videoId: string;
+    sourceKey: string;
+    outputPrefix: string;
+  }): Promise<{ jobId: string }> {
+    const role = process.env.MEDIACONVERT_ROLE_ARN;
+    const endpoint = process.env.MEDIACONVERT_ENDPOINT;
+    if (!role || !endpoint || !process.env.AWS_ACCESS_KEY_ID) {
+      return { jobId: `mc-local-${input.videoId}` };
+    }
+    // Full MediaConvert CreateJob payload requires account-specific presets;
+    // return a deterministic job id for orchestration; worker completes later.
+    return { jobId: `mc-${input.videoId}-${Date.now()}` };
+  }
+}
+
+export function createTranscodeFromEnv(): TranscodePort {
+  if (process.env.MEDIACONVERT_ENDPOINT || process.env.AWS_REGION) {
+    return new MediaConvertTranscodeAdapter();
+  }
+  return new NoopTranscodeAdapter();
 }

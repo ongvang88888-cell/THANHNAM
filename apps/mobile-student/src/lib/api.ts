@@ -66,4 +66,30 @@ export const api = {
     request<{
       products: Array<{ id: string; name: string; slug: string; type: string }>;
     }>("/me/library", { token }),
+  getLesson: (token: string, lessonId: string) =>
+    request<{
+      id: string;
+      title: string;
+      access: { code: string };
+      contents: Array<{ id: string; body?: string | null }>;
+    }>(`/lessons/${lessonId}`, { token }),
+  rewardEligibility: (token: string, lessonId: string) =>
+    request<{ eligible: boolean; reason?: string; rewardSessionId?: string }>(
+      "/rewards/eligibility",
+      {
+        method: "POST",
+        token,
+        body: {
+          resourceType: "lesson",
+          resourceId: lessonId,
+          policyCode: "lesson_unlock_24h",
+        },
+      }
+    ),
+  rewardDevComplete: (token: string, rewardSessionId: string) =>
+    request("/rewards/dev/complete", {
+      method: "POST",
+      token,
+      body: { rewardSessionId },
+    }),
 };

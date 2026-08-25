@@ -1,38 +1,43 @@
-# Implementation status (Phase 5 MVP)
+# Implementation status (Phase 5+)
 
 Last updated: 2026-08-25
 
-## Done
+## Done in this completion pass
 
-- Monorepo: pnpm + Turborepo (`apps/*`, `packages/*`)
-- Prisma schema + seed (`education_app`, demo users, course/document/bundle, reward policy)
-- Packages: `shared-core`, `education-core`, `monetization-core` (7 vitest tests), `media-core`
-- NestJS API (`apps/api`): auth, catalog, curriculum/lessons+access, commerce (mock/Stripe/VNPay adapters), rewards (SSV + `dev/complete`), progress/library, teacher, admin, media stubs, remote-config
-- Next.js unified web (`apps/web`): catalog, product buy, learn + rewarded unlock UI, library, teacher, admin, login
-- Expo student shell (`apps/mobile-student`): catalog, login, product buy, library
-- Workers stub (`apps/workers`): BullMQ queues for entitlement/webhook jobs
+- **AdMob SSV**: ECDSA verification via `verifyAdmobSsvSignature` (`ADMOB_SSV_ENFORCE=true` for production)
+- **Stripe webhook HMAC** verification when `STRIPE_WEBHOOK_SECRET` set
+- **S3/MinIO storage** + MediaConvert adapter factories (`createStorageFromEnv` / `createTranscodeFromEnv`)
+- **Quiz API + UI**: server-side scoring, seed quiz, `/quizzes/*`, web quiz page
+- **Certificates**: public verify page `/verify/certificate/[publicId]`
+- **Notifications**: list + mark read; purchase/reward create in-app notifications
+- **Analytics**: `POST /analytics/events`
+- **Reviews**: product reviews (purchasers only)
+- **Subscriptions**: `POST /subscriptions/start` + entitlement grant (MVP mock activate)
+- **Workers**: BullMQ entitlement expiry (every 5m) + media/webhook queues
+- **Mobile**: learn screen + reward unlock flow
+- **Tests**: monetization 7 + education quiz 2
 
-## Verified locally
+## Verified
 
-- `GET /api/v1/health` → ok
-- Student login → JWT
-- Paid lesson before purchase → access gate
-- Mock checkout → fulfill entitlements
-- Monetization-core unit tests → 7/7 pass
-- `next build` (NODE_ENV=production) → success
+- Health, checkout fulfill, quiz submit score 100, notifications > 0
+- `next build` success (quiz/notifications/certificate routes)
+- Workers boot + expire job
 
-## Intentionally deferred (post-MVP)
+## Still needs your credentials / ops (cannot fake in this VM)
 
-- Live Stripe/VNPay credentials + production webhook hardening
-- Full AdMob ECDSA SSV verification (`ADMOB_SSV_ENFORCE=true`)
-- AWS S3 + MediaConvert pipeline (D6)
-- Separate storefront/teacher/admin Next apps (unified web for MVP)
-- Quizzes/certificates polished UI
-- Affiliate, AI assistants, marketplace revenue split (schema-ready, D4 off)
-- Production mobile builds / store listing
+| Item | What you provide |
+|------|------------------|
+| Stripe live | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
+| VNPay live | `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET` |
+| AdMob enforce | Set `ADMOB_SSV_ENFORCE=true` + real SSV callbacks |
+| AWS S3 / MediaConvert | Real AWS keys, bucket, `MEDIACONVERT_*` |
+| Aikido SAST | Sign in MCP (see agent message for URLs) |
+| GitHub remote | Push branch from a checkout with repo access |
+| Store builds | EAS / Play / App Store accounts |
 
-## Run notes
+## Deferred by product decision (not MVP blockers)
 
-- Prefer `tsc` + `node dist/main.js` for API (Nest DI needs emitDecoratorMetadata)
-- Docker Compose exists but this environment used apt PostgreSQL/Redis
-- Dev reward completion: `POST /api/v1/rewards/dev/complete` — **not for production**
+- Marketplace revenue split (D4 off)
+- Full affiliate payouts, AI generation UX
+- Separate Next apps per surface (unified `apps/web` is intentional for MVP)
+- MoMo/ZaloPay adapters

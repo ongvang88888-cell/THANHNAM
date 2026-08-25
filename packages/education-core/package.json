@@ -15,7 +15,8 @@
     "@edu/shared-core": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "^26.3.0",
     "typescript": "^5.8.2",
-    "vitest": "^3.0.9"
+    "vitest": "^3.2.7"
   }
 }
