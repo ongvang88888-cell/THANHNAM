@@ -1,0 +1,28 @@
+---
+description: Database schema and migration discipline
+alwaysApply: true
+globs:
+  - "**/*schema*"
+  - "**/migrations/**"
+  - "**/prisma/**"
+---
+
+# Database Rules
+
+## Design
+
+- Flat relational tables + FKs; avoid deep nested JSON for core relations
+- Index FKs and entitlement/access hot paths
+- Include `app_id` on tenant-scoped tables
+- Prefer cursor pagination over unbounded collect
+
+## Migrations
+
+- Every schema change has a migration
+- Expand/contract for safe deploys
+- Document rollback notes for risky migrations
+- Never break existing entitlement/order history
+
+## Money tables
+
+- Unique constraints preventing duplicate payments/entitlements/reward txs

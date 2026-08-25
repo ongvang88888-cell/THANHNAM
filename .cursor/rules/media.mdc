@@ -1,0 +1,30 @@
+---
+description: Video and document media pipeline rules
+alwaysApply: true
+globs:
+  - "packages/media-core/**"
+  - "**/video*/**"
+  - "**/document*/**"
+---
+
+# Media Rules
+
+## Video
+
+- Private originals/renditions
+- Transcode async via queue
+- Playback only after Access Engine allow
+- Short-lived signed URLs only
+- Support multi-quality HLS/DASH
+
+## Documents
+
+- Versioned blobs
+- Authz before preview/download
+- MIME allowlist + size limits
+
+## Never
+
+- Public ACL on paid objects
+- Eternal signed URLs
+- Skipping entitlement checks for “convenience”

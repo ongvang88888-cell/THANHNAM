@@ -1,0 +1,18 @@
+---
+description: Documentation must stay aligned with architecture
+alwaysApply: true
+---
+
+# Documentation Rules
+
+## When code changes boundaries
+
+Update the relevant file under `/docs` and Architecture Package references.
+
+## Required docs exist
+
+ARCHITECTURE · DOMAIN_MODEL · DATABASE · API · AUTH · COURSE · VIDEO · DOCUMENT · PRODUCT · BUNDLE · PAYMENT · ENTITLEMENT · REWARDED_ACCESS · ADS · SUBSCRIPTION · SECURITY · ANALYTICS · QUIZ · CERTIFICATE · AFFILIATE · AI · ADMIN · TEACHER · STUDENT · DEPLOYMENT · BACKUP · DISASTER_RECOVERY · NEW_APP · DEVELOPMENT_GUIDE
+
+## NEW_APP.md
+
+Must remain accurate: App #2 reuses Core; no rewrite of payment/auth/ads/entitlement/analytics/security.

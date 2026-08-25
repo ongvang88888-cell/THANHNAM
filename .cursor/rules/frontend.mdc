@@ -1,0 +1,28 @@
+---
+description: Frontend/web standards — no client authority for access
+alwaysApply: true
+globs:
+  - "apps/*-web/**"
+  - "packages/design-system/**"
+---
+
+# Frontend Rules
+
+## Access UX
+
+- Render FREE / PREMIUM / BUY / WATCH AD / LOCKED from server AccessDecision
+- Never gate screens with local `isPremium` as authority
+- Explain rewarded unlock duration/limits before showing ads
+- No dark patterns hiding price/terms
+
+## Engineering
+
+- Use Shared API client + error model
+- Use Design System components; do not fork casually
+- Paginate lists; lazy-load heavy media
+- Mobile-first layouts for student surfaces
+
+## Performance
+
+- Avoid blocking render on analytics
+- Prefer progressive enhancement for player/reader

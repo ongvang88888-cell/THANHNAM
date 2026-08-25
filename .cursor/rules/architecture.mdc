@@ -1,0 +1,30 @@
+---
+description: Platform architecture governance — Shared Core reuse, dependency rules
+alwaysApply: true
+---
+
+# Architecture Rules
+
+## Before writing code
+
+1. Search the repo for an existing module.
+2. Check Shared Core, Education Core, Monetization Core, Media Core.
+3. Reuse or extend — do not duplicate.
+4. Prefer ports/adapters for providers.
+5. Update docs when boundaries change.
+
+## Dependency direction
+
+Apps → Education/Monetization/Media cores → Shared Core → infrastructure ports.
+
+Never invert. Never copy Shared Core into an app.
+
+## Forbidden
+
+- Duplicate Auth, Payment, Entitlement, Ads/Reward, Analytics, Security, Storage client, API error handling, Design System
+- Hard-coding a single cloud/payment/ads/AI provider into domain logic
+- Architecture changes that block multi-app or marketplace evolution without explicit approval
+
+## Ambiguity
+
+If a change affects database, payment, entitlement, security, video, or access policy — do not silently pick a high-impact option; surface the conflict.

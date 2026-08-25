@@ -1,0 +1,27 @@
+---
+description: Security requirements for Education Commerce Platform
+alwaysApply: true
+---
+
+# Security Rules
+
+## Never
+
+- Commit secrets, API keys, private keys, webhook secrets
+- Log passwords, access/refresh tokens, payment credentials, unnecessary sensitive PII
+- Trust the client for entitlements, premium flags, or `reward=true`
+- Expose permanent public URLs for paid media
+- Disable authz checks “temporarily” in production paths
+
+## Always
+
+- Validate/sanitize inputs at API boundary
+- Enforce RBAC + ownership checks server-side
+- Use short-lived signed URLs for entitled media
+- Rate-limit auth, checkout, SSV, upload
+- Audit admin grants, refunds, config changes
+- Verify payment webhooks and AdMob SSV signatures
+
+## Uploads
+
+Allowlist MIME · size limits · checksum · async malware scan hook

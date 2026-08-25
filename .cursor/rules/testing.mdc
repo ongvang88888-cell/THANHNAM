@@ -1,0 +1,21 @@
+---
+description: Testing requirements and Definition of Done
+alwaysApply: true
+---
+
+# Testing Rules
+
+## Required for feature Done
+
+- Unit tests for pure domain (policies, pricing, idempotency)
+- Authz positive + negative tests for sensitive endpoints
+- Integration tests for payment webhook & reward SSV handlers when touched
+- No critical path without error handling tests
+
+## Security tests
+
+Replay webhook · replay reward tx · unauthorized playback URL · teacher isolation
+
+## Do not merge if
+
+Build fails · tests fail · secrets present · Core duplication introduced

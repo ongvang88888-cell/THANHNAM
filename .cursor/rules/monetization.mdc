@@ -1,0 +1,33 @@
+---
+description: Monetization, payments, entitlements, rewards constraints
+alwaysApply: true
+globs:
+  - "packages/monetization-core/**"
+  - "**/payment*/**"
+  - "**/entitlement*/**"
+  - "**/reward*/**"
+---
+
+# Monetization Rules
+
+## Authority
+
+Server EntitlementService is SoR. Clients display only.
+
+## Payments
+
+- Provider adapters only
+- Verify webhooks/signatures
+- Idempotent fulfill
+- PaymentPolicyConfig for store rules — do not hard-code forever
+
+## Rewards
+
+- Eligibility server-side
+- SSV verify before grant
+- Quotas/cooldowns
+- Never grant from client boolean alone
+
+## Bundles
+
+Purchase grants bundle + child entitlements atomically (or outbox-equivalent)

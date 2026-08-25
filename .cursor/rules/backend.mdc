@@ -1,0 +1,33 @@
+---
+description: Backend coding standards for API, workers, domain services
+alwaysApply: true
+globs:
+  - "apps/api/**"
+  - "packages/**"
+  - "apps/workers/**"
+---
+
+# Backend Rules
+
+## Structure
+
+- Thin controllers; business logic in domain/application services
+- Repository interfaces; no raw provider SDKs in domain services
+- Await all async work; no fire-and-forget for money/rights without outbox
+
+## Money & rights
+
+- Idempotency keys on order/payment/reward/entitlement grants
+- Unique provider event IDs
+- Integer minor currency units
+- Transactions around fulfill + entitlement grant when possible
+
+## Access
+
+- All content bytes/playback go through Access Engine
+- Return structured decision codes
+
+## Errors
+
+- Typed error codes; no silent catch
+- Non-critical ports (analytics, AI, email) fail-open
