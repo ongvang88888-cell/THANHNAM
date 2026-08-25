@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@/lib/auth";
+import { AppShell } from "@/components/AppShell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "EduCommerce Platform",
-  description: "Video courses, documents, bundles, rewarded learning",
+  title: "EduCommerce",
+  description: "Khóa học video, tài liệu số, combo và học tập có thưởng",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -12,22 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="vi">
       <body>
         <AuthProvider>
-          <div className="shell">
-            <header className="top">
-              <a className="brand" href="/">
-                EduCommerce
-              </a>
-              <nav>
-                <a href="/">Store</a>
-                <a href="/library">My Library</a>
-                <a href="/notifications">Alerts</a>
-                <a href="/teacher">Teacher</a>
-                <a href="/admin">Admin</a>
-                <a href="/login">Login</a>
-              </nav>
-            </header>
-            <main>{children}</main>
-          </div>
+          <AppShell>{children}</AppShell>
         </AuthProvider>
       </body>
     </html>

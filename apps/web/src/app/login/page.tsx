@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiPost } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { apiGet, apiPost } from "@/lib/api";
+import { useAuth, type User } from "@/lib/auth";
 
 export default function LoginPage() {
   const { setSession } = useAuth();
@@ -20,22 +20,25 @@ export default function LoginPage() {
     try {
       const res = await apiPost<{
         accessToken: string;
+        refreshToken: string;
         user: { id: string; email: string; roles: string[]; appId: string };
       }>("/auth/login", { email, password });
-      const me = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1"}/auth/me`,
-        { headers: { Authorization: `Bearer ${res.accessToken}` } },
-      ).then((r) => r.json());
-      setSession(res.accessToken, {
+      const me = await apiGet<{ displayName?: string; emailVerifiedAt?: string | null }>(
+        "/auth/me",
+        res.accessToken,
+      );
+      const user: User = {
         id: res.user.id,
         email: res.user.email,
         displayName: me.displayName,
         roles: res.user.roles,
         appId: res.user.appId,
-      });
+        emailVerifiedAt: me.emailVerifiedAt,
+      };
+      setSession(res.accessToken, user, res.refreshToken);
       router.push("/library");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : "Đăng nhập thất bại");
     } finally {
       setLoading(false);
     }
@@ -44,17 +47,27 @@ export default function LoginPage() {
   return (
     <section className="panel stack">
       <h1 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>Đăng nhập</h1>
-      <p className="muted">Demo: student@edu.local / teacher@edu.local / admin@edu.local — Password123!</p>
+      <p className="muted">
+        Demo: student@edu.local / teacher@edu.local / admin@edu.local — Password123!
+      </p>
       <form onSubmit={onSubmit}>
         <label>Email</label>
-        <input value={email} onChange={(e) => setEmail(e.target.value)} />
-        <label>Password</label>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <input value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+        <label>Mật khẩu</label>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+        />
         {error && <p className="error">{error}</p>}
         <button disabled={loading} type="submit">
-          {loading ? "..." : "Login"}
+          {loading ? "..." : "Đăng nhập"}
         </button>
       </form>
+      <p className="muted">
+        <a href="/register">Tạo tài khoản</a> · <a href="/forgot-password">Quên mật khẩu</a>
+      </p>
     </section>
   );
 }

@@ -116,12 +116,15 @@ function base64UrlToBuffer(value: string): Buffer {
 export async function verifyAdmobSsvSignature(
   params: Record<string, string>,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
-  const enforce = process.env.ADMOB_SSV_ENFORCE === "true";
   const signature = params.signature;
   const keyIdRaw = params.key_id;
+  const production = process.env.NODE_ENV === "production";
+  const allowDevBypass =
+    (!production && process.env.ADMOB_SSV_ENFORCE !== "true") ||
+    process.env.ALLOW_DEV_SSV === "true";
 
-  if (!enforce) {
-    if (!signature || signature === "dev") return { ok: true };
+  if (allowDevBypass && (!signature || signature === "dev")) {
+    return { ok: true };
   }
 
   if (!signature || !keyIdRaw) {

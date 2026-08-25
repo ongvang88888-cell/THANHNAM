@@ -188,18 +188,25 @@ model App {
   promotionCampaigns PromotionCampaign[]
   affiliateAttributions AffiliateAttribution[]
   affiliatePayouts AffiliatePayout[]
+  invoices Invoice[]
+}
+
+enum AuthTokenPurpose {
+  EMAIL_VERIFY
+  PASSWORD_RESET
 }
 
 model User {
-  id           String     @id @default(cuid())
-  appId        String
-  email        String
-  passwordHash String
-  status       UserStatus @default(ACTIVE)
-  displayName  String
-  locale       String     @default("vi")
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id               String     @id @default(cuid())
+  appId            String
+  email            String
+  passwordHash     String
+  status           UserStatus @default(ACTIVE)
+  displayName      String
+  locale           String     @default("vi")
+  emailVerifiedAt  DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
   app App @relation(fields: [appId], references: [id])
 
@@ -229,9 +236,61 @@ model User {
   affiliatePayouts   AffiliatePayout[]
   lessonComments     LessonComment[]
   courseAnnouncements CourseAnnouncement[] @relation("AnnouncementAuthor")
+  authTokens         AuthToken[]
+  invoices           Invoice[]
 
   @@unique([appId, email])
   @@index([appId, status])
+}
+
+model AuthToken {
+  id        String           @id @default(cuid())
+  userId    String
+  purpose   AuthTokenPurpose
+  tokenHash String           @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  appId     String
+  email     String
+  success   Boolean
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([appId, email, createdAt])
+}
+
+model Invoice {
+  id             String   @id @default(cuid())
+  appId          String
+  orderId        String   @unique
+  userId         String
+  number         String
+  currency       String
+  subtotalMinor  Int
+  vatBps         Int      @default(0)
+  vatMinor       Int      @default(0)
+  totalMinor     Int
+  buyerName      String
+  buyerEmail     String
+  buyerTaxCode   String?
+  status         String   @default("ISSUED")
+  issuedAt       DateTime @default(now())
+
+  app   App   @relation(fields: [appId], references: [id])
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([appId, number])
+  @@index([userId, issuedAt])
 }
 
 model Role {
@@ -602,6 +661,7 @@ model Order {
   coupon            Coupon?               @relation(fields: [couponId], references: [id])
   affiliateCode     AffiliateCode?        @relation(fields: [affiliateCodeId], references: [id])
   affiliateCommission AffiliateCommission?
+  invoice           Invoice?
 
   @@unique([appId, idempotencyKey])
   @@index([appId, userId, createdAt])

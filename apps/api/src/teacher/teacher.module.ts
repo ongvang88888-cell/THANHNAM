@@ -108,6 +108,22 @@ class LessonInput {
   @IsOptional()
   @IsString()
   videoId?: string;
+
+  @IsOptional()
+  @IsString()
+  key?: string;
+
+  @IsOptional()
+  @IsString()
+  prerequisiteKey?: string;
+
+  @IsOptional()
+  @IsInt()
+  dripDaysAfterPurchase?: number;
+
+  @IsOptional()
+  @IsString()
+  dripUnlockAt?: string;
 }
 
 class SectionInput {
@@ -125,6 +141,35 @@ class UpdateCurriculumDto {
   @ValidateNested({ each: true })
   @Type(() => SectionInput)
   sections!: SectionInput[];
+}
+
+class PatchLessonDto {
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  dripDaysAfterPurchase?: number;
+
+  @IsOptional()
+  @IsString()
+  dripUnlockAt?: string;
+
+  @IsOptional()
+  @IsString()
+  prerequisiteLessonId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isPreview?: boolean;
+}
+
+class ApplyDripDto {
+  @IsInt()
+  @Min(0)
+  dripDaysAfterPurchase!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  setPreviewAsPrerequisite?: boolean;
 }
 
 @Injectable()
@@ -316,6 +361,8 @@ export class TeacherService {
 
     await this.prisma.$transaction(async (tx) => {
       await tx.courseSection.deleteMany({ where: { courseId: safeCourseId } });
+      const keyToId = new Map<string, string>();
+      const pendingPrereq: Array<{ id: string; key: string }> = [];
       let sectionPos = 1;
       for (const section of dto.sections) {
         const created = await tx.courseSection.create({
@@ -349,11 +396,15 @@ export class TeacherService {
               title: lesson.title,
               position: lessonPos++,
               isPreview: Boolean(lesson.isPreview),
+              dripDaysAfterPurchase: lesson.dripDaysAfterPurchase ?? null,
+              dripUnlockAt: lesson.dripUnlockAt ? new Date(lesson.dripUnlockAt) : null,
               contents: contents.length
                 ? { create: contents }
                 : undefined,
             },
           });
+          if (lesson.key) keyToId.set(lesson.key, createdLesson.id);
+          if (lesson.prerequisiteKey) pendingPrereq.push({ id: createdLesson.id, key: lesson.prerequisiteKey });
           await tx.accessPolicy.create({
             data: {
               resourceType: "lesson",
@@ -378,6 +429,15 @@ export class TeacherService {
           }
         }
       }
+      for (const row of pendingPrereq) {
+        const prereqId = keyToId.get(row.key);
+        if (prereqId) {
+          await tx.lesson.update({
+            where: { id: row.id },
+            data: { prerequisiteLessonId: prereqId },
+          });
+        }
+      }
     });
 
     return this.prisma.course.findUnique({
@@ -389,6 +449,106 @@ export class TeacherService {
         },
       },
     });
+  }
+
+  private async ownedCourse(user: RequestUser, courseId: string) {
+    const course = await this.prisma.course.findFirst({
+      where: {
+        id: String(courseId),
+        creatorUserId: String(user.userId),
+        appId: String(user.appId),
+      },
+      include: {
+        sections: {
+          include: { lessons: { orderBy: { position: "asc" } } },
+          orderBy: { position: "asc" },
+        },
+      },
+    });
+    if (!course) throw new AppError(ErrorCodes.NOT_FOUND, "Course not found", 404);
+    return course;
+  }
+
+  async patchLesson(user: RequestUser, courseId: string, lessonId: string, dto: PatchLessonDto) {
+    this.assertTeacher(user);
+    const course = await this.ownedCourse(user, courseId);
+    const lesson = course.sections.flatMap((s) => s.lessons).find((l) => l.id === lessonId);
+    if (!lesson) throw new AppError(ErrorCodes.NOT_FOUND, "Lesson not found", 404);
+
+    if (dto.prerequisiteLessonId) {
+      const prereq = course.sections.flatMap((s) => s.lessons).find((l) => l.id === dto.prerequisiteLessonId);
+      if (!prereq) throw new AppError(ErrorCodes.VALIDATION, "Prerequisite lesson is not in this course", 400);
+      if (prereq.id === lesson.id) {
+        throw new AppError(ErrorCodes.VALIDATION, "A lesson cannot require itself", 400);
+      }
+    }
+
+    const nextPreview = dto.isPreview ?? lesson.isPreview;
+    await this.prisma.$transaction(async (tx) => {
+      await tx.lesson.update({
+        where: { id: lesson.id },
+        data: {
+          dripDaysAfterPurchase:
+            dto.dripDaysAfterPurchase !== undefined ? dto.dripDaysAfterPurchase : lesson.dripDaysAfterPurchase,
+          dripUnlockAt:
+            dto.dripUnlockAt !== undefined
+              ? dto.dripUnlockAt
+                ? new Date(dto.dripUnlockAt)
+                : null
+              : lesson.dripUnlockAt,
+          prerequisiteLessonId:
+            dto.prerequisiteLessonId !== undefined ? dto.prerequisiteLessonId || null : lesson.prerequisiteLessonId,
+          isPreview: nextPreview,
+        },
+      });
+      if (dto.isPreview !== undefined) {
+        await tx.accessPolicy.deleteMany({ where: { lessonId: lesson.id } });
+        await tx.accessPolicy.create({
+          data: {
+            resourceType: "lesson",
+            resourceId: lesson.id,
+            lessonId: lesson.id,
+            policyType: nextPreview ? "FREE" : "PURCHASE_REQUIRED",
+            paramsJson: nextPreview ? {} : { productId: course.productId },
+            priority: nextPreview ? 10 : 20,
+          },
+        });
+        if (!nextPreview) {
+          await tx.accessPolicy.create({
+            data: {
+              resourceType: "lesson",
+              resourceId: lesson.id,
+              lessonId: lesson.id,
+              policyType: "REWARDED_AD",
+              paramsJson: { policyCode: "lesson_unlock_24h" },
+              priority: 30,
+            },
+          });
+        }
+      }
+    });
+    return this.getCourse(user, courseId);
+  }
+
+  async applyDrip(user: RequestUser, courseId: string, dto: ApplyDripDto) {
+    this.assertTeacher(user);
+    const course = await this.ownedCourse(user, courseId);
+    const lessons = course.sections.flatMap((s) => s.lessons);
+    const preview = lessons.find((l) => l.isPreview) ?? lessons[0];
+    for (const lesson of lessons) {
+      if (lesson.isPreview) continue;
+      await this.prisma.lesson.update({
+        where: { id: lesson.id },
+        data: {
+          dripDaysAfterPurchase: dto.dripDaysAfterPurchase,
+          prerequisiteLessonId:
+            dto.setPreviewAsPrerequisite !== false && preview && preview.id !== lesson.id
+              ? preview.id
+              : lesson.prerequisiteLessonId,
+        },
+      });
+    }
+    return this.getCourse(user, courseId);
   }
 
   async submitReview(user: RequestUser, courseId: string) {
@@ -450,6 +610,57 @@ export class TeacherService {
     return { ok: true };
   }
 
+  async getCourse(user: RequestUser, courseId: string) {
+    this.assertTeacher(user);
+    const course = await this.prisma.course.findFirst({
+      where: { id: String(courseId), appId: user.appId, creatorUserId: user.userId },
+      include: {
+        product: { include: { prices: true } },
+        sections: {
+          orderBy: { position: "asc" },
+          include: { lessons: { include: { contents: true }, orderBy: { position: "asc" } } },
+        },
+        quizzes: { include: { _count: { select: { questions: true } } } },
+        announcements: { orderBy: { createdAt: "desc" }, take: 20 },
+      },
+    });
+    if (!course) throw new AppError(ErrorCodes.NOT_FOUND, "Course not found", 404);
+    return course;
+  }
+
+  async createQuiz(
+    user: RequestUser,
+    courseId: string,
+    dto: { title: string; questions: Array<{ stem: string; answers: Array<{ body: string; isCorrect?: boolean }> }> },
+  ) {
+    this.assertTeacher(user);
+    const course = await this.prisma.course.findFirst({
+      where: { id: String(courseId), creatorUserId: user.userId, appId: user.appId },
+    });
+    if (!course) throw new AppError(ErrorCodes.NOT_FOUND, "Course not found", 404);
+    return this.prisma.quiz.create({
+      data: {
+        courseId: course.id,
+        title: dto.title,
+        questions: {
+          create: dto.questions.map((q, qi) => ({
+            type: "MCQ",
+            stem: q.stem,
+            position: qi,
+            answers: {
+              create: q.answers.map((a, ai) => ({
+                body: a.body,
+                isCorrect: Boolean(a.isCorrect),
+                position: ai,
+              })),
+            },
+          })),
+        },
+      },
+      include: { questions: { include: { answers: true } } },
+    });
+  }
+
   async publishProduct(user: RequestUser, productId: string) {
     if (!hasAnyRole(user as never, ["admin", "super_admin"])) {
       throw new AppError(ErrorCodes.FORBIDDEN, "Admin publish only", 403);
@@ -489,6 +700,27 @@ export class TeacherController {
     return this.teacher.myCourses(user);
   }
 
+  @Get("courses/:id")
+  getCourse(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.teacher.getCourse(user, id);
+  }
+
+  @Post("courses/:id/quizzes")
+  createQuiz(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Body()
+    dto: {
+      title: string;
+      questions: Array<{ stem: string; answers: Array<{ body: string; isCorrect?: boolean }> }>;
+    },
+  ) {
+    if (!dto.title || !dto.questions?.length) {
+      throw new AppError(ErrorCodes.VALIDATION, "Quiz title and questions required", 400);
+    }
+    return this.teacher.createQuiz(user, id, dto);
+  }
+
   @Get("documents")
   documents(@CurrentUser() user: RequestUser) {
     return this.teacher.myDocuments(user);
@@ -521,6 +753,25 @@ export class TeacherController {
     @Body() dto: UpdateCurriculumDto,
   ) {
     return this.teacher.replaceCurriculum(user, id, dto);
+  }
+
+  @Patch("courses/:id/drip")
+  applyDrip(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Body() dto: ApplyDripDto,
+  ) {
+    return this.teacher.applyDrip(user, id, dto);
+  }
+
+  @Patch("courses/:id/lessons/:lessonId")
+  patchLesson(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Param("lessonId") lessonId: string,
+    @Body() dto: PatchLessonDto,
+  ) {
+    return this.teacher.patchLesson(user, id, lessonId, dto);
   }
 
   @Post("courses/:id/submit")

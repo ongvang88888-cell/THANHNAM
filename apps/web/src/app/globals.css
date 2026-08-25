@@ -89,7 +89,7 @@ button, .btn {
 button.secondary, .btn.secondary { background: transparent; color: var(--brand); border: 1px solid var(--brand); }
 button:disabled { opacity: .5; cursor: not-allowed; }
 
-input {
+input, select, textarea {
   width: 100%; padding: 12px 14px; border: 1px solid var(--line);
   background: #fff; margin-bottom: 12px; font: inherit;
 }

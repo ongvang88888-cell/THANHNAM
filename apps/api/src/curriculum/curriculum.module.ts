@@ -50,22 +50,17 @@ export class CurriculumService {
     });
     if (!lesson) throw new AppError(ErrorCodes.NOT_FOUND, "Lesson not found", 404);
 
-    if (decision.code !== "CAN_ACCESS") {
-      return {
-        id: lesson.id,
-        title: lesson.title,
-        access: decision,
-        contents: [],
-      };
-    }
-
+    const locked = decision.code !== "CAN_ACCESS";
     return {
       id: lesson.id,
       title: lesson.title,
       durationSec: lesson.durationSec,
       isPreview: lesson.isPreview,
+      dripDaysAfterPurchase: lesson.dripDaysAfterPurchase,
+      dripUnlockAt: lesson.dripUnlockAt,
+      prerequisiteLessonId: lesson.prerequisiteLessonId,
       access: decision,
-      contents: lesson.contents,
+      contents: locked ? [] : lesson.contents,
       courseId: lesson.section.courseId,
     };
   }

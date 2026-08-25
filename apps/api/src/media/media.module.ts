@@ -13,6 +13,7 @@ import {
   UseGuards,
   Inject,
 } from "@nestjs/common";
+import { SkipThrottle } from "@nestjs/throttler";
 import { IsInt, IsOptional, IsString, Min } from "class-validator";
 import {
   createStorageFromEnv,
@@ -20,9 +21,11 @@ import {
   assertAllowedMime,
   buildObjectKey,
   getSharedMemoryStorage,
+  verifyLocalMedia,
   type IStorageProvider,
   type TranscodePort,
 } from "@edu/media-core";
+import { allowLocalMedia } from "../common/runtime";
 import { AppError, ErrorCodes, hasAnyRole } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
 import { AccessService } from "../access/access.module";
@@ -332,14 +335,27 @@ export class MediaService {
   }
 }
 
+@SkipThrottle()
 @Controller("media/local")
 export class LocalMediaController {
+  private assertSigned(key: string, exp: string | undefined, sig: string | undefined) {
+    if (!allowLocalMedia()) {
+      throw new AppError(ErrorCodes.NOT_FOUND, "Local media disabled", 404);
+    }
+    if (!verifyLocalMedia(key, Number(exp), sig)) {
+      throw new AppError(ErrorCodes.FORBIDDEN, "Invalid or expired media signature", 403);
+    }
+  }
+
   @Put()
   put(
     @Query("key") key: string,
+    @Query("exp") exp: string | undefined,
+    @Query("sig") sig: string | undefined,
     @Req() req: { headers: Record<string, string | undefined>; body?: Buffer; rawBody?: Buffer },
   ) {
     if (!key) throw new AppError(ErrorCodes.VALIDATION, "Missing key", 400);
+    this.assertSigned(key, exp, sig);
     const storage = getSharedMemoryStorage();
     const bytes = req.rawBody ?? (Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0));
     storage.put(key, bytes, req.headers["content-type"] || "application/octet-stream");
@@ -349,22 +365,24 @@ export class LocalMediaController {
   @Get()
   get(
     @Query("key") key: string,
+    @Query("exp") exp: string | undefined,
+    @Query("sig") sig: string | undefined,
     @Res()
     res: {
       setHeader: (k: string, v: string) => void;
       status: (n: number) => { send: (b: Buffer | string) => void };
     },
   ) {
-    if (!key) {
-      res.status(400).send("Missing key");
+    try {
+      if (!key) throw new AppError(ErrorCodes.VALIDATION, "Missing key", 400);
+      this.assertSigned(key, exp, sig);
+    } catch (e) {
+      const status = e instanceof AppError ? e.status : 403;
+      res.status(status).send(e instanceof Error ? e.message : "Forbidden");
       return;
     }
     const storage = getSharedMemoryStorage();
-    let obj = storage.get(key);
-    if (!obj) {
-      storage.put(key, Buffer.from(`edu-commerce placeholder for ${key}\n`), "text/plain");
-      obj = storage.get(key);
-    }
+    const obj = storage.get(key);
     if (!obj) {
       res.status(404).send("Not found");
       return;

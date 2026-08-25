@@ -1,4 +1,7 @@
 import { Module } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { ScheduleModule } from "@nestjs/schedule";
 import { AuthModule } from "./auth/auth.module";
 import { CatalogModule } from "./catalog/catalog.module";
 import { CurriculumModule } from "./curriculum/curriculum.module";
@@ -19,12 +22,19 @@ import { LearningModule } from "./learning/learning.module";
 import { AffiliateModule } from "./affiliate/affiliate.module";
 import { CampaignsModule } from "./campaigns/campaigns.module";
 import { JobsModule } from "./jobs/jobs.module";
+import { InvoicesModule } from "./invoices/invoices.module";
 import { HealthController } from "./health.controller";
 import { CommonModule } from "./common/common.module";
 
 @Module({
   imports: [
     CommonModule,
+    ThrottlerModule.forRoot({
+      throttlers: [
+        { name: "default", ttl: 60_000, limit: 120 },
+        { name: "auth", ttl: 60_000, limit: 20 },
+      ],
+    }),
     AuthModule,
     CatalogModule,
     CurriculumModule,
@@ -45,7 +55,10 @@ import { CommonModule } from "./common/common.module";
     AffiliateModule,
     CampaignsModule,
     JobsModule,
+    InvoicesModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [HealthController],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

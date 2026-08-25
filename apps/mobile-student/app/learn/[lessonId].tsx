@@ -1,6 +1,7 @@
 import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Video, ResizeMode } from "expo-av";
 import { api } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
 
@@ -89,14 +90,40 @@ export default function LearnScreen() {
         lesson.contents.map((c) => (
           <View key={c.id}>
             {c.contentType === "VIDEO" ? (
-              <Text style={styles.body}>
-                Video ready: {playbackUrl ? playbackUrl.slice(0, 80) : "loading…"}
-              </Text>
+              playbackUrl ? (
+                <Video
+                  style={styles.video}
+                  source={{ uri: playbackUrl }}
+                  useNativeControls
+                  resizeMode={ResizeMode.CONTAIN}
+                  onPlaybackStatusUpdate={(status) => {
+                    if (!token || !("isLoaded" in status) || !status.isLoaded) return;
+                    if (status.didJustFinish) {
+                      void api.saveProgress(token, lesson.id, { completed: true });
+                    }
+                  }}
+                />
+              ) : (
+                <Text style={styles.body}>Đang tải video…</Text>
+              )
             ) : (
               <Text style={styles.body}>{c.body}</Text>
             )}
           </View>
         ))}
+      {lesson.access.code === "CAN_ACCESS" && (
+        <Pressable
+          style={styles.btnGhost}
+          onPress={() => {
+            if (!token) return;
+            void api
+              .saveProgress(token, lesson.id, { completed: true, timeSpentMs: 30_000 })
+              .then(() => setMsg("Đã lưu tiến độ"));
+          }}
+        >
+          <Text style={styles.btnGhostText}>Đánh dấu hoàn thành</Text>
+        </Pressable>
+      )}
       {msg && <Text style={styles.msg}>{msg}</Text>}
     </View>
   );
@@ -107,6 +134,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: "800", color: "#0B3D2E" },
   meta: { color: "#5A6B63" },
   body: { color: "#122018", lineHeight: 22 },
+  video: { width: "100%", height: 220, backgroundColor: "#0B1612" },
   btn: {
     backgroundColor: "#C4A035",
     paddingVertical: 14,
@@ -114,6 +142,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   btnText: { color: "#1A1508", fontWeight: "800" },
+  btnGhost: {
+    borderWidth: 1,
+    borderColor: "#0B3D2E",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  btnGhostText: { color: "#0B3D2E", fontWeight: "700" },
   msg: { color: "#0B3D2E" },
   error: { color: "#8B1E1E" },
 });

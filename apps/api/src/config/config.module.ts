@@ -1,6 +1,7 @@
 import { Controller, Get, Injectable, Module, Param, Req, Inject } from "@nestjs/common";
 import { PrismaService } from "../common/prisma.service";
 import { AppError, ErrorCodes } from "@edu/shared-core";
+import { allowMockPayments, defaultPaymentProvider, isProduction } from "../common/runtime";
 import { AuthModule } from "../auth/auth.module";
 
 @Injectable()
@@ -33,6 +34,13 @@ export class ConfigService {
       },
       config,
       featureFlags: Object.fromEntries(flags.map((f) => [f.key, { enabled: f.enabled, value: f.valueJson }])),
+      checkout: {
+        allowMock: allowMockPayments(),
+        defaultProvider: defaultPaymentProvider(),
+        stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || null,
+        vnProviders: ["vnpay", "momo", "zalopay"],
+        production: isProduction(),
+      },
     };
   }
 

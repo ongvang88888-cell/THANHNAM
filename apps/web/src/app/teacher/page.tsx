@@ -32,7 +32,7 @@ type BundleRow = {
 export default function TeacherPage() {
   const { token, user } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState<"courses" | "documents" | "bundles" | "upload">("courses");
+  const [tab, setTab] = useState<"courses" | "documents" | "bundles" | "upload" | "affiliate">("courses");
   const [courses, setCourses] = useState<CourseRow[]>([]);
   const [documents, setDocuments] = useState<DocRow[]>([]);
   const [bundles, setBundles] = useState<BundleRow[]>([]);
@@ -90,8 +90,15 @@ export default function TeacherPage() {
           {
             title: "Section 1",
             lessons: [
-              { title: "Preview lesson", isPreview: true, body: "Free preview content" },
-              { title: "Paid lesson", isPreview: false, body: "Paid lesson body" },
+              { title: "Preview lesson", isPreview: true, body: "Free preview content", key: "preview" },
+              {
+                title: "Paid lesson",
+                isPreview: false,
+                body: "Paid lesson body",
+                key: "paid",
+                prerequisiteKey: "preview",
+                dripDaysAfterPurchase: 1,
+              },
             ],
           },
         ],
@@ -238,7 +245,7 @@ export default function TeacherPage() {
       {user && <p>User: {user.email}</p>}
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "16px 0" }}>
-        {(["courses", "documents", "bundles", "upload"] as const).map((t) => (
+        {(["courses", "documents", "bundles", "upload", "affiliate"] as const).map((t) => (
           <button
             key={t}
             className={tab === t ? undefined : "secondary"}
@@ -274,9 +281,8 @@ export default function TeacherPage() {
                     <span className="badge">{c.status}</span>{" "}
                     <span className="badge">{c.product?.status}</span>
                     <div className="muted">
-                      course {c.id} · product {c.product?.id} · {c.product?.prices?.[0]
-                        ? formatVnd(c.product.prices[0].amountMinor)
-                        : ""}
+                      <a href={`/teacher/courses/${c.id}`}>Sửa curriculum / quiz</a> · course {c.id} ·{" "}
+                      {c.product?.prices?.[0] ? formatVnd(c.product.prices[0].amountMinor) : ""}
                     </div>
                   </span>
                   {c.product?.id && (
@@ -435,6 +441,16 @@ export default function TeacherPage() {
               if (f) void uploadDocumentFile(f).catch((err) => setError(err.message));
             }}
           />
+        </div>
+      )}
+
+      {tab === "affiliate" && (
+        <div className="panel">
+          <h2>Hoa hồng & rút tiền</h2>
+          <p className="muted">
+            Quản lý mã giới thiệu, số dư và yêu cầu rút trên trang Affiliate.
+          </p>
+          <a href="/affiliate">Mở bảng affiliate →</a>
         </div>
       )}
     </section>

@@ -151,8 +151,9 @@ export class GooglePlayPaymentProvider implements PaymentProvider {
     productId?: string,
   ): Promise<{ ok: boolean; reason?: string; purchaseState?: number }> {
     const allowTest =
-      process.env.GOOGLE_PLAY_ALLOW_TEST_TOKENS !== "false" &&
-      process.env.NODE_ENV !== "production";
+      process.env.NODE_ENV !== "production"
+        ? process.env.GOOGLE_PLAY_ALLOW_TEST_TOKENS !== "false"
+        : process.env.ALLOW_IAP_TEST_TOKENS === "true";
 
     if (allowTest && purchaseToken.startsWith("gp_test_")) {
       return { ok: true, purchaseState: 0 };

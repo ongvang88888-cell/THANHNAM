@@ -56,6 +56,12 @@ export default function LoginScreen() {
           <Text style={styles.btnText}>Tiếp tục</Text>
         )}
       </Pressable>
+      <Pressable onPress={() => router.push("/register")}>
+        <Text style={styles.link}>Chưa có tài khoản? Đăng ký</Text>
+      </Pressable>
+      <Pressable onPress={() => router.push("/forgot")}>
+        <Text style={styles.link}>Quên mật khẩu</Text>
+      </Pressable>
     </View>
   );
 }
@@ -79,4 +85,5 @@ const styles = StyleSheet.create({
   },
   btnText: { color: "#F5E6A8", fontWeight: "700" },
   error: { color: "#8B1E1E" },
+  link: { color: "#0B3D2E", fontWeight: "600", textAlign: "center" },
 });

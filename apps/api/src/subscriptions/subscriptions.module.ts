@@ -1,18 +1,35 @@
 import { Body, Controller, Get, Injectable, Module, Post, UseGuards, Inject } from "@nestjs/common";
-import { IsString } from "class-validator";
+import { IsIn, IsOptional, IsString } from "class-validator";
 import { AppError, ErrorCodes } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
 import { AuthGuard, CurrentUser, type RequestUser } from "../auth/auth.guard";
 import { AuthModule } from "../auth/auth.module";
+import { CommerceModule, CommerceService } from "../commerce/commerce.module";
+import { defaultPaymentProvider, isProduction, vnSubscriptionProviders } from "../common/runtime";
 
 class SubscribeDto {
   @IsString()
   planProductId!: string;
+
+  @IsOptional()
+  @IsIn(["vnpay", "momo", "zalopay", "mock", "stripe"])
+  provider?: "vnpay" | "momo" | "zalopay" | "mock" | "stripe";
+
+  @IsOptional()
+  @IsString()
+  returnUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  idempotencyKey?: string;
 }
 
 @Injectable()
 export class SubscriptionsService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(CommerceService) private readonly commerce: CommerceService,
+  ) {}
 
   async my(user: RequestUser) {
     return this.prisma.subscription.findMany({
@@ -21,10 +38,6 @@ export class SubscriptionsService {
     });
   }
 
-  /**
-   * MVP subscription: creates INCOMPLETE then activates with entitlement when mock/payment succeeds.
-   * Real Stripe Billing / VNPay recurring can plug in later via provider adapters.
-   */
   async start(user: RequestUser, dto: SubscribeDto) {
     const enabled = await this.prisma.appConfig.findUnique({
       where: { appId_key: { appId: user.appId, key: "subscription_enabled" } },
@@ -35,78 +48,42 @@ export class SubscriptionsService {
 
     const product = await this.prisma.product.findFirst({
       where: { id: dto.planProductId, appId: user.appId, status: "PUBLISHED" },
-      include: { prices: { take: 1, orderBy: { validFrom: "desc" } } },
     });
-    if (!product) throw new AppError(ErrorCodes.NOT_FOUND, "Plan not found", 404);
+    if (!product || (product.type !== "SUBSCRIPTION" && product.type !== "PREMIUM_LIBRARY")) {
+      throw new AppError(ErrorCodes.NOT_FOUND, "Subscription plan not found", 404);
+    }
 
-    const periodStart = new Date();
-    const periodEnd = new Date(Date.now() + 30 * 24 * 3600_000);
+    const allowed = ["vnpay", "momo", "zalopay", "mock", "stripe"] as const;
+    const raw = dto.provider || (isProduction() ? "vnpay" : defaultPaymentProvider());
+    if (!allowed.includes(raw as (typeof allowed)[number])) {
+      throw new AppError(ErrorCodes.VALIDATION, "Unsupported subscription provider", 400);
+    }
+    const provider = raw as (typeof allowed)[number];
+    if (isProduction() && !vnSubscriptionProviders().includes(provider)) {
+      throw new AppError(
+        ErrorCodes.VALIDATION,
+        "VN membership must use VNPay, MoMo, or ZaloPay",
+        400,
+      );
+    }
 
-    const sub = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.subscription.create({
-        data: {
-          appId: user.appId,
-          userId: user.userId,
-          planProductId: product.id,
-          status: "ACTIVE",
-          currentPeriodStart: periodStart,
-          currentPeriodEnd: periodEnd,
-        },
-      });
-      await tx.subscriptionEvent.create({
-        data: {
-          subscriptionId: created.id,
-          type: "activated",
-          payloadJson: { mock: true },
-        },
-      });
-      await tx.entitlement.upsert({
-        where: {
-          userId_resourceType_resourceId_source_sourceRef: {
-            userId: user.userId,
-            resourceType: "product",
-            resourceId: product.id,
-            source: "SUBSCRIPTION",
-            sourceRef: created.id,
-          },
-        },
-        update: { status: "ACTIVE", expiresAt: periodEnd },
-        create: {
-          appId: user.appId,
-          userId: user.userId,
-          resourceType: "product",
-          resourceId: product.id,
-          source: "SUBSCRIPTION",
-          sourceRef: created.id,
-          status: "ACTIVE",
-          expiresAt: periodEnd,
-        },
-      });
-      await tx.notification.create({
-        data: {
-          userId: user.userId,
-          channel: "in_app",
-          title: "Subscription active",
-          body: `Gói ${product.name} đã kích hoạt đến ${periodEnd.toISOString()}.`,
-          metaJson: { subscriptionId: created.id },
-        },
-      });
-      return created;
+    return this.commerce.checkout(user, {
+      productId: product.id,
+      provider,
+      platform: "web",
+      returnUrl: dto.returnUrl,
+      idempotencyKey: dto.idempotencyKey || `sub-${user.userId}-${product.id}-${Date.now()}`,
     });
-
-    return { subscription: sub };
   }
 }
 
 @Controller("subscriptions")
 export class SubscriptionsController {
-  constructor(
-    @Inject(SubscriptionsService) private readonly subscriptions: SubscriptionsService,
-  ) {}
+  constructor(@Inject(SubscriptionsService) private readonly subscriptions: SubscriptionsService) {}
 
   @Get("me")
   @UseGuards(AuthGuard)
-  mine(@CurrentUser() user: RequestUser) {
+  me(@CurrentUser() user: RequestUser) {
     return this.subscriptions.my(user);
   }
 
@@ -118,7 +95,7 @@ export class SubscriptionsController {
 }
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, CommerceModule],
   controllers: [SubscriptionsController],
   providers: [SubscriptionsService],
 })

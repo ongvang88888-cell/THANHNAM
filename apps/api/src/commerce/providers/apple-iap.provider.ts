@@ -202,8 +202,9 @@ export class AppleIapPaymentProvider implements PaymentProvider {
     productId?: string;
   }): Promise<AppleTx> {
     const allowTest =
-      process.env.APPLE_IAP_ALLOW_TEST_TOKENS !== "false" &&
-      process.env.NODE_ENV !== "production";
+      process.env.NODE_ENV !== "production"
+        ? process.env.APPLE_IAP_ALLOW_TEST_TOKENS !== "false"
+        : process.env.ALLOW_IAP_TEST_TOKENS === "true";
 
     if (allowTest && input.transactionId.startsWith("iap_test_")) {
       return {

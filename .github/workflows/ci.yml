@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm --filter @edu/shared-core typecheck
+      - run: pnpm --filter @edu/monetization-core typecheck
+      - run: pnpm --filter @edu/api typecheck
+      - run: pnpm --filter @edu/web typecheck
+      - run: pnpm --filter @edu/mobile-student typecheck
+      - run: pnpm --filter @edu/monetization-core exec vitest run
+      - run: pnpm --filter @edu/api test
+      - run: pnpm --filter @edu/api build

@@ -23,19 +23,46 @@ export type ProductDetail = {
   document?: { id: string } | null;
 };
 
+let refreshTokenMemory: string | null = null;
+let onTokensRefreshed: ((access: string, refresh: string) => void) | null = null;
+
+export function setMobileRefreshToken(token: string | null) {
+  refreshTokenMemory = token;
+}
+
+export function onMobileAuthRefreshed(cb: ((access: string, refresh: string) => void) | null) {
+  onTokensRefreshed = cb;
+}
+
 async function request<T>(
   path: string,
   opts: { method?: string; token?: string; body?: unknown } = {}
 ): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    method: opts.method ?? "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "X-App-Id": APP_ID,
-      ...(opts.token ? { Authorization: `Bearer ${opts.token}` } : {}),
-    },
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
+  const run = (token?: string) =>
+    fetch(`${API_URL}${path}`, {
+      method: opts.method ?? "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "X-App-Id": APP_ID,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+
+  let res = await run(opts.token);
+  if (res.status === 401 && refreshTokenMemory && path !== "/auth/refresh") {
+    const refreshed = await fetch(`${API_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-App-Id": APP_ID },
+      body: JSON.stringify({ refreshToken: refreshTokenMemory }),
+    });
+    if (refreshed.ok) {
+      const pair = (await refreshed.json()) as { accessToken: string; refreshToken: string };
+      refreshTokenMemory = pair.refreshToken;
+      onTokensRefreshed?.(pair.accessToken, pair.refreshToken);
+      res = await run(pair.accessToken);
+    }
+  }
   const json = (await res.json()) as T & { error?: { message?: string } };
   if (!res.ok) {
     throw new Error(json?.error?.message || `HTTP ${res.status}`);
@@ -56,8 +83,43 @@ export const api = {
   login: (email: string, password: string) =>
     request<{
       accessToken: string;
+      refreshToken?: string;
       user: { id: string; email: string; displayName?: string };
     }>("/auth/login", { method: "POST", body: { email, password } }),
+  register: (email: string, password: string, displayName: string) =>
+    request<{
+      accessToken: string;
+      refreshToken?: string;
+      user: { id: string; email: string; displayName?: string };
+    }>("/auth/register", {
+      method: "POST",
+      body: { email, password, displayName },
+    }),
+  logout: (refreshToken: string) =>
+    request<{ ok: boolean }>("/auth/logout", {
+      method: "POST",
+      body: { refreshToken },
+    }),
+  forgot: (email: string) =>
+    request<{ ok: boolean; resetToken?: string }>("/auth/forgot", {
+      method: "POST",
+      body: { email },
+    }),
+  reset: (token: string, password: string) =>
+    request<{ ok: boolean }>("/auth/reset", {
+      method: "POST",
+      body: { token, password },
+    }),
+  saveProgress: (
+    token: string,
+    lessonId: string,
+    body: { completed?: boolean; videoPositionMs?: number; timeSpentMs?: number },
+  ) =>
+    request(`/lessons/${lessonId}/progress`, {
+      method: "PUT",
+      token,
+      body,
+    }),
   checkout: (
     token: string,
     productId: string,

@@ -90,6 +90,22 @@ export class CatalogService {
     }
     return {
       ...p,
+      course: p.course
+        ? {
+            ...p.course,
+            sections: p.course.sections.map((s) => ({
+              ...s,
+              lessons: s.lessons.map((l) => ({
+                ...l,
+                contents: l.contents.map((c) => ({
+                  id: c.id,
+                  contentType: c.contentType,
+                  position: c.position,
+                })),
+              })),
+            })),
+          }
+        : null,
       bundleChildren:
         p.bundle?.items.map((item) => ({
           productId: item.productId,

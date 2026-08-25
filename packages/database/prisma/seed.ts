@@ -7,7 +7,22 @@ const prisma = new PrismaClient();
 async function main() {
   const app = await prisma.app.upsert({
     where: { slug: "education_app" },
-    update: {},
+    update: {
+      enabledModulesJson: {
+        courses: true,
+        documents: true,
+        bundles: true,
+        rewardedAds: true,
+        subscriptions: true,
+        marketplace: false,
+      },
+      monetizationConfigJson: {
+        purchaseEnabled: true,
+        rewardedEnabled: true,
+        adsEnabled: true,
+        subscriptionEnabled: true,
+      },
+    },
     create: {
       slug: "education_app",
       name: "Education Commerce",
@@ -21,14 +36,14 @@ async function main() {
         documents: true,
         bundles: true,
         rewardedAds: true,
-        subscriptions: false,
+        subscriptions: true,
         marketplace: false,
       },
       monetizationConfigJson: {
         purchaseEnabled: true,
         rewardedEnabled: true,
         adsEnabled: true,
-        subscriptionEnabled: false,
+        subscriptionEnabled: true,
       },
     },
   });
@@ -46,34 +61,37 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { appId_email: { appId: app.id, email: "admin@edu.local" } },
-    update: {},
+    update: { emailVerifiedAt: new Date() },
     create: {
       appId: app.id,
       email: "admin@edu.local",
       passwordHash,
       displayName: "Platform Admin",
+      emailVerifiedAt: new Date(),
     },
   });
 
   const teacher = await prisma.user.upsert({
     where: { appId_email: { appId: app.id, email: "teacher@edu.local" } },
-    update: {},
+    update: { emailVerifiedAt: new Date() },
     create: {
       appId: app.id,
       email: "teacher@edu.local",
       passwordHash,
       displayName: "Demo Teacher",
+      emailVerifiedAt: new Date(),
     },
   });
 
   const student = await prisma.user.upsert({
     where: { appId_email: { appId: app.id, email: "student@edu.local" } },
-    update: {},
+    update: { emailVerifiedAt: new Date() },
     create: {
       appId: app.id,
       email: "student@edu.local",
       passwordHash,
       displayName: "Demo Student",
+      emailVerifiedAt: new Date(),
     },
   });
 
@@ -426,6 +444,26 @@ async function main() {
       },
     });
   }
+
+  const subProduct = await prisma.product.upsert({
+    where: { appId_slug: { appId: app.id, slug: "premium-monthly" } },
+    update: { status: ProductStatus.PUBLISHED, visibility: Visibility.PUBLIC },
+    create: {
+      appId: app.id,
+      type: ProductType.SUBSCRIPTION,
+      name: "Gói Premium tháng",
+      slug: "premium-monthly",
+      description: "Thư viện premium 30 ngày — thanh toán VNPay / MoMo / ZaloPay.",
+      status: ProductStatus.PUBLISHED,
+      visibility: Visibility.PUBLIC,
+      creatorUserId: teacher.id,
+      categoryId: category.id,
+    },
+  });
+  await prisma.productPrice.deleteMany({ where: { productId: subProduct.id } });
+  await prisma.productPrice.create({
+    data: { productId: subProduct.id, currency: "VND", amountMinor: 9900000 },
+  });
 
   await prisma.coupon.upsert({
     where: { appId_code: { appId: app.id, code: "WELCOME10" } },

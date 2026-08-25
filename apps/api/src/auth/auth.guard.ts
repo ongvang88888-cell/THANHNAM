@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type { RoleCode } from "@edu/shared-core";
+import { PrismaService } from "../common/prisma.service";
 
 export interface RequestUser {
   userId: string;
@@ -26,7 +27,10 @@ export const CurrentUser = createParamDecorator(
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(@Inject(JwtService) private readonly jwt: JwtService) {}
+  constructor(
+    @Inject(JwtService) private readonly jwt: JwtService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<{
@@ -45,11 +49,31 @@ export class AuthGuard implements CanActivate {
         sid: string;
         roles: RoleCode[];
       }>(token);
+
+      const session = await this.prisma.session.findUnique({
+        where: { id: payload.sid },
+        include: { user: { select: { status: true, appId: true } } },
+      });
+      if (
+        !session ||
+        session.revokedAt ||
+        session.expiresAt.getTime() < Date.now() ||
+        session.userId !== payload.sub ||
+        session.user.status !== "ACTIVE"
+      ) {
+        throw new UnauthorizedException();
+      }
+
+      const roleRows = await this.prisma.userRole.findMany({
+        where: { userId: payload.sub },
+        include: { role: true },
+      });
+
       req.user = {
         userId: payload.sub,
-        appId: payload.app_id,
+        appId: session.user.appId || payload.app_id,
         sessionId: payload.sid,
-        roles: payload.roles ?? [],
+        roles: roleRows.map((r) => r.role.code as RoleCode),
       };
       return true;
     } catch {

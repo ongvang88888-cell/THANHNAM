@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   ADMOB_SSV_KEYS_DEFAULT_URL,
   resolveAdmobVerifierKeysUrl,
+  verifyAdmobSsvSignature,
 } from "./ssv-verify";
 
 describe("resolveAdmobVerifierKeysUrl", () => {
@@ -34,6 +35,22 @@ describe("resolveAdmobVerifierKeysUrl", () => {
     expect(() =>
       resolveAdmobVerifierKeysUrl("https://evil.example/keys.json"),
     ).toThrow(/not allowlisted/);
+  });
+
+  it("rejects the local signature=dev bypass in production", async () => {
+    const prevEnv = process.env.NODE_ENV;
+    const prevAllow = process.env.ALLOW_DEV_SSV;
+    const prevEnforce = process.env.ADMOB_SSV_ENFORCE;
+    process.env.NODE_ENV = "production";
+    delete process.env.ALLOW_DEV_SSV;
+    delete process.env.ADMOB_SSV_ENFORCE;
+    const result = await verifyAdmobSsvSignature({ signature: "dev" });
+    expect(result).toEqual({ ok: false, reason: "missing_signature_or_key_id" });
+    process.env.NODE_ENV = prevEnv;
+    if (prevAllow === undefined) delete process.env.ALLOW_DEV_SSV;
+    else process.env.ALLOW_DEV_SSV = prevAllow;
+    if (prevEnforce === undefined) delete process.env.ADMOB_SSV_ENFORCE;
+    else process.env.ADMOB_SSV_ENFORCE = prevEnforce;
   });
 
   it("rejects URLs with credentials or non-default ports", () => {

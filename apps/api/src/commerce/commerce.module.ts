@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Headers, Injectable, Module, Param, Post, Req, UseGuards, Inject } from "@nestjs/common";
+import { SkipThrottle } from "@nestjs/throttler";
 import { IsIn, IsInt, IsOptional, IsString, Min, MinLength } from "class-validator";
 import {
   assertChargeAmountMatches,
@@ -31,6 +32,13 @@ import { ZalopayPaymentProvider } from "./providers/zalopay.provider";
 import { GooglePlayPaymentProvider } from "./providers/google-play.provider";
 import { AppleIapPaymentProvider } from "./providers/apple-iap.provider";
 import { CampaignsModule, CampaignsService } from "../campaigns/campaigns.module";
+import {
+  allowMockPayments,
+  assertProviderForEnvironment,
+  computeInvoiceAmounts,
+  defaultPaymentProvider,
+} from "../common/runtime";
+import { sendReceiptEmail } from "../common/mailer";
 import { AffiliateModule, AffiliateService } from "../affiliate/affiliate.module";
 
 class CheckoutDto {
@@ -130,7 +138,16 @@ export class CommerceService {
   }
 
   private provider(name?: string): PaymentProvider {
-    const key = name || (process.env.DEFAULT_PAYMENT_PROVIDER ?? "mock");
+    const key = name || defaultPaymentProvider();
+    try {
+      assertProviderForEnvironment(key);
+    } catch (e) {
+      throw new AppError(
+        ErrorCodes.VALIDATION,
+        e instanceof Error ? e.message : "Provider not allowed",
+        400,
+      );
+    }
     const p = this.providers[key];
     if (!p) throw new AppError(ErrorCodes.VALIDATION, `Unknown payment provider: ${key}`);
     return p;
@@ -138,7 +155,7 @@ export class CommerceService {
 
   async checkout(user: RequestUser, dto: CheckoutDto) {
     const platform = dto.platform ?? "unknown";
-    const providerName = dto.provider || (process.env.DEFAULT_PAYMENT_PROVIDER ?? "mock");
+    const providerName = dto.provider || defaultPaymentProvider();
     try {
       assertProviderAllowedForPlatform(providerName, platform);
     } catch (e) {
@@ -223,6 +240,19 @@ export class CommerceService {
     const amount = Math.max(0, listPrice - discountMinor);
 
     const order = await this.prisma.$transaction(async (tx) => {
+      if (couponId) {
+        await tx.$queryRaw`SELECT id FROM "Coupon" WHERE id = ${couponId} FOR UPDATE`;
+        const coupon = await tx.coupon.findUnique({ where: { id: couponId } });
+        if (coupon?.maxRedemptions) {
+          const used = await tx.couponRedemption.count({ where: { couponId } });
+          const pending = await tx.order.count({
+            where: { couponId, status: { in: ["AWAITING_PAYMENT", "PAID", "FULFILLED"] } },
+          });
+          if (used + pending >= coupon.maxRedemptions) {
+            throw new AppError(ErrorCodes.VALIDATION, "Coupon redemption limit reached", 400);
+          }
+        }
+      }
       const created = await tx.order.create({
         data: {
           appId: user.appId,
@@ -310,8 +340,8 @@ export class CommerceService {
       return { created, intent };
     });
 
-    // Dev convenience: mock provider auto-fulfills
-    if (provider.name === "mock") {
+    // Dev convenience: mock provider auto-fulfills — never in production unless allowed.
+    if (provider.name === "mock" && allowMockPayments()) {
       await this.fulfillPaidOrder(order.created.id, {
         provider: "mock",
         providerEventId: `mock_evt_${order.created.id}`,
@@ -346,7 +376,7 @@ export class CommerceService {
       return { ok: false, reason: `event_status_${event.status}` };
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // Serialize concurrent webhook/confirm for the same order (Postgres).
       await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${orderId} FOR UPDATE`;
 
@@ -360,6 +390,7 @@ export class CommerceService {
         include: {
           items: { include: { product: { include: { bundle: { include: { items: true } } } } } },
           payments: true,
+          user: true,
         },
       });
 
@@ -484,13 +515,63 @@ export class CommerceService {
         });
       }
 
+      const periodEnd = new Date(Date.now() + 30 * 24 * 3600_000);
+      for (const item of order.items) {
+        if (item.product.type === "SUBSCRIPTION" || item.product.type === "PREMIUM_LIBRARY") {
+          const sub = await tx.subscription.create({
+            data: {
+              appId: order.appId,
+              userId: order.userId,
+              planProductId: item.productId,
+              status: "ACTIVE",
+              currentPeriodStart: new Date(),
+              currentPeriodEnd: periodEnd,
+            },
+          });
+          await tx.subscriptionEvent.create({
+            data: {
+              subscriptionId: sub.id,
+              type: "activated",
+              payloadJson: { orderId: order.id, provider: event.provider },
+            },
+          });
+          await tx.entitlement.updateMany({
+            where: {
+              userId: order.userId,
+              resourceType: "subscription",
+              resourceId: item.productId,
+              sourceRef: item.id,
+            },
+            data: { expiresAt: periodEnd, sourceRef: sub.id },
+          });
+        }
+      }
+
+      const amounts = computeInvoiceAmounts(order.totalMinor, order.discountMinor);
+      const number = `INV-${new Date().getUTCFullYear()}-${order.id.slice(-8).toUpperCase()}`;
+      await tx.invoice.create({
+        data: {
+          appId: order.appId,
+          orderId: order.id,
+          userId: order.userId,
+          number,
+          currency: order.currency,
+          subtotalMinor: amounts.subtotalMinor,
+          vatBps: amounts.vatBps,
+          vatMinor: amounts.vatMinor,
+          totalMinor: amounts.totalMinor,
+          buyerName: order.user.displayName,
+          buyerEmail: order.user.email,
+        },
+      });
+
       await tx.notification.create({
         data: {
           userId: order.userId,
           channel: "in_app",
           title: "Purchase successful",
           body: "Quyền truy cập nội dung đã được kích hoạt.",
-          metaJson: { orderId: order.id },
+          metaJson: { orderId: order.id, invoiceNumber: number },
         },
       });
 
@@ -510,14 +591,19 @@ export class CommerceService {
         },
       });
 
-      return { ok: true };
+      return { ok: true, invoiceNumber: number, buyerEmail: order.user.email };
     });
+
+    if (result && "invoiceNumber" in result && result.invoiceNumber && "buyerEmail" in result && result.buyerEmail) {
+      void sendReceiptEmail(result.buyerEmail, result.invoiceNumber, orderId);
+    }
+    return result;
   }
 
   async myOrders(user: RequestUser) {
     return this.prisma.order.findMany({
       where: { userId: user.userId, appId: user.appId },
-      include: { items: true, payments: true },
+      include: { items: true, payments: true, invoice: true },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
@@ -529,6 +615,7 @@ export class CommerceService {
       include: {
         items: { include: { product: true } },
         payments: true,
+        invoice: true,
       },
     });
     if (!order) throw new AppError(ErrorCodes.NOT_FOUND, "Order not found", 404);
@@ -989,6 +1076,7 @@ export class CommerceController {
     return this.commerce.refundOrder(user, id, dto);
   }
 
+  @SkipThrottle()
   @Post("payments/webhooks/:provider")
   webhook(
     @Param("provider") provider: string,

@@ -5,6 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 import { apiGet, apiPost, formatVnd } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
+type CheckoutConfig = {
+  allowMock: boolean;
+  defaultProvider: string;
+  vnProviders: string[];
+  production: boolean;
+};
+
 type BundleChild = {
   productId: string;
   position: number;
@@ -60,9 +67,11 @@ export default function ProductPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [provider, setProvider] = useState<"mock" | "stripe" | "vnpay" | "momo" | "zalopay">("mock");
+  const [checkoutCfg, setCheckoutCfg] = useState<CheckoutConfig | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [affiliateCode, setAffiliateCode] = useState("");
   const [campaignBadge, setCampaignBadge] = useState<string | null>(null);
+  const [wishMsg, setWishMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,6 +80,14 @@ export default function ProductPage() {
         const p = await apiGet<ProductDetail>(`/products/${slug}`);
         if (cancelled) return;
         setProduct(p);
+        const cfg = await apiGet<{ checkout: CheckoutConfig }>("/remote-config");
+        if (!cancelled) {
+          setCheckoutCfg(cfg.checkout);
+          const next = (cfg.checkout.defaultProvider || "mock") as typeof provider;
+          if (next === "mock" || next === "stripe" || next === "vnpay" || next === "momo" || next === "zalopay") {
+            setProvider(next);
+          }
+        }
         const campaigns = await apiGet<
           Array<{
             badgeText: string;
@@ -153,12 +170,9 @@ export default function ProductPage() {
 
       if (provider === "stripe") {
         const secret = action?.clientSecret ?? "";
-        if (secret.startsWith("test_secret_") || !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
-          setMsg(
-            "Stripe sandbox stub: set STRIPE_SECRET_KEY trên API + NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY để confirm thật. Đang mở trang order.",
-          );
-        }
-        router.push(orderReturn);
+        router.push(
+          `/checkout/pay?orderId=${encodeURIComponent(res.order.id)}&clientSecret=${encodeURIComponent(secret)}`,
+        );
         return;
       }
 
@@ -179,6 +193,7 @@ export default function ProductPage() {
     product.type === "MIXED_BUNDLE" ||
     product.type === "COURSE_BUNDLE" ||
     product.type === "DOCUMENT_BUNDLE";
+  const isSubscription = product.type === "SUBSCRIPTION" || product.type === "PREMIUM_LIBRARY";
 
   return (
     <section>
@@ -221,7 +236,9 @@ export default function ProductPage() {
           onChange={(e) => setProvider(e.target.value as typeof provider)}
           style={{ width: "100%", padding: "12px 14px", marginBottom: 12, font: "inherit" }}
         >
-          <option value="mock">Mock (local / auto-fulfill)</option>
+          {(!checkoutCfg || checkoutCfg.allowMock) && (
+            <option value="mock">Mock (local / tự hoàn tất)</option>
+          )}
           <option value="stripe">Stripe</option>
           <option value="vnpay">VNPay</option>
           <option value="momo">MoMo</option>
@@ -244,11 +261,25 @@ export default function ProductPage() {
           style={{ width: "100%", padding: "12px 14px", marginBottom: 12, font: "inherit" }}
         />
         <button type="submit" disabled={busy}>
-          {busy ? "Processing..." : "Mua ngay"}
+          {busy ? "Đang xử lý..." : isSubscription ? "Đăng ký gói" : "Mua ngay"}
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          disabled={!token}
+          onClick={() => {
+            if (!token || !product) return;
+            apiPost("/wishlist", { productId: product.id }, token)
+              .then(() => setWishMsg("Đã thêm vào yêu thích"))
+              .catch((e: Error) => setWishMsg(e.message));
+          }}
+        >
+          Thêm yêu thích
         </button>
         <a className="btn secondary" href="/library">
-          My Library
+          Thư viện
         </a>
+        {wishMsg && <p className="ok">{wishMsg}</p>}
       </form>
 
       {isCourse && product.course && (

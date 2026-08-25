@@ -10,6 +10,7 @@ type OrderView = {
   status: string;
   totalMinor: number;
   currency: string;
+  invoice?: { number: string } | null;
   items: Array<{
     productId: string;
     quantity: number;
@@ -22,50 +23,72 @@ type OrderView = {
 function ReturnInner() {
   const search = useSearchParams();
   const orderId = search.get("orderId");
-  const { token } = useAuth();
+  const { token, ready } = useAuth();
   const [order, setOrder] = useState<OrderView | null>(null);
   const [error, setError] = useState("");
+  const [tries, setTries] = useState(0);
 
   useEffect(() => {
+    if (!ready) return;
     if (!orderId) {
-      setError("Missing orderId");
+      setError("Thiếu orderId");
       return;
     }
     if (!token) {
-      setError("Login required to view order status");
+      setError("Cần đăng nhập để xem trạng thái đơn");
       return;
     }
-    void apiGet<OrderView>(`/orders/${orderId}`, token)
-      .then(setOrder)
-      .catch((err: Error) => setError(err.message));
-  }, [orderId, token]);
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    async function poll() {
+      try {
+        const next = await apiGet<OrderView>(`/orders/${orderId}`, token);
+        if (cancelled) return;
+        setOrder(next);
+        const paid = next.status === "PAID" || next.status === "FULFILLED";
+        if (!paid && tries < 15) {
+          timer = setTimeout(() => setTries((n) => n + 1), 2000);
+        }
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Không tải được đơn");
+      }
+    }
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [orderId, token, ready, tries]);
 
   if (error) {
     return (
       <section>
-        <h1 style={{ fontFamily: "var(--font-display)" }}>Checkout</h1>
+        <h1 style={{ fontFamily: "var(--font-display)" }}>Thanh toán</h1>
         <p className="error">{error}</p>
-        <a href="/login">Login</a> · <a href="/">Catalog</a>
+        <a href="/login">Đăng nhập</a> · <a href="/">Cửa hàng</a>
       </section>
     );
   }
 
-  if (!order) return <p className="muted">Checking payment…</p>;
+  if (!order) return <p className="muted">Đang kiểm tra thanh toán…</p>;
 
   const paid = order.status === "PAID" || order.status === "FULFILLED";
 
   return (
     <section>
       <h1 style={{ fontFamily: "var(--font-display)" }}>
-        {paid ? "Thanh toán thành công" : `Order ${order.status}`}
+        {paid ? "Thanh toán thành công" : `Đơn ${order.status}`}
       </h1>
       <p className="muted">
-        Order {order.id} · {order.payments[0]?.provider ?? "—"} · {formatVnd(order.totalMinor)}{" "}
+        {order.id} · {order.payments[0]?.provider ?? "—"} · {formatVnd(order.totalMinor)}{" "}
         {order.currency}
       </p>
 
       <div className="panel">
-        <h2 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>Items</h2>
+        <h2 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>Sản phẩm</h2>
         <ul className="lesson-list">
           {order.items.map((item) => (
             <li key={item.productId}>
@@ -84,14 +107,19 @@ function ReturnInner() {
       </div>
 
       {paid ? (
-        <p style={{ marginTop: 20 }}>
+        <p style={{ marginTop: 20, display: "flex", gap: 10, flexWrap: "wrap" }}>
           <a className="btn" href="/library">
-            Vào My Library
+            Vào thư viện
           </a>
+          {order.invoice?.number && (
+            <a className="btn secondary" href={`/invoices/${order.invoice.number}`}>
+              Xem hóa đơn
+            </a>
+          )}
         </p>
       ) : (
         <p className="muted">
-          Nếu vừa thanh toán Stripe/VNPay, đợi webhook rồi refresh trang này.
+          Nếu vừa thanh toán, webhook đang xử lý. Trang này tự làm mới trong khoảng 30 giây.
         </p>
       )}
     </section>

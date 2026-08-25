@@ -54,14 +54,22 @@ export default function LibraryPage() {
     <section>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
         <div>
-          <h1 style={{ fontFamily: "var(--font-display)", marginBottom: 4 }}>My Library</h1>
+          <h1 style={{ fontFamily: "var(--font-display)", marginBottom: 4 }}>Thư viện</h1>
           <p className="muted">
-            {user.displayName || user.email} · roles: {user.roles.join(", ")}
+            {user.displayName || user.email} · {user.roles.join(", ")}
           </p>
         </div>
-        <button className="secondary" onClick={logout}>
-          Logout
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <a className="btn secondary" href="/certificates">
+            Chứng chỉ
+          </a>
+          <a className="btn secondary" href="/invoices">
+            Hóa đơn
+          </a>
+          <button className="secondary" onClick={() => void logout()}>
+            Đăng xuất
+          </button>
+        </div>
       </div>
 
       <h2 style={{ fontFamily: "var(--font-display)" }}>Continue Learning</h2>

@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Injectable, Module, Param, Put, UseGuards, Inject } from "@nestjs/common";
-import { IsInt, IsOptional, IsString, Min } from "class-validator";
-import { computeCoursePercent, isLessonComplete } from "@edu/education-core";
+import { IsBoolean, IsInt, IsOptional, IsString, Min } from "class-validator";
+import { computeCoursePercent, isLessonComplete, makeCertificatePublicId } from "@edu/education-core";
 import { AppError, ErrorCodes } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
 import { AccessService } from "../access/access.module";
@@ -20,6 +20,7 @@ class ProgressDto {
   timeSpentMs?: number;
 
   @IsOptional()
+  @IsBoolean()
   completed?: boolean;
 }
 
@@ -124,7 +125,6 @@ export class ProgressService {
         where: { userId: user.userId, courseId },
       });
       if (!existing) {
-        const { makeCertificatePublicId } = await import("@edu/education-core");
         await this.prisma.certificate.create({
           data: {
             publicId: makeCertificatePublicId(),
@@ -149,6 +149,14 @@ export class ProgressService {
     });
     return { products, entitlements };
   }
+
+  myCertificates(user: RequestUser) {
+    return this.prisma.certificate.findMany({
+      where: { userId: user.userId },
+      include: { course: { select: { title: true, product: { select: { slug: true } } } } },
+      orderBy: { issuedAt: "desc" },
+    });
+  }
 }
 
 @Controller()
@@ -167,6 +175,12 @@ export class ProgressController {
   @UseGuards(AuthGuard)
   library(@CurrentUser() user: RequestUser) {
     return this.progress.library(user);
+  }
+
+  @Get("me/certificates")
+  @UseGuards(AuthGuard)
+  certificates(@CurrentUser() user: RequestUser) {
+    return this.progress.myCertificates(user);
   }
 
   @Put("lessons/:id/progress")

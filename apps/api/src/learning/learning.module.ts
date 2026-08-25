@@ -263,6 +263,7 @@ export class LearningService {
         body: dto.body,
         parentId: dto.parentId ?? null,
       },
+      include: { user: { select: { displayName: true } } },
     });
   }
 }

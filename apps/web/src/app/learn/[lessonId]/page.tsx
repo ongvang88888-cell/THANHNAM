@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { apiGet, apiPost, type AccessDecision } from "@/lib/api";
+import { apiGet, apiPost, apiPut, type AccessDecision } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 type LessonContent = {
@@ -18,7 +18,12 @@ type LessonPayload = {
   access: AccessDecision;
   contents: LessonContent[];
   courseId?: string;
+  durationSec?: number;
 };
+
+type Comment = { id: string; body: string; createdAt: string; user: { displayName: string } };
+type Note = { id: string; body: string };
+type Announcement = { id: string; title: string; body: string; createdAt: string };
 
 export default function LearnPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
@@ -29,6 +34,11 @@ export default function LearnPage() {
   const [busy, setBusy] = useState(false);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentBody, setCommentBody] = useState("");
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [noteBody, setNoteBody] = useState("");
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   async function load() {
     if (!token) {
@@ -39,6 +49,18 @@ export default function LearnPage() {
     setLesson(data);
     setPlaybackUrl(null);
     setPlaybackError(null);
+
+    apiGet<Comment[]>(`/lessons/${data.id}/comments`)
+      .then(setComments)
+      .catch(() => setComments([]));
+    apiGet<Note[]>(`/notes?resourceType=lesson&resourceId=${data.id}`, token)
+      .then(setNotes)
+      .catch(() => setNotes([]));
+    if (data.courseId) {
+      apiGet<Announcement[]>(`/courses/${data.courseId}/announcements`)
+        .then(setAnnouncements)
+        .catch(() => setAnnouncements([]));
+    }
 
     if (data.access.code === "CAN_ACCESS") {
       const video = data.contents.find((c) => c.contentType === "VIDEO" && c.refId);
@@ -61,6 +83,16 @@ export default function LearnPage() {
     load().catch((e) => setMsg(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessonId, token]);
+
+  async function saveProgress(completed = false) {
+    if (!token || !lesson) return;
+    await apiPut(`/lessons/${lesson.id}/progress`, {
+      timeSpentMs: 30_000,
+      videoPositionMs: completed ? (lesson.durationSec ?? 0) * 1000 : 15_000,
+      completed,
+    }, token);
+    setMsg(completed ? "Đã đánh dấu hoàn thành." : "Đã lưu tiến độ.");
+  }
 
   async function watchAd() {
     if (!token || !lesson) return;
@@ -85,12 +117,9 @@ export default function LearnPage() {
         setMsg(`Không đủ điều kiện xem quảng cáo: ${elig.reason}`);
         return;
       }
-      setMsg(
-        `Bạn sẽ xem 1 quảng cáo để mở bài này trong ${elig.durationHours ?? 24} giờ (demo: mô phỏng SSV).`,
-      );
       await apiPost("/rewards/dev/complete", { rewardSessionId: elig.rewardSessionId }, token);
       await load();
-      setMsg("Đã mở khóa bằng rewarded ad (đã xác minh server-side).");
+      setMsg("Đã mở khóa bằng rewarded ad (môi trường dev).");
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Reward failed");
     } finally {
@@ -111,6 +140,17 @@ export default function LearnPage() {
         {access.code === "CANNOT_ACCESS" && <span className="badge locked">LOCKED</span>}
       </div>
 
+      {announcements.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <h3>Thông báo khóa học</h3>
+          {announcements.map((a) => (
+            <p key={a.id}>
+              <strong>{a.title}</strong> — {a.body}
+            </p>
+          ))}
+        </div>
+      )}
+
       {access.code !== "CAN_ACCESS" && (
         <div style={{ marginTop: 18 }}>
           <p className="muted">
@@ -118,12 +158,9 @@ export default function LearnPage() {
             {access.reasons?.length ? ` (${access.reasons.join(", ")})` : ""}
           </p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {(access.code === "NEEDS_PURCHASE" ||
-              access.reasons?.some((r) => r.includes("reward"))) && (
-              <a className="btn" href="/">
-                Mua khóa học
-              </a>
-            )}
+            <a className="btn" href="/">
+              Mua khóa học
+            </a>
             <button className="secondary" disabled={busy} onClick={watchAd}>
               {busy ? "..." : "Xem quảng cáo để mở"}
             </button>
@@ -143,6 +180,8 @@ export default function LearnPage() {
                       playsInline
                       style={{ width: "100%", maxHeight: 480, background: "#0b1612" }}
                       src={playbackUrl}
+                      onPause={() => void saveProgress(false)}
+                      onEnded={() => void saveProgress(true)}
                     />
                   ) : (
                     <p className="muted">{playbackError || "Loading video…"}</p>
@@ -161,8 +200,93 @@ export default function LearnPage() {
               Quyền tạm thời hết hạn: {new Date(access.expiresAt).toLocaleString()}
             </p>
           )}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+            <button type="button" className="secondary" onClick={() => void saveProgress(false)}>
+              Lưu tiến độ
+            </button>
+            <button type="button" onClick={() => void saveProgress(true)}>
+              Đánh dấu hoàn thành
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => {
+                if (!token) return;
+                apiPost("/bookmarks", { resourceType: "lesson", resourceId: lesson.id }, token)
+                  .then(() => setMsg("Đã thêm bookmark"))
+                  .catch((e: Error) => setMsg(e.message));
+              }}
+            >
+              Bookmark
+            </button>
+          </div>
         </div>
       )}
+
+      <div style={{ marginTop: 28 }}>
+        <h3>Ghi chú của tôi</h3>
+        <textarea
+          value={noteBody}
+          onChange={(e) => setNoteBody(e.target.value)}
+          rows={3}
+          style={{ width: "100%", font: "inherit", padding: 12 }}
+        />
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => {
+            if (!token || !noteBody.trim()) return;
+            apiPost<Note>("/notes", { resourceType: "lesson", resourceId: lesson.id, body: noteBody }, token)
+              .then((n) => {
+                setNotes((prev) => [n, ...prev]);
+                setNoteBody("");
+              })
+              .catch((e: Error) => setMsg(e.message));
+          }}
+        >
+          Lưu ghi chú
+        </button>
+        <ul className="lesson-list">
+          {notes.map((n) => (
+            <li key={n.id}>{n.body}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <h3>Bình luận</h3>
+        <ul className="lesson-list">
+          {comments.map((c) => (
+            <li key={c.id}>
+              <div>
+                <strong>{c.user.displayName}</strong>
+                <div className="muted">{c.body}</div>
+              </div>
+              <span className="muted">{new Date(c.createdAt).toLocaleString("vi-VN")}</span>
+            </li>
+          ))}
+        </ul>
+        <input
+          value={commentBody}
+          onChange={(e) => setCommentBody(e.target.value)}
+          placeholder="Viết bình luận…"
+        />
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => {
+            if (!token || !commentBody.trim()) return;
+            apiPost<Comment>(`/lessons/${lesson.id}/comments`, { body: commentBody }, token)
+              .then((c) => {
+                setComments((prev) => [...prev, { ...c, user: c.user ?? { displayName: "Bạn" } }]);
+                setCommentBody("");
+              })
+              .catch((e: Error) => setMsg(e.message));
+          }}
+        >
+          Gửi
+        </button>
+      </div>
 
       {msg && <p className="ok">{msg}</p>}
     </section>

@@ -1,8 +1,10 @@
 import { Controller, Injectable, Module, Post, UseGuards, Inject } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { AppError, ErrorCodes, hasAnyRole } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
 import { AuthGuard, CurrentUser, type RequestUser } from "../auth/auth.guard";
 import { AuthModule } from "../auth/auth.module";
+import { sendAbandonedCheckoutEmail, sendIdleLearningEmail } from "../common/mailer";
 
 const ABANDON_AFTER_MS = Number(process.env.ABANDON_CHECKOUT_MS || 30 * 60_000);
 const IDLE_AFTER_MS = Number(process.env.IDLE_LEARNING_MS || 3 * 24 * 3600_000);
@@ -17,17 +19,29 @@ export class JobsService {
     }
   }
 
-  /** Recover AWAITING_PAYMENT carts older than threshold (Kajabi-style nudge). */
-  async abandonedCheckout(actor: RequestUser) {
-    this.assertAdmin(actor);
+  async expireEntitlementsAndSubs() {
+    const now = new Date();
+    const entitlements = await this.prisma.entitlement.updateMany({
+      where: { status: "ACTIVE", expiresAt: { lte: now } },
+      data: { status: "EXPIRED" },
+    });
+    const subs = await this.prisma.subscription.updateMany({
+      where: { status: "ACTIVE", currentPeriodEnd: { lte: now } },
+      data: { status: "EXPIRED" },
+    });
+    return { entitlements: entitlements.count, subscriptions: subs.count };
+  }
+
+  async abandonedCheckout(appId?: string) {
     const cutoff = new Date(Date.now() - ABANDON_AFTER_MS);
     const orders = await this.prisma.order.findMany({
       where: {
-        appId: actor.appId,
+        ...(appId ? { appId } : {}),
         status: "AWAITING_PAYMENT",
         updatedAt: { lt: cutoff },
       },
-      take: 50,
+      include: { user: { select: { email: true } } },
+      take: 80,
       orderBy: { updatedAt: "asc" },
     });
 
@@ -51,25 +65,25 @@ export class JobsService {
           metaJson: { orderId: order.id, kind: "abandoned_checkout" },
         },
       });
+      void sendAbandonedCheckoutEmail(order.user.email, order.id);
       sent += 1;
     }
     return { scanned: orders.length, sent };
   }
 
-  /** Nudge learners idle on an in-progress lesson (P4-B). */
-  async idleLearning(actor: RequestUser) {
-    this.assertAdmin(actor);
+  async idleLearning(appId?: string) {
     const cutoff = new Date(Date.now() - IDLE_AFTER_MS);
     const rows = await this.prisma.lessonProgress.findMany({
       where: {
         status: "IN_PROGRESS",
         updatedAt: { lt: cutoff },
-        user: { appId: actor.appId },
+        ...(appId ? { user: { appId } } : {}),
       },
       include: {
         lesson: { select: { id: true, title: true } },
+        user: { select: { email: true } },
       },
-      take: 50,
+      take: 80,
       orderBy: { updatedAt: "asc" },
     });
 
@@ -93,9 +107,18 @@ export class JobsService {
           metaJson: { lessonId: row.lessonId, kind: "idle_learning" },
         },
       });
+      void sendIdleLearningEmail(row.user.email, row.lessonId, row.lesson.title);
       sent += 1;
     }
     return { scanned: rows.length, sent };
+  }
+
+  @Cron(CronExpression.EVERY_10_MINUTES)
+  async cronNudgeAndExpire() {
+    const expired = await this.expireEntitlementsAndSubs();
+    const abandoned = await this.abandonedCheckout();
+    const idle = await this.idleLearning();
+    console.log("[jobs:cron]", { expired, abandoned, idle });
   }
 }
 
@@ -106,12 +129,20 @@ export class JobsController {
 
   @Post("abandoned-checkout")
   abandoned(@CurrentUser() user: RequestUser) {
-    return this.jobs.abandonedCheckout(user);
+    this.jobs.assertAdmin(user);
+    return this.jobs.abandonedCheckout(user.appId);
   }
 
   @Post("idle-learning")
   idle(@CurrentUser() user: RequestUser) {
-    return this.jobs.idleLearning(user);
+    this.jobs.assertAdmin(user);
+    return this.jobs.idleLearning(user.appId);
+  }
+
+  @Post("expire")
+  expire(@CurrentUser() user: RequestUser) {
+    this.jobs.assertAdmin(user);
+    return this.jobs.expireEntitlementsAndSubs();
   }
 }
 

@@ -1,4 +1,4 @@
-import { createHmac, createHash } from "node:crypto";
+import { createHmac, createHash, timingSafeEqual } from "node:crypto";
 
 export interface SignedUpload {
   url: string;
@@ -70,6 +70,22 @@ export function buildObjectKey(input: {
   return `app/${input.appId}/${input.type}/${yyyy}/${mm}/${input.id}-${safe}`;
 }
 
+export function mediaSigningSecret(): string {
+  return process.env.MEDIA_SIGNING_SECRET || process.env.JWT_ACCESS_SECRET || "dev-media-signing-secret";
+}
+
+export function signLocalMedia(key: string, expMs: number): string {
+  return createHmac("sha256", mediaSigningSecret()).update(`${key}:${expMs}`).digest("hex");
+}
+
+export function verifyLocalMedia(key: string, expMs: number, sig: string | undefined): boolean {
+  if (!key || !sig || !Number.isFinite(expMs) || expMs < Date.now()) return false;
+  const expected = signLocalMedia(key, expMs);
+  const a = Buffer.from(expected);
+  const b = Buffer.from(sig);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 /** Local/dev in-memory object store with HTTP-reachable signed-style URLs. */
 export class MemoryStorageProvider implements IStorageProvider {
   private objects = new Map<string, { contentType: string; bytes: Buffer }>();
@@ -80,6 +96,16 @@ export class MemoryStorageProvider implements IStorageProvider {
       process.env.API_URL ||
       `http://127.0.0.1:${process.env.API_PORT || 3001}`;
     return `${base.replace(/\/$/, "")}/api/v1/media/local`;
+  }
+
+  private signedUrl(key: string, ttlSeconds: number): { url: string; expiresAt: Date } {
+    const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+    const exp = expiresAt.getTime();
+    const sig = signLocalMedia(key, exp);
+    return {
+      url: `${this.publicBase()}?key=${encodeURIComponent(key)}&exp=${exp}&sig=${sig}`,
+      expiresAt,
+    };
   }
 
   put(key: string, bytes: Buffer, contentType = "application/octet-stream") {
@@ -98,11 +124,11 @@ export class MemoryStorageProvider implements IStorageProvider {
     if (!this.objects.has(input.key)) {
       this.objects.set(input.key, { contentType: input.contentType, bytes: Buffer.alloc(0) });
     }
-    const expiresAt = new Date(Date.now() + input.ttlSeconds * 1000);
+    const signed = this.signedUrl(input.key, input.ttlSeconds);
     return {
-      url: `${this.publicBase()}?key=${encodeURIComponent(input.key)}`,
+      url: signed.url,
       key: input.key,
-      expiresAt,
+      expiresAt: signed.expiresAt,
       headers: { "Content-Type": input.contentType },
     };
   }
@@ -111,19 +137,15 @@ export class MemoryStorageProvider implements IStorageProvider {
     key: string;
     ttlSeconds: number;
   }): Promise<SignedDownload> {
-    const expiresAt = new Date(Date.now() + input.ttlSeconds * 1000);
     if (!this.objects.has(input.key)) {
-      // Seed / demo keys may exist only in DB — materialize a tiny placeholder.
       this.put(
         input.key,
         Buffer.from(`edu-commerce placeholder for ${input.key}\n`),
         input.key.endsWith(".pdf") ? "application/pdf" : "video/mp4",
       );
     }
-    return {
-      url: `${this.publicBase()}?key=${encodeURIComponent(input.key)}&exp=${expiresAt.getTime()}`,
-      expiresAt,
-    };
+    const signed = this.signedUrl(input.key, input.ttlSeconds);
+    return { url: signed.url, expiresAt: signed.expiresAt };
   }
 
   async head(key: string) {
