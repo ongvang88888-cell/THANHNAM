@@ -34,7 +34,7 @@ States: `QUEUED` · `PROCESSING` · `READY` · `FAILED` (retry + DLQ)
 
 ## Providers
 
-`TranscodePort`: MediaConvert / Mux / self-hosted FFmpeg workers.
+`TranscodePort`: **AWS MediaConvert (MVP, D6)** · MuxAdapter (optional later) · FfmpegWorkerAdapter (optional later).
 
 ## Protection extras
 
