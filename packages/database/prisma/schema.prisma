@@ -142,6 +142,12 @@ enum CourseStatus {
   REJECTED
 }
 
+enum AffiliateCommissionStatus {
+  PENDING
+  EARNED
+  REVERSED
+}
+
 model App {
   id                   String   @id @default(cuid())
   slug                 String   @unique
@@ -169,6 +175,9 @@ model App {
   appConfigs AppConfig[]
   auditLogs AuditLog[]
   analyticsEvents AnalyticsEvent[]
+  affiliateCodes AffiliateCode[]
+  affiliateCommissions AffiliateCommission[]
+  coupons Coupon[]
 }
 
 model User {
@@ -205,6 +214,8 @@ model User {
   notifications      Notification[]
   couponRedemptions  CouponRedemption[]
   auditLogs          AuditLog[]
+  affiliateCodes     AffiliateCode[]
+  wishlistItems      WishlistItem[]
 
   @@unique([appId, email])
   @@index([appId, status])
@@ -334,6 +345,7 @@ model Product {
   bundleItems  BundleItem[]
   orderItems   OrderItem[]
   reviews      Review[]
+  wishlistItems WishlistItem[]
 
   @@unique([appId, slug])
   @@index([appId, type, status])
@@ -549,23 +561,31 @@ model BundleItem {
 }
 
 model Order {
-  id             String      @id @default(cuid())
-  appId          String
-  userId         String
-  status         OrderStatus @default(DRAFT)
-  currency       String      @default("VND")
-  totalMinor     Int         @default(0)
-  idempotencyKey String
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  id               String      @id @default(cuid())
+  appId            String
+  userId           String
+  status           OrderStatus @default(DRAFT)
+  currency         String      @default("VND")
+  totalMinor       Int         @default(0)
+  discountMinor    Int         @default(0)
+  couponId         String?
+  affiliateCodeId  String?
+  idempotencyKey   String
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
-  app      App         @relation(fields: [appId], references: [id])
-  user     User        @relation(fields: [userId], references: [id])
-  items    OrderItem[]
-  payments Payment[]
+  app               App                   @relation(fields: [appId], references: [id])
+  user              User                  @relation(fields: [userId], references: [id])
+  items             OrderItem[]
+  payments          Payment[]
+  coupon            Coupon?               @relation(fields: [couponId], references: [id])
+  affiliateCode     AffiliateCode?        @relation(fields: [affiliateCodeId], references: [id])
+  affiliateCommission AffiliateCommission?
 
   @@unique([appId, idempotencyKey])
   @@index([appId, userId, createdAt])
+  @@index([couponId])
+  @@index([affiliateCodeId])
 }
 
 model OrderItem {
@@ -881,9 +901,61 @@ model Coupon {
   endsAt          DateTime?
   enabled         Boolean   @default(true)
 
+  app         App                @relation(fields: [appId], references: [id])
   redemptions CouponRedemption[]
+  orders      Order[]
 
   @@unique([appId, code])
+}
+
+model AffiliateCode {
+  id             String   @id @default(cuid())
+  appId          String
+  code           String
+  ownerUserId    String
+  commissionBps  Int      @default(1000)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  app          App                    @relation(fields: [appId], references: [id])
+  owner        User                   @relation(fields: [ownerUserId], references: [id])
+  commissions  AffiliateCommission[]
+  orders       Order[]
+
+  @@unique([appId, code])
+  @@index([ownerUserId])
+}
+
+model AffiliateCommission {
+  id              String                     @id @default(cuid())
+  appId           String
+  affiliateCodeId String
+  orderId         String                     @unique
+  amountMinor     Int
+  currency        String
+  status          AffiliateCommissionStatus  @default(PENDING)
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+
+  app           App            @relation(fields: [appId], references: [id])
+  affiliateCode AffiliateCode  @relation(fields: [affiliateCodeId], references: [id])
+  order         Order          @relation(fields: [orderId], references: [id])
+
+  @@index([affiliateCodeId, status])
+  @@index([appId, status])
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+  @@index([userId])
 }
 
 model CouponRedemption {

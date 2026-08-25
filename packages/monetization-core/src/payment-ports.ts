@@ -69,11 +69,19 @@ export type CheckoutPlatform = "web" | "android" | "ios" | "unknown";
  * Keep platform rules here — never scatter provider allowlists across UI.
  */
 export const PaymentPolicyConfig = {
-  webProviders: ["mock", "stripe", "vnpay"] as const,
+  webProviders: ["mock", "stripe", "vnpay", "momo", "zalopay"] as const,
   androidProviders: ["google_play", "mock"] as const,
   iosProviders: ["apple_iap", "mock"] as const,
   /** Dev / unknown clients may hit any adapter for tooling */
-  unknownProviders: ["mock", "stripe", "vnpay", "google_play", "apple_iap"] as const,
+  unknownProviders: [
+    "mock",
+    "stripe",
+    "vnpay",
+    "momo",
+    "zalopay",
+    "google_play",
+    "apple_iap",
+  ] as const,
 };
 
 /** Store-policy aware checkout providers by client platform. */

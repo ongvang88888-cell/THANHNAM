@@ -427,6 +427,43 @@ async function main() {
     });
   }
 
+  await prisma.coupon.upsert({
+    where: { appId_code: { appId: app.id, code: "WELCOME10" } },
+    update: { percentOff: 10, enabled: true, currency: "VND", maxRedemptions: 1000 },
+    create: {
+      appId: app.id,
+      code: "WELCOME10",
+      percentOff: 10,
+      currency: "VND",
+      maxRedemptions: 1000,
+      enabled: true,
+    },
+  });
+
+  const affiliateRole = await prisma.role.findFirstOrThrow({
+    where: { appId: app.id, code: "affiliate" },
+  });
+  const existingAffRole = await prisma.userRole.findFirst({
+    where: { userId: teacher.id, roleId: affiliateRole.id },
+  });
+  if (!existingAffRole) {
+    await prisma.userRole.create({
+      data: { userId: teacher.id, roleId: affiliateRole.id, scopeType: "APP" },
+    });
+  }
+
+  await prisma.affiliateCode.upsert({
+    where: { appId_code: { appId: app.id, code: "TEACHERREF" } },
+    update: { ownerUserId: teacher.id, commissionBps: 1000, active: true },
+    create: {
+      appId: app.id,
+      code: "TEACHERREF",
+      ownerUserId: teacher.id,
+      commissionBps: 1000,
+      active: true,
+    },
+  });
+
   console.log("Seed complete");
   console.log({
     app: app.slug,
@@ -436,6 +473,8 @@ async function main() {
       student: "student@edu.local",
       password: "Password123!",
     },
+    coupon: "WELCOME10 (10% off)",
+    affiliate: "TEACHERREF (teacher, 10% commission)",
   });
 }
 

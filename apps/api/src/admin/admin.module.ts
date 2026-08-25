@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Injectable, Module, Param, Post, UseGuards, Inject } from "@nestjs/common";
-import { IsOptional, IsString } from "class-validator";
+import { IsBoolean, IsInt, IsOptional, IsString, Max, Min, MinLength } from "class-validator";
 import { AppError, ErrorCodes, hasAnyRole } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
 import { AuthGuard, CurrentUser, type RequestUser } from "../auth/auth.guard";
@@ -21,6 +21,51 @@ class AdminGrantDto {
   @IsOptional()
   @IsString()
   expiresAt?: string;
+}
+
+class CreateCouponDto {
+  @IsString()
+  @MinLength(3)
+  code!: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  percentOff?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  amountOffMinor?: number;
+
+  @IsOptional()
+  @IsString()
+  currency?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxRedemptions?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+}
+
+class CreateAffiliateCodeDto {
+  @IsString()
+  @MinLength(3)
+  code!: string;
+
+  @IsString()
+  ownerUserId!: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5000)
+  commissionBps?: number;
 }
 
 @Injectable()
@@ -166,6 +211,88 @@ export class AdminService {
     });
     return { ok: true, productId: product.id };
   }
+
+  async listCoupons(user: RequestUser) {
+    this.assertAdmin(user);
+    return this.prisma.coupon.findMany({
+      where: { appId: user.appId },
+      include: { _count: { select: { redemptions: true } } },
+      orderBy: { code: "asc" },
+    });
+  }
+
+  async createCoupon(user: RequestUser, dto: CreateCouponDto) {
+    this.assertAdmin(user);
+    if (!dto.percentOff && !dto.amountOffMinor) {
+      throw new AppError(ErrorCodes.VALIDATION, "percentOff or amountOffMinor required", 400);
+    }
+    return this.prisma.coupon.upsert({
+      where: { appId_code: { appId: user.appId, code: dto.code.trim().toUpperCase() } },
+      update: {
+        percentOff: dto.percentOff ?? null,
+        amountOffMinor: dto.amountOffMinor ?? null,
+        currency: dto.currency || "VND",
+        maxRedemptions: dto.maxRedemptions ?? null,
+        enabled: dto.enabled ?? true,
+      },
+      create: {
+        appId: user.appId,
+        code: dto.code.trim().toUpperCase(),
+        percentOff: dto.percentOff ?? null,
+        amountOffMinor: dto.amountOffMinor ?? null,
+        currency: dto.currency || "VND",
+        maxRedemptions: dto.maxRedemptions ?? null,
+        enabled: dto.enabled ?? true,
+      },
+    });
+  }
+
+  async listAffiliateCodes(user: RequestUser) {
+    this.assertAdmin(user);
+    return this.prisma.affiliateCode.findMany({
+      where: { appId: user.appId },
+      include: {
+        owner: { select: { email: true, displayName: true } },
+        _count: { select: { commissions: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async createAffiliateCode(user: RequestUser, dto: CreateAffiliateCodeDto) {
+    this.assertAdmin(user);
+    const owner = await this.prisma.user.findFirst({
+      where: { id: dto.ownerUserId, appId: user.appId },
+    });
+    if (!owner) throw new AppError(ErrorCodes.NOT_FOUND, "Owner user not found", 404);
+    return this.prisma.affiliateCode.upsert({
+      where: { appId_code: { appId: user.appId, code: dto.code.trim().toUpperCase() } },
+      update: {
+        ownerUserId: dto.ownerUserId,
+        commissionBps: dto.commissionBps ?? 1000,
+        active: true,
+      },
+      create: {
+        appId: user.appId,
+        code: dto.code.trim().toUpperCase(),
+        ownerUserId: dto.ownerUserId,
+        commissionBps: dto.commissionBps ?? 1000,
+      },
+    });
+  }
+
+  async listAffiliateCommissions(user: RequestUser) {
+    this.assertAdmin(user);
+    return this.prisma.affiliateCommission.findMany({
+      where: { appId: user.appId },
+      include: {
+        affiliateCode: { select: { code: true, ownerUserId: true } },
+        order: { select: { id: true, totalMinor: true, status: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+  }
 }
 
 @Controller("admin")
@@ -208,6 +335,31 @@ export class AdminController {
   @Post("products/:id/publish")
   publishProduct(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.admin.publishProduct(user, id);
+  }
+
+  @Get("coupons")
+  coupons(@CurrentUser() user: RequestUser) {
+    return this.admin.listCoupons(user);
+  }
+
+  @Post("coupons")
+  createCoupon(@CurrentUser() user: RequestUser, @Body() dto: CreateCouponDto) {
+    return this.admin.createCoupon(user, dto);
+  }
+
+  @Get("affiliates")
+  affiliates(@CurrentUser() user: RequestUser) {
+    return this.admin.listAffiliateCodes(user);
+  }
+
+  @Post("affiliates")
+  createAffiliate(@CurrentUser() user: RequestUser, @Body() dto: CreateAffiliateCodeDto) {
+    return this.admin.createAffiliateCode(user, dto);
+  }
+
+  @Get("affiliate-commissions")
+  affiliateCommissions(@CurrentUser() user: RequestUser) {
+    return this.admin.listAffiliateCommissions(user);
   }
 }
 

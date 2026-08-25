@@ -15,6 +15,7 @@ import { NotificationsModule } from "./notifications/notifications.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { ReviewsModule } from "./reviews/reviews.module";
 import { SubscriptionsModule } from "./subscriptions/subscriptions.module";
+import { LearningModule } from "./learning/learning.module";
 import { HealthController } from "./health.controller";
 import { CommonModule } from "./common/common.module";
 
@@ -37,6 +38,7 @@ import { CommonModule } from "./common/common.module";
     AnalyticsModule,
     ReviewsModule,
     SubscriptionsModule,
+    LearningModule,
   ],
   controllers: [HealthController],
 })

@@ -1,17 +1,21 @@
 # Implementation status (Phase 5+)
 
-Last updated: 2026-08-25 (P3 commerce stability)
+Last updated: 2026-08-25 (gaps completion: coupons / MoMo / ZaloPay / affiliate / learning)
 
-## P3 commerce money-path stability (current)
+## Gaps completion (current)
+
+See **`docs/GAPS_COMPLETE_RUNBOOK.md`**.
+
+- Coupon apply on checkout + redemption on fulfill + admin CRUD
+- MoMo + ZaloPay web payment adapters (sandbox without live keys)
+- Affiliate ledger: PENDING → EARNED on fulfill → REVERSED on refund
+- Bookmarks / Notes / Wishlist APIs
+- Web checkout: coupon, ref, momo/zalopay
+- Native IAP: `EXPO_PUBLIC_NATIVE_IAP=simulate|1`
+
+## P3 commerce money-path stability
 
 See **`docs/P3_RUNBOOK.md`**.
-
-- Order row lock (`FOR UPDATE`) on fulfill + refund
-- Refund idempotency via `Transaction` REFUND + `providerEventId`
-- Full-refund-only for digital entitlements
-- Stable SHA-256 store confirm event ids
-- Fulfill no longer marks order FAILED on non-SUCCEEDED events
-- Pure helpers + unit tests in `@edu/monetization-core` (`money-stability`)
 
 ## P2 Apple IAP + store hardening
 
@@ -25,10 +29,9 @@ See **`docs/P1_RUNBOOK.md`**.
 
 See **`docs/P0_RUNBOOK.md`**.
 
-## Deferred after P3
+## Explicitly out of scope
 
-- MoMo / ZaloPay adapters
-- Affiliate commission ledger + reverse-on-refund
-- Marketplace revenue split (D4 off)
-- Coupon apply on checkout (schema ready)
-- EAS native IAP (`EXPO_PUBLIC_NATIVE_IAP=1` + react-native-iap)
+- Marketplace revenue split (**D4 OFF**)
+- Live Apple/Google/MoMo/ZaloPay/Stripe production credentials (ops)
+- Full Apple ASN JWS root-chain verify (API lookup is SoT when keys set)
+- EAS project id / real `react-native-iap` binary (use `simulate` until EAS)

@@ -38,7 +38,7 @@ Fulfillment = grant entitlements (and subscription activation).
 | VNPay | Web VN checkout | Yes (D3) |
 | Google Play Billing | Android digital unlocks in-Play | Yes (store policy) |
 | Apple IAP | iOS digital unlocks | Yes (store policy) |
-| MoMo / ZaloPay | Web VN | Later adapters only |
+| MoMo / ZaloPay | Web VN | Implemented (sandbox adapters; production keys optional) |
 
 ## Store policy note
 

@@ -12,6 +12,19 @@ Commission by product / course / bundle / campaign / affiliate.
 
 Last-click vs first-click configurable; cookie/device attribution window; server-side attach on signup/checkout.
 
-## MVP
+## Implemented (MVP)
 
-Schema + basic tracking; payouts Can wait for Could phase.
+- `AffiliateCode` + `AffiliateCommission` schema
+- Checkout accepts `affiliateCode` (web also reads `?ref=`)
+- Commission PENDING at checkout → EARNED on fulfill (bps of `order.totalMinor`) → REVERSED on refund
+- Admin: list/create codes, list commissions
+- Seed: `TEACHERREF` (teacher, 10%)
+
+## Config
+
+Commission by code (`commissionBps`); default `AFFILIATE_DEFAULT_BPS=1000`.
+Self-referral rejected.
+
+## Later
+
+Payouts / approval workflow Can wait for Could phase.

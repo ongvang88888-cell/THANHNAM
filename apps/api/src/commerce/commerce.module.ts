@@ -2,12 +2,15 @@ import { Body, Controller, Get, Headers, Injectable, Module, Param, Post, Req, U
 import { IsIn, IsInt, IsOptional, IsString, Min, MinLength } from "class-validator";
 import {
   assertChargeAmountMatches,
+  assertCouponRedeemable,
   assertFullRefundOnly,
   assertProviderAllowedForPlatform,
   assertSkuMatchesExpected,
   buildEntitlementGrants,
   canFulfillOrder,
   canRefundOrder,
+  computeAffiliateCommissionMinor,
+  computeCouponDiscountMinor,
   isAlreadyFulfilled,
   isAlreadyRefunded,
   normalizeRefundAmount,
@@ -23,6 +26,8 @@ import { AuthModule } from "../auth/auth.module";
 import { MockPaymentProvider } from "./providers/mock.provider";
 import { StripePaymentProvider } from "./providers/stripe.provider";
 import { VnpayPaymentProvider } from "./providers/vnpay.provider";
+import { MomoPaymentProvider } from "./providers/momo.provider";
+import { ZalopayPaymentProvider } from "./providers/zalopay.provider";
 import { GooglePlayPaymentProvider } from "./providers/google-play.provider";
 import { AppleIapPaymentProvider } from "./providers/apple-iap.provider";
 
@@ -35,8 +40,8 @@ class CheckoutDto {
   idempotencyKey!: string;
 
   @IsOptional()
-  @IsIn(["mock", "stripe", "vnpay", "google_play", "apple_iap"])
-  provider?: "mock" | "stripe" | "vnpay" | "google_play" | "apple_iap";
+  @IsIn(["mock", "stripe", "vnpay", "momo", "zalopay", "google_play", "apple_iap"])
+  provider?: "mock" | "stripe" | "vnpay" | "momo" | "zalopay" | "google_play" | "apple_iap";
 
   @IsOptional()
   @IsString()
@@ -45,6 +50,15 @@ class CheckoutDto {
   @IsOptional()
   @IsIn(["web", "android", "ios", "unknown"])
   platform?: "web" | "android" | "ios" | "unknown";
+
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
+
+  /** Affiliate referral code (`ref` query / body) */
+  @IsOptional()
+  @IsString()
+  affiliateCode?: string;
 }
 
 class GooglePlayConfirmDto {
@@ -99,6 +113,8 @@ export class CommerceService {
       mock: new MockPaymentProvider(),
       stripe: new StripePaymentProvider(),
       vnpay: new VnpayPaymentProvider(),
+      momo: new MomoPaymentProvider(),
+      zalopay: new ZalopayPaymentProvider(),
       google_play: new GooglePlayPaymentProvider(),
       apple_iap: new AppleIapPaymentProvider(),
     };
@@ -143,11 +159,54 @@ export class CommerceService {
       return { order: existing, replayed: true };
     }
 
-    const amount = product.prices[0].amountMinor;
+    const listPrice = product.prices[0].amountMinor;
     const currency = product.prices[0].currency;
     const provider = this.provider(providerName);
     const meta = (product.metadataJson ?? {}) as Record<string, unknown>;
     const storeSku = resolveStoreSku(provider.name, meta, product.slug);
+
+    let couponId: string | undefined;
+    let discountMinor = 0;
+    if (dto.couponCode?.trim()) {
+      const coupon = await this.prisma.coupon.findUnique({
+        where: {
+          appId_code: { appId: user.appId, code: dto.couponCode.trim().toUpperCase() },
+        },
+      });
+      if (!coupon) throw new AppError(ErrorCodes.NOT_FOUND, "Coupon not found", 404);
+      const redemptionCount = await this.prisma.couponRedemption.count({
+        where: { couponId: coupon.id },
+      });
+      try {
+        assertCouponRedeemable({ ...coupon, redemptionCount }, currency);
+      } catch (e) {
+        throw new AppError(
+          ErrorCodes.VALIDATION,
+          e instanceof Error ? e.message : "Coupon not redeemable",
+          400,
+        );
+      }
+      discountMinor = computeCouponDiscountMinor(coupon, listPrice);
+      couponId = coupon.id;
+    }
+
+    let affiliateCodeId: string | undefined;
+    if (dto.affiliateCode?.trim()) {
+      const aff = await this.prisma.affiliateCode.findUnique({
+        where: {
+          appId_code: { appId: user.appId, code: dto.affiliateCode.trim().toUpperCase() },
+        },
+      });
+      if (!aff || !aff.active) {
+        throw new AppError(ErrorCodes.NOT_FOUND, "Affiliate code not found", 404);
+      }
+      if (aff.ownerUserId === user.userId) {
+        throw new AppError(ErrorCodes.VALIDATION, "Cannot use your own affiliate code", 400);
+      }
+      affiliateCodeId = aff.id;
+    }
+
+    const amount = Math.max(0, listPrice - discountMinor);
 
     const order = await this.prisma.$transaction(async (tx) => {
       const created = await tx.order.create({
@@ -157,17 +216,38 @@ export class CommerceService {
           status: "AWAITING_PAYMENT",
           currency,
           totalMinor: amount,
+          discountMinor,
+          couponId: couponId ?? null,
+          affiliateCodeId: affiliateCodeId ?? null,
           idempotencyKey: dto.idempotencyKey,
           items: {
             create: {
               productId: product.id,
               quantity: 1,
-              unitAmountMinor: amount,
+              unitAmountMinor: listPrice,
+              metadataJson: {
+                listPriceMinor: listPrice,
+                discountMinor,
+                couponId: couponId ?? null,
+              },
             },
           },
         },
         include: { items: true },
       });
+
+      if (affiliateCodeId) {
+        await tx.affiliateCommission.create({
+          data: {
+            appId: user.appId,
+            affiliateCodeId,
+            orderId: created.id,
+            amountMinor: 0,
+            currency,
+            status: "PENDING",
+          },
+        });
+      }
 
       const returnUrl = (dto.returnUrl || "http://localhost:3000/checkout/return")
         .replace(/ORDER_PLACEHOLDER|PENDING/g, created.id)
@@ -189,6 +269,8 @@ export class CommerceService {
           appleSku: storeSku,
           sku: storeSku,
           platform,
+          couponId: couponId ?? "",
+          affiliateCodeId: affiliateCodeId ?? "",
         },
       });
 
@@ -204,6 +286,9 @@ export class CommerceService {
             ...intent,
             expectedSku: storeSku,
             appAccountToken: intent.clientAction.appAccountToken,
+            discountMinor,
+            couponId: couponId ?? null,
+            affiliateCodeId: affiliateCodeId ?? null,
           } as object,
         },
       });
@@ -225,10 +310,10 @@ export class CommerceService {
         where: { id: order.created.id },
         include: { items: true, payments: true },
       });
-      return { order: fulfilled, intent: order.intent, fulfilled: true };
+      return { order: fulfilled, intent: order.intent, fulfilled: true, discountMinor };
     }
 
-    return { order: order.created, intent: order.intent };
+    return { order: order.created, intent: order.intent, discountMinor };
   }
 
   async fulfillPaidOrder(
@@ -345,6 +430,46 @@ export class CommerceService {
 
       await tx.order.update({ where: { id: order.id }, data: { status: "FULFILLED" } });
 
+      if (order.couponId) {
+        const alreadyRedeemed = await tx.couponRedemption.findFirst({
+          where: { couponId: order.couponId, orderId: order.id },
+        });
+        if (!alreadyRedeemed) {
+          await tx.couponRedemption.create({
+            data: {
+              couponId: order.couponId,
+              userId: order.userId,
+              orderId: order.id,
+            },
+          });
+        }
+      }
+
+      if (order.affiliateCodeId) {
+        const aff = await tx.affiliateCode.findUnique({
+          where: { id: order.affiliateCodeId },
+        });
+        const commissionAmount = computeAffiliateCommissionMinor(
+          order.totalMinor,
+          aff?.commissionBps ?? Number(process.env.AFFILIATE_DEFAULT_BPS || 1000),
+        );
+        await tx.affiliateCommission.upsert({
+          where: { orderId: order.id },
+          update: {
+            amountMinor: commissionAmount,
+            status: "EARNED",
+          },
+          create: {
+            appId: order.appId,
+            affiliateCodeId: order.affiliateCodeId,
+            orderId: order.id,
+            amountMinor: commissionAmount,
+            currency: order.currency,
+            status: "EARNED",
+          },
+        });
+      }
+
       await tx.notification.create({
         data: {
           userId: order.userId,
@@ -364,6 +489,9 @@ export class CommerceService {
             orderId: order.id,
             amountMinor: event.amountMinor || payment.amountMinor,
             providerEventId: event.providerEventId,
+            discountMinor: order.discountMinor,
+            couponId: order.couponId,
+            affiliateCodeId: order.affiliateCodeId,
           },
         },
       });
@@ -741,6 +869,11 @@ export class CommerceService {
           status: "ACTIVE",
         },
         data: { status: "REVOKED" },
+      });
+
+      await tx.affiliateCommission.updateMany({
+        where: { orderId: order.id, status: { in: ["PENDING", "EARNED"] } },
+        data: { status: "REVERSED" },
       });
 
       await tx.notification.create({

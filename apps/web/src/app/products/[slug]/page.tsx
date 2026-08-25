@@ -59,10 +59,16 @@ export default function ProductPage() {
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [provider, setProvider] = useState<"mock" | "stripe" | "vnpay">("mock");
+  const [provider, setProvider] = useState<"mock" | "stripe" | "vnpay" | "momo" | "zalopay">("mock");
+  const [couponCode, setCouponCode] = useState("");
+  const [affiliateCode, setAffiliateCode] = useState("");
 
   useEffect(() => {
     apiGet<ProductDetail>(`/products/${slug}`).then(setProduct).catch((e) => setMsg(e.message));
+    if (typeof window !== "undefined") {
+      const ref = new URLSearchParams(window.location.search).get("ref");
+      if (ref) setAffiliateCode(ref);
+    }
   }, [slug]);
 
   async function buy(event: FormEvent) {
@@ -82,7 +88,10 @@ export default function ProductPage() {
           productId: product.id,
           idempotencyKey: `web-${product.id}-${Date.now()}`,
           provider,
+          platform: "web",
           returnUrl: `${returnUrl}?orderId=PENDING`,
+          ...(couponCode.trim() ? { couponCode: couponCode.trim() } : {}),
+          ...(affiliateCode.trim() ? { affiliateCode: affiliateCode.trim() } : {}),
         },
         token,
       );
@@ -90,7 +99,11 @@ export default function ProductPage() {
       const orderReturn = `${returnUrl}?orderId=${res.order.id}`;
       const action = res.intent?.clientAction;
 
-      if (provider === "vnpay" && action?.type === "redirect" && action.url) {
+      if (
+        (provider === "vnpay" || provider === "momo" || provider === "zalopay") &&
+        action?.type === "redirect" &&
+        action.url
+      ) {
         window.location.href = action.url.includes("orderId=")
           ? action.url
           : `${action.url}${action.url.includes("?") ? "&" : "?"}orderId=${res.order.id}`;
@@ -165,7 +178,25 @@ export default function ProductPage() {
           <option value="mock">Mock (local / auto-fulfill)</option>
           <option value="stripe">Stripe</option>
           <option value="vnpay">VNPay</option>
+          <option value="momo">MoMo</option>
+          <option value="zalopay">ZaloPay</option>
         </select>
+        <label htmlFor="coupon">Coupon code</label>
+        <input
+          id="coupon"
+          value={couponCode}
+          onChange={(e) => setCouponCode(e.target.value)}
+          placeholder="WELCOME10"
+          style={{ width: "100%", padding: "12px 14px", marginBottom: 12, font: "inherit" }}
+        />
+        <label htmlFor="affiliate">Affiliate / ref</label>
+        <input
+          id="affiliate"
+          value={affiliateCode}
+          onChange={(e) => setAffiliateCode(e.target.value)}
+          placeholder="TEACHERREF"
+          style={{ width: "100%", padding: "12px 14px", marginBottom: 12, font: "inherit" }}
+        />
         <button type="submit" disabled={busy}>
           {busy ? "Processing..." : "Mua ngay"}
         </button>
