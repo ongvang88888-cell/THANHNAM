@@ -14,6 +14,13 @@ export class StripePaymentProvider implements PaymentProvider {
   async createIntent(input: CreatePaymentIntentInput): Promise<CreatePaymentIntentResult> {
     const key = process.env.STRIPE_SECRET_KEY;
     if (!key) {
+      if (process.env.NODE_ENV === "production") {
+        throw new AppError(
+          ErrorCodes.PAYMENT_FAILED,
+          "STRIPE_SECRET_KEY is required in production",
+          500,
+        );
+      }
       return {
         provider: this.name,
         providerRef: `stripe_test_${input.orderId}`,

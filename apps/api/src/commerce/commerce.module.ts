@@ -20,6 +20,10 @@ class CheckoutDto {
   @IsOptional()
   @IsIn(["mock", "stripe", "vnpay"])
   provider?: "mock" | "stripe" | "vnpay";
+
+  @IsOptional()
+  @IsString()
+  returnUrl?: string;
 }
 
 @Injectable()
@@ -87,11 +91,20 @@ export class CommerceService {
         include: { items: true },
       });
 
+      const returnUrl = (dto.returnUrl || "http://localhost:3000/checkout/return")
+        .replace(/ORDER_PLACEHOLDER|PENDING/g, created.id)
+        .replace(/([?&]orderId=)[^&]*/i, `$1${created.id}`);
+      const withOrder =
+        returnUrl.includes("orderId=")
+          ? returnUrl
+          : `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}orderId=${created.id}`;
+
       const intent = await provider.createIntent({
         orderId: created.id,
         amountMinor: amount,
         currency,
         idempotencyKey: dto.idempotencyKey,
+        returnUrl: withOrder,
         metadata: { productId: product.id, userId: user.userId },
       });
 
@@ -170,11 +183,19 @@ export class CommerceService {
       const payment = order.payments[0];
       if (!payment) throw new AppError(ErrorCodes.NOT_FOUND, "Payment missing", 404);
 
+      if (event.amountMinor > 0 && event.amountMinor !== payment.amountMinor) {
+        throw new AppError(
+          ErrorCodes.PAYMENT_FAILED,
+          `Payment amount mismatch: expected ${payment.amountMinor}, got ${event.amountMinor}`,
+          400,
+        );
+      }
+
       await tx.transaction.create({
         data: {
           paymentId: payment.id,
           type: "CHARGE",
-          amountMinor: event.amountMinor,
+          amountMinor: event.amountMinor || payment.amountMinor,
           providerEventId: event.providerEventId,
         },
       });
@@ -256,6 +277,18 @@ export class CommerceService {
     });
   }
 
+  async getOrder(user: RequestUser, orderId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: String(orderId), userId: user.userId, appId: user.appId },
+      include: {
+        items: { include: { product: true } },
+        payments: true,
+      },
+    });
+    if (!order) throw new AppError(ErrorCodes.NOT_FOUND, "Order not found", 404);
+    return order;
+  }
+
   async myEntitlements(user: RequestUser) {
     return this.prisma.entitlement.findMany({
       where: { userId: user.userId, appId: user.appId, status: "ACTIVE" },
@@ -291,6 +324,12 @@ export class CommerceController {
   @UseGuards(AuthGuard)
   orders(@CurrentUser() user: RequestUser) {
     return this.commerce.myOrders(user);
+  }
+
+  @Get("orders/:id")
+  @UseGuards(AuthGuard)
+  order(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.commerce.getOrder(user, id);
   }
 
   @Get("entitlements/me")

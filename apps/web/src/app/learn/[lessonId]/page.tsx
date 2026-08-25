@@ -5,11 +5,19 @@ import { useParams, useRouter } from "next/navigation";
 import { apiGet, apiPost, type AccessDecision } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
+type LessonContent = {
+  id: string;
+  contentType: string;
+  body?: string | null;
+  refId?: string | null;
+};
+
 type LessonPayload = {
   id: string;
   title: string;
   access: AccessDecision;
-  contents: Array<{ id: string; contentType: string; body?: string | null }>;
+  contents: LessonContent[];
+  courseId?: string;
 };
 
 export default function LearnPage() {
@@ -19,6 +27,8 @@ export default function LearnPage() {
   const [lesson, setLesson] = useState<LessonPayload | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
 
   async function load() {
     if (!token) {
@@ -27,6 +37,24 @@ export default function LearnPage() {
     }
     const data = await apiGet<LessonPayload>(`/lessons/${lessonId}`, token);
     setLesson(data);
+    setPlaybackUrl(null);
+    setPlaybackError(null);
+
+    if (data.access.code === "CAN_ACCESS") {
+      const video = data.contents.find((c) => c.contentType === "VIDEO" && c.refId);
+      if (video?.refId) {
+        try {
+          const pb = await apiPost<{ playbackUrl: string }>(
+            `/videos/${video.refId}/playback`,
+            { lessonId: data.id },
+            token,
+          );
+          setPlaybackUrl(pb.playbackUrl);
+        } catch (e) {
+          setPlaybackError(e instanceof Error ? e.message : "Playback failed");
+        }
+      }
+    }
   }
 
   useEffect(() => {
@@ -90,7 +118,8 @@ export default function LearnPage() {
             {access.reasons?.length ? ` (${access.reasons.join(", ")})` : ""}
           </p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {(access.code === "NEEDS_PURCHASE" || access.reasons?.some((r) => r.includes("reward"))) && (
+            {(access.code === "NEEDS_PURCHASE" ||
+              access.reasons?.some((r) => r.includes("reward"))) && (
               <a className="btn" href="/">
                 Mua khóa học
               </a>
@@ -99,21 +128,38 @@ export default function LearnPage() {
               {busy ? "..." : "Xem quảng cáo để mở"}
             </button>
           </div>
-          <p className="muted" style={{ marginTop: 10 }}>
-            Quảng cáo sẽ mở bài học tạm thời theo policy — không phải nội dung học.
-          </p>
         </div>
       )}
 
       {access.code === "CAN_ACCESS" && (
         <div style={{ marginTop: 20 }}>
-          {lesson.contents.map((c) => (
-            <article key={c.id} style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-              {c.body}
-            </article>
-          ))}
+          {lesson.contents.map((c) => {
+            if (c.contentType === "VIDEO") {
+              return (
+                <div key={c.id} style={{ marginBottom: 20 }}>
+                  {playbackUrl ? (
+                    <video
+                      controls
+                      playsInline
+                      style={{ width: "100%", maxHeight: 480, background: "#0b1612" }}
+                      src={playbackUrl}
+                    />
+                  ) : (
+                    <p className="muted">{playbackError || "Loading video…"}</p>
+                  )}
+                </div>
+              );
+            }
+            return (
+              <article key={c.id} style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+                {c.body}
+              </article>
+            );
+          })}
           {access.expiresAt && (
-            <p className="muted">Quyền tạm thời hết hạn: {new Date(access.expiresAt).toLocaleString()}</p>
+            <p className="muted">
+              Quyền tạm thời hết hạn: {new Date(access.expiresAt).toLocaleString()}
+            </p>
           )}
         </div>
       )}

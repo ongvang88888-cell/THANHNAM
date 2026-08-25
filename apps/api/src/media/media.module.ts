@@ -1,14 +1,29 @@
-import { Body, Controller, Injectable, Module, Param, Post, UseGuards, Inject } from "@nestjs/common";
-import { IsString } from "class-validator";
+import {
+  Body,
+  Controller,
+  Get,
+  Injectable,
+  Module,
+  Param,
+  Post,
+  Put,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+  Inject,
+} from "@nestjs/common";
+import { IsInt, IsOptional, IsString, Min } from "class-validator";
 import {
   createStorageFromEnv,
   createTranscodeFromEnv,
   assertAllowedMime,
   buildObjectKey,
+  getSharedMemoryStorage,
   type IStorageProvider,
   type TranscodePort,
 } from "@edu/media-core";
-import { AppError, ErrorCodes } from "@edu/shared-core";
+import { AppError, ErrorCodes, hasAnyRole } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
 import { AccessService } from "../access/access.module";
 import { AccessModule } from "../access/access.module";
@@ -26,9 +41,32 @@ class UploadSessionDto {
   title!: string;
 }
 
+class DocumentUploadDto {
+  @IsString()
+  documentId!: string;
+
+  @IsString()
+  filename!: string;
+
+  @IsString()
+  contentType!: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  sizeBytes?: number;
+}
+
 class PlaybackDto {
   @IsString()
   lessonId!: string;
+}
+
+class CompleteUploadDto {
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  sizeBytes?: number;
 }
 
 @Injectable()
@@ -37,11 +75,18 @@ export class MediaService {
   private transcode: TranscodePort = createTranscodeFromEnv();
 
   constructor(
-  @Inject(PrismaService) private readonly prisma: PrismaService,
-  @Inject(AccessService) private readonly access: AccessService,
-) {}
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(AccessService) private readonly access: AccessService,
+  ) {}
+
+  private assertTeacher(user: RequestUser) {
+    if (!hasAnyRole(user as never, ["teacher", "admin", "super_admin"])) {
+      throw new AppError(ErrorCodes.FORBIDDEN, "Teacher only", 403);
+    }
+  }
 
   async createVideoUpload(user: RequestUser, dto: UploadSessionDto) {
+    this.assertTeacher(user);
     assertAllowedMime(dto.contentType);
     const video = await this.prisma.video.create({
       data: {
@@ -69,7 +114,7 @@ export class MediaService {
     await this.prisma.videoProcessingJob.create({
       data: {
         videoId: video.id,
-        provider: "mediaconvert",
+        provider: process.env.MEDIACONVERT_ENDPOINT ? "mediaconvert" : "local",
         status: "QUEUED",
       },
     });
@@ -78,18 +123,106 @@ export class MediaService {
       sourceKey: key,
       outputPrefix: `app/${user.appId}/renditions/${video.id}`,
     });
-    // Local: mark ready immediately for demo playback token flow
-    await this.prisma.video.update({ where: { id: video.id }, data: { status: "READY" } });
+    return {
+      videoId: video.id,
+      upload,
+      next: "PUT bytes to upload.url then POST /videos/:id/complete",
+    };
+  }
+
+  async completeVideoUpload(user: RequestUser, videoId: string, dto: CompleteUploadDto) {
+    this.assertTeacher(user);
+    const video = await this.prisma.video.findFirst({
+      where: { id: String(videoId), appId: user.appId, ownerUserId: user.userId },
+    });
+    if (!video || !video.storageKey) {
+      throw new AppError(ErrorCodes.NOT_FOUND, "Video upload not found", 404);
+    }
+
+    // Prefer real object head when storage supports it; memory provider always has the key.
+    const head = await this.storage.head(video.storageKey);
+    const sizeBytes = BigInt(dto.sizeBytes ?? head?.sizeBytes ?? 0);
+
+    const assetKey = `${video.storageKey}.m3u8`;
+    await this.prisma.videoAsset.deleteMany({ where: { videoId: video.id } });
     await this.prisma.videoAsset.create({
       data: {
         videoId: video.id,
         quality: "720p",
         format: "hls",
-        storageKey: `${key}.m3u8`,
-        sizeBytes: BigInt(0),
+        storageKey: assetKey,
+        sizeBytes,
       },
     });
-    return { videoId: video.id, upload };
+    await this.prisma.video.update({
+      where: { id: video.id },
+      data: { status: "READY" },
+    });
+    await this.prisma.videoProcessingJob.updateMany({
+      where: { videoId: video.id, status: "QUEUED" },
+      data: { status: "READY" },
+    });
+    return { videoId: video.id, status: "READY" };
+  }
+
+  async createDocumentUpload(user: RequestUser, dto: DocumentUploadDto) {
+    this.assertTeacher(user);
+    assertAllowedMime(dto.contentType);
+    const document = await this.prisma.document.findFirst({
+      where: {
+        id: String(dto.documentId),
+        appId: user.appId,
+        ownerUserId: user.userId,
+      },
+      include: { versions: { orderBy: { version: "desc" }, take: 1 } },
+    });
+    if (!document) throw new AppError(ErrorCodes.NOT_FOUND, "Document not found", 404);
+
+    const nextVersion = (document.versions[0]?.version ?? 0) + 1;
+    const key = buildObjectKey({
+      appId: user.appId,
+      type: "documents",
+      id: `${document.id}-v${nextVersion}`,
+      filename: dto.filename,
+    });
+    const upload = await this.storage.createUploadUrl({
+      key,
+      contentType: dto.contentType,
+      ttlSeconds: 900,
+    });
+    const version = await this.prisma.documentVersion.create({
+      data: {
+        documentId: document.id,
+        version: nextVersion,
+        storageKey: key,
+        mime: dto.contentType,
+        sizeBytes: BigInt(dto.sizeBytes ?? 0),
+      },
+    });
+    return {
+      documentId: document.id,
+      versionId: version.id,
+      version: nextVersion,
+      upload,
+      next: "PUT bytes to upload.url then POST /documents/versions/:versionId/complete",
+    };
+  }
+
+  async completeDocumentUpload(user: RequestUser, versionId: string, dto: CompleteUploadDto) {
+    this.assertTeacher(user);
+    const version = await this.prisma.documentVersion.findUnique({
+      where: { id: String(versionId) },
+      include: { document: true },
+    });
+    if (!version || version.document.appId !== user.appId || version.document.ownerUserId !== user.userId) {
+      throw new AppError(ErrorCodes.NOT_FOUND, "Document version not found", 404);
+    }
+    const head = await this.storage.head(version.storageKey);
+    await this.prisma.documentVersion.update({
+      where: { id: version.id },
+      data: { sizeBytes: BigInt(dto.sizeBytes ?? head?.sizeBytes ?? version.sizeBytes) },
+    });
+    return { versionId: version.id, documentId: version.documentId, ok: true };
   }
 
   async playback(user: RequestUser, videoId: string, lessonId: string) {
@@ -98,7 +231,7 @@ export class MediaService {
       throw new AppError(decision.code, "Playback not allowed", 403, decision as never);
     }
     const video = await this.prisma.video.findUnique({
-      where: { id: videoId },
+      where: { id: String(videoId) },
       include: { assets: true },
     });
     if (!video || video.status !== "READY") {
@@ -122,7 +255,7 @@ export class MediaService {
 
   async documentContent(user: RequestUser, documentId: string) {
     const doc = await this.prisma.document.findUnique({
-      where: { id: documentId },
+      where: { id: String(documentId) },
       include: { versions: { orderBy: { version: "desc" }, take: 1 }, product: true },
     });
     if (!doc) throw new AppError(ErrorCodes.NOT_FOUND, "Document not found", 404);
@@ -134,6 +267,7 @@ export class MediaService {
           status: "ACTIVE",
           resourceType: "product",
           resourceId: doc.productId,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
         },
       });
       if (!entitlement) {
@@ -151,23 +285,92 @@ export class MediaService {
     });
     return {
       documentId,
+      title: doc.title,
       mime: version.mime,
+      version: version.version,
       url: signed.url,
       expiresAt: signed.expiresAt,
     };
   }
 }
 
+@Controller("media/local")
+export class LocalMediaController {
+  @Put()
+  put(
+    @Query("key") key: string,
+    @Req() req: { headers: Record<string, string | undefined>; body?: Buffer; rawBody?: Buffer },
+  ) {
+    if (!key) throw new AppError(ErrorCodes.VALIDATION, "Missing key", 400);
+    const storage = getSharedMemoryStorage();
+    const bytes = req.rawBody ?? (Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0));
+    storage.put(key, bytes, req.headers["content-type"] || "application/octet-stream");
+    return { ok: true, key, sizeBytes: bytes.length };
+  }
+
+  @Get()
+  get(
+    @Query("key") key: string,
+    @Res()
+    res: {
+      setHeader: (k: string, v: string) => void;
+      status: (n: number) => { send: (b: Buffer | string) => void };
+    },
+  ) {
+    if (!key) {
+      res.status(400).send("Missing key");
+      return;
+    }
+    const storage = getSharedMemoryStorage();
+    let obj = storage.get(key);
+    if (!obj) {
+      storage.put(key, Buffer.from(`edu-commerce placeholder for ${key}\n`), "text/plain");
+      obj = storage.get(key);
+    }
+    if (!obj) {
+      res.status(404).send("Not found");
+      return;
+    }
+    res.setHeader("Content-Type", obj.contentType);
+    res.setHeader("Cache-Control", "private, max-age=60");
+    res.status(200).send(obj.bytes);
+  }
+}
+
 @Controller()
 export class MediaController {
-  constructor(
-  @Inject(MediaService) private readonly media: MediaService,
-) {}
+  constructor(@Inject(MediaService) private readonly media: MediaService) {}
 
   @Post("videos/upload-sessions")
   @UseGuards(AuthGuard)
   upload(@CurrentUser() user: RequestUser, @Body() dto: UploadSessionDto) {
     return this.media.createVideoUpload(user, dto);
+  }
+
+  @Post("videos/:id/complete")
+  @UseGuards(AuthGuard)
+  completeVideo(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Body() dto: CompleteUploadDto,
+  ) {
+    return this.media.completeVideoUpload(user, id, dto);
+  }
+
+  @Post("documents/upload-sessions")
+  @UseGuards(AuthGuard)
+  documentUpload(@CurrentUser() user: RequestUser, @Body() dto: DocumentUploadDto) {
+    return this.media.createDocumentUpload(user, dto);
+  }
+
+  @Post("documents/versions/:versionId/complete")
+  @UseGuards(AuthGuard)
+  completeDocument(
+    @CurrentUser() user: RequestUser,
+    @Param("versionId") versionId: string,
+    @Body() dto: CompleteUploadDto,
+  ) {
+    return this.media.completeDocumentUpload(user, versionId, dto);
   }
 
   @Post("videos/:id/playback")
@@ -189,7 +392,7 @@ export class MediaController {
 
 @Module({
   imports: [AuthModule, AccessModule],
-  controllers: [MediaController],
+  controllers: [MediaController, LocalMediaController],
   providers: [MediaService],
 })
 export class MediaModule {}

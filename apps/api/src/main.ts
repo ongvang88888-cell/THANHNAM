@@ -5,6 +5,11 @@ import { resolve } from "node:path";
 config({ path: resolve(process.cwd(), "../../.env") });
 config();
 
+// Prisma BigInt fields (e.g. sizeBytes) must be JSON-safe
+(BigInt.prototype as unknown as { toJSON?: () => string }).toJSON = function toJSON() {
+  return this.toString();
+};
+
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { AppModule } from "./app.module";

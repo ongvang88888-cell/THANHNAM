@@ -183,6 +183,35 @@ async function main() {
         position: 1,
       },
     });
+
+    // Demo READY video linked to a paid lesson (playback gated by entitlement)
+    const demoVideo = await prisma.video.create({
+      data: {
+        appId: app.id,
+        ownerUserId: teacher.id,
+        title: "Types in Depth — demo video",
+        status: "READY",
+        storageKey: `app/${app.id}/videos/demo-types-in-depth.mp4`,
+        assets: {
+          create: {
+            quality: "720p",
+            format: "mp4",
+            storageKey: `app/${app.id}/videos/demo-types-in-depth.mp4`,
+            sizeBytes: 2048,
+          },
+        },
+      },
+    });
+    // Ensure memory/S3 key exists for signed download in local memory storage
+    await prisma.lessonContent.create({
+      data: {
+        lessonId: paidLesson.id,
+        contentType: "VIDEO",
+        refId: demoVideo.id,
+        position: 2,
+      },
+    });
+
     await prisma.accessPolicy.create({
       data: {
         resourceType: "lesson",
@@ -201,6 +230,39 @@ async function main() {
         policyType: PolicyType.REWARDED_AD,
         paramsJson: { policyCode: "lesson_unlock_24h" },
         priority: 30,
+      },
+    });
+  }
+
+  // Ensure paid lesson has a READY demo video (idempotent for re-seed)
+  const paid = await prisma.lesson.findFirst({
+    where: { section: { courseId: course.id }, title: "Types in Depth" },
+    include: { contents: true },
+  });
+  if (paid && !paid.contents.some((c) => c.contentType === "VIDEO")) {
+    const demoVideo = await prisma.video.create({
+      data: {
+        appId: app.id,
+        ownerUserId: teacher.id,
+        title: "Types in Depth — demo video",
+        status: "READY",
+        storageKey: `app/${app.id}/videos/demo-types-in-depth.mp4`,
+        assets: {
+          create: {
+            quality: "720p",
+            format: "mp4",
+            storageKey: `app/${app.id}/videos/demo-types-in-depth.mp4`,
+            sizeBytes: 2048,
+          },
+        },
+      },
+    });
+    await prisma.lessonContent.create({
+      data: {
+        lessonId: paid.id,
+        contentType: "VIDEO",
+        refId: demoVideo.id,
+        position: (paid.contents.length || 0) + 1,
       },
     });
   }

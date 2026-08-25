@@ -328,11 +328,12 @@ model Product {
   category Category?     @relation(fields: [categoryId], references: [id])
   prices   ProductPrice[]
   tags     ProductTag[]
-  course   Course?
-  document Document?
-  bundle   Bundle?
-  orderItems OrderItem[]
-  reviews  Review[]
+  course       Course?
+  document     Document?
+  bundle       Bundle?
+  bundleItems  BundleItem[]
+  orderItems   OrderItem[]
+  reviews      Review[]
 
   @@unique([appId, slug])
   @@index([appId, type, status])
@@ -540,9 +541,11 @@ model BundleItem {
   productId String
   position  Int    @default(0)
 
-  bundle Bundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  bundle  Bundle  @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
 
   @@id([bundleId, productId])
+  @@index([productId])
 }
 
 model Order {

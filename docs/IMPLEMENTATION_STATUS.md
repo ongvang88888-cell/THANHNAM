@@ -1,8 +1,19 @@
 # Implementation status (Phase 5+)
 
-Last updated: 2026-08-25
+Last updated: 2026-08-25 (P0 web commerce)
 
-## Done in this completion pass
+## P0 web commerce (current)
+
+See **`docs/P0_RUNBOOK.md`**.
+
+- Teacher: create course / document / bundle, upload video+doc, submit review
+- Admin: review queue + publish
+- Catalog: bundle children expanded
+- Checkout: mock auto-fulfill, Stripe/VNPay adapters, `GET /orders/:id`, return page
+- Media: memory HTTP local store (or S3), video complete + playback, document content
+- Web: provider selector, library type links, learn video player, document download
+
+## Done in earlier completion pass
 
 - **AdMob SSV**: ECDSA verification via `verifyAdmobSsvSignature` (`ADMOB_SSV_ENFORCE=true` for production)
 - **Stripe webhook HMAC** verification when `STRIPE_WEBHOOK_SECRET` set
@@ -41,3 +52,4 @@ Last updated: 2026-08-25
 - Full affiliate payouts, AI generation UX
 - Separate Next apps per surface (unified `apps/web` is intentional for MVP)
 - MoMo/ZaloPay adapters
+- Google Play Billing (P1 after P0 web revenue path)

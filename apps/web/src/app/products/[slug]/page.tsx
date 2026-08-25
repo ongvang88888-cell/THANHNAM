@@ -1,23 +1,54 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiGet, apiPost, formatVnd } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+
+type BundleChild = {
+  productId: string;
+  position: number;
+  type: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  price: { currency: string; amountMinor: number } | null;
+};
 
 type ProductDetail = {
   id: string;
   name: string;
   description: string;
   type: string;
+  slug: string;
   prices: Array<{ amountMinor: number; currency: string }>;
   course?: {
     id: string;
     sections: Array<{
       id: string;
       title: string;
-      lessons: Array<{ id: string; title: string; isPreview: boolean; durationSec: number }>;
+      lessons: Array<{
+        id: string;
+        title: string;
+        isPreview: boolean;
+        durationSec: number;
+        contents?: Array<{ contentType: string; refId?: string | null }>;
+      }>;
     }>;
+  } | null;
+  document?: { id: string; versions?: Array<{ id: string; version: number }> } | null;
+  bundleChildren?: BundleChild[];
+};
+
+type CheckoutResult = {
+  order: { id: string; status: string };
+  fulfilled?: boolean;
+  intent?: {
+    clientAction?: {
+      type?: string;
+      clientSecret?: string;
+      url?: string;
+    };
   };
 };
 
@@ -28,12 +59,14 @@ export default function ProductPage() {
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [provider, setProvider] = useState<"mock" | "stripe" | "vnpay">("mock");
 
   useEffect(() => {
     apiGet<ProductDetail>(`/products/${slug}`).then(setProduct).catch((e) => setMsg(e.message));
   }, [slug]);
 
-  async function buy() {
+  async function buy(event: FormEvent) {
+    event.preventDefault();
     if (!token) {
       router.push("/login");
       return;
@@ -42,16 +75,41 @@ export default function ProductPage() {
     setBusy(true);
     setMsg(null);
     try {
-      const res = await apiPost<{ order: { status: string }; fulfilled?: boolean }>(
+      const returnUrl = `${window.location.origin}/checkout/return`;
+      const res = await apiPost<CheckoutResult>(
         "/checkout/sessions",
         {
           productId: product.id,
           idempotencyKey: `web-${product.id}-${Date.now()}`,
-          provider: "mock",
+          provider,
+          returnUrl: `${returnUrl}?orderId=PENDING`,
         },
         token,
       );
-      setMsg(`Thanh toán ${res.order.status}${res.fulfilled ? " — đã cấp quyền" : ""}`);
+
+      const orderReturn = `${returnUrl}?orderId=${res.order.id}`;
+      const action = res.intent?.clientAction;
+
+      if (provider === "vnpay" && action?.type === "redirect" && action.url) {
+        window.location.href = action.url.includes("orderId=")
+          ? action.url
+          : `${action.url}${action.url.includes("?") ? "&" : "?"}orderId=${res.order.id}`;
+        return;
+      }
+
+      if (provider === "stripe") {
+        const secret = action?.clientSecret ?? "";
+        if (secret.startsWith("test_secret_") || !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+          setMsg(
+            "Stripe sandbox stub: set STRIPE_SECRET_KEY trên API + NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY để confirm thật. Đang mở trang order.",
+          );
+        }
+        router.push(orderReturn);
+        return;
+      }
+
+      // mock auto-fulfills on API
+      router.push(orderReturn);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Checkout failed");
     } finally {
@@ -61,6 +119,12 @@ export default function ProductPage() {
 
   if (!product) return <p className="muted">{msg || "Loading..."}</p>;
   const price = product.prices[0];
+  const isCourse = product.type === "VIDEO_COURSE";
+  const isDoc = product.type === "DIGITAL_DOCUMENT";
+  const isBundle =
+    product.type === "MIXED_BUNDLE" ||
+    product.type === "COURSE_BUNDLE" ||
+    product.type === "DOCUMENT_BUNDLE";
 
   return (
     <section>
@@ -72,14 +136,58 @@ export default function ProductPage() {
       <p className="price" style={{ fontSize: "1.4rem", fontWeight: 700 }}>
         {price ? formatVnd(price.amountMinor) : "—"}
       </p>
-      <div style={{ display: "flex", gap: 12, margin: "18px 0 28px" }}>
-        <button onClick={buy} disabled={busy}>
+
+      {isBundle && (product.bundleChildren?.length ?? 0) > 0 && (
+        <div className="panel" style={{ marginBottom: 20 }}>
+          <h2 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>Bundle includes</h2>
+          <ul className="lesson-list">
+            {product.bundleChildren!.map((child) => (
+              <li key={child.productId}>
+                <div>
+                  <a href={`/products/${child.slug}`}>{child.name}</a>
+                  <div className="muted">{child.type}</div>
+                </div>
+                <span>{child.price ? formatVnd(child.price.amountMinor) : "—"}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <form className="panel stack" onSubmit={buy} style={{ marginBottom: 24, maxWidth: 480 }}>
+        <label htmlFor="provider">Payment provider</label>
+        <select
+          id="provider"
+          value={provider}
+          onChange={(e) => setProvider(e.target.value as typeof provider)}
+          style={{ width: "100%", padding: "12px 14px", marginBottom: 12, font: "inherit" }}
+        >
+          <option value="mock">Mock (local / auto-fulfill)</option>
+          <option value="stripe">Stripe</option>
+          <option value="vnpay">VNPay</option>
+        </select>
+        <button type="submit" disabled={busy}>
           {busy ? "Processing..." : "Mua ngay"}
         </button>
         <a className="btn secondary" href="/library">
           My Library
         </a>
-      </div>
+      </form>
+
+      {isCourse && product.course && (
+        <p>
+          Đã mua?{" "}
+          <a href={`/learn/${product.course.sections[0]?.lessons[0]?.id ?? ""}`}>
+            Mở bài đầu tiên
+          </a>
+        </p>
+      )}
+      {isDoc && product.document && (
+        <p>
+          Đã mua? <a href={`/documents/${product.document.id}`}>Mở / tải tài liệu</a>
+        </p>
+      )}
+
       {msg && <p className="ok">{msg}</p>}
 
       {product.course && (
@@ -102,9 +210,12 @@ export default function ProductPage() {
                             <span className="badge ad">WATCH AD</span>
                           </>
                         )}
+                        {l.contents?.some((c) => c.contentType === "VIDEO") && (
+                          <span className="badge">VIDEO</span>
+                        )}
                       </div>
                     </div>
-                    <span className="muted">{Math.round(l.durationSec / 60)} phút</span>
+                    <span className="muted">{Math.round((l.durationSec || 0) / 60)} phút</span>
                   </li>
                 ))}
               </ul>

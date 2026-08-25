@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Injectable, Module, Post, UseGuards, Inject } from "@nestjs/common";
+import { Body, Controller, Get, Injectable, Module, Param, Post, UseGuards, Inject } from "@nestjs/common";
 import { IsOptional, IsString } from "class-validator";
 import { AppError, ErrorCodes, hasAnyRole } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
@@ -112,6 +112,60 @@ export class AdminService {
       take: 100,
     });
   }
+
+  async reviewQueue(user: RequestUser) {
+    this.assertAdmin(user);
+    return this.prisma.product.findMany({
+      where: { appId: user.appId, status: "IN_REVIEW" },
+      include: {
+        prices: { take: 1, orderBy: { validFrom: "desc" } },
+        course: true,
+        document: true,
+        creator: { select: { email: true, displayName: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 100,
+    });
+  }
+
+  async publishProduct(user: RequestUser, productId: string) {
+    this.assertAdmin(user);
+    if (!hasAnyRole(user as never, ["admin", "super_admin"])) {
+      throw new AppError(ErrorCodes.FORBIDDEN, "Admin publish only", 403);
+    }
+    const product = await this.prisma.product.findFirst({
+      where: { id: String(productId), appId: user.appId },
+      include: { course: true, document: true },
+    });
+    if (!product) throw new AppError(ErrorCodes.NOT_FOUND, "Product not found", 404);
+    await this.prisma.product.update({
+      where: { id: product.id },
+      data: { status: "PUBLISHED", visibility: "PUBLIC" },
+    });
+    if (product.course) {
+      await this.prisma.course.update({
+        where: { id: product.course.id },
+        data: { status: "PUBLISHED" },
+      });
+    }
+    if (product.document) {
+      await this.prisma.document.update({
+        where: { id: product.document.id },
+        data: { status: "PUBLISHED" },
+      });
+    }
+    await this.prisma.auditLog.create({
+      data: {
+        appId: user.appId,
+        actorUserId: user.userId,
+        action: "product.publish",
+        resourceType: "product",
+        resourceId: product.id,
+        metaJson: { type: product.type },
+      },
+    });
+    return { ok: true, productId: product.id };
+  }
 }
 
 @Controller("admin")
@@ -144,6 +198,16 @@ export class AdminController {
   @Get("audit-logs")
   logs(@CurrentUser() user: RequestUser) {
     return this.admin.auditLogs(user);
+  }
+
+  @Get("review-queue")
+  reviewQueue(@CurrentUser() user: RequestUser) {
+    return this.admin.reviewQueue(user);
+  }
+
+  @Post("products/:id/publish")
+  publishProduct(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.admin.publishProduct(user, id);
   }
 }
 

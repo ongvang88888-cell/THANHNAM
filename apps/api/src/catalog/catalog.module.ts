@@ -57,15 +57,55 @@ export class CatalogService {
       include: {
         prices: { orderBy: { validFrom: "desc" }, take: 1 },
         category: true,
-        course: { include: { sections: { include: { lessons: { orderBy: { position: "asc" } } }, orderBy: { position: "asc" } } } },
+        course: {
+          include: {
+            sections: {
+              include: {
+                lessons: {
+                  include: { contents: { orderBy: { position: "asc" } } },
+                  orderBy: { position: "asc" },
+                },
+              },
+              orderBy: { position: "asc" },
+            },
+          },
+        },
         document: { include: { versions: { orderBy: { version: "desc" }, take: 1 } } },
-        bundle: { include: { items: true } },
+        bundle: {
+          include: {
+            items: {
+              orderBy: { position: "asc" },
+              include: {
+                product: {
+                  include: { prices: { orderBy: { validFrom: "desc" }, take: 1 } },
+                },
+              },
+            },
+          },
+        },
       },
     });
     if (!p || p.status !== "PUBLISHED") {
       throw new AppError(ErrorCodes.NOT_FOUND, "Product not found", 404);
     }
-    return p;
+    return {
+      ...p,
+      bundleChildren:
+        p.bundle?.items.map((item) => ({
+          productId: item.productId,
+          position: item.position,
+          type: item.product.type,
+          name: item.product.name,
+          slug: item.product.slug,
+          description: item.product.description,
+          price: item.product.prices[0]
+            ? {
+                currency: item.product.prices[0].currency,
+                amountMinor: item.product.prices[0].amountMinor,
+              }
+            : null,
+        })) ?? [],
+    };
   }
 
   async categories(appHeader?: string) {

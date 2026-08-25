@@ -70,21 +70,40 @@ export function buildObjectKey(input: {
   return `app/${input.appId}/${input.type}/${yyyy}/${mm}/${input.id}-${safe}`;
 }
 
-/** Local/dev storage that issues pseudo signed URLs. */
+/** Local/dev in-memory object store with HTTP-reachable signed-style URLs. */
 export class MemoryStorageProvider implements IStorageProvider {
-  private objects = new Map<string, { contentType: string; sizeBytes: number }>();
+  private objects = new Map<string, { contentType: string; bytes: Buffer }>();
+
+  private publicBase(): string {
+    const base =
+      process.env.MEDIA_PUBLIC_BASE ||
+      process.env.API_URL ||
+      `http://127.0.0.1:${process.env.API_PORT || 3001}`;
+    return `${base.replace(/\/$/, "")}/api/v1/media/local`;
+  }
+
+  put(key: string, bytes: Buffer, contentType = "application/octet-stream") {
+    this.objects.set(key, { contentType, bytes });
+  }
+
+  get(key: string) {
+    return this.objects.get(key) ?? null;
+  }
 
   async createUploadUrl(input: {
     key: string;
     contentType: string;
     ttlSeconds: number;
   }): Promise<SignedUpload> {
-    this.objects.set(input.key, { contentType: input.contentType, sizeBytes: 0 });
+    if (!this.objects.has(input.key)) {
+      this.objects.set(input.key, { contentType: input.contentType, bytes: Buffer.alloc(0) });
+    }
     const expiresAt = new Date(Date.now() + input.ttlSeconds * 1000);
     return {
-      url: `memory://upload/${encodeURIComponent(input.key)}`,
+      url: `${this.publicBase()}?key=${encodeURIComponent(input.key)}`,
       key: input.key,
       expiresAt,
+      headers: { "Content-Type": input.contentType },
     };
   }
 
@@ -93,19 +112,36 @@ export class MemoryStorageProvider implements IStorageProvider {
     ttlSeconds: number;
   }): Promise<SignedDownload> {
     const expiresAt = new Date(Date.now() + input.ttlSeconds * 1000);
+    if (!this.objects.has(input.key)) {
+      // Seed / demo keys may exist only in DB — materialize a tiny placeholder.
+      this.put(
+        input.key,
+        Buffer.from(`edu-commerce placeholder for ${input.key}\n`),
+        input.key.endsWith(".pdf") ? "application/pdf" : "video/mp4",
+      );
+    }
     return {
-      url: `memory://download/${encodeURIComponent(input.key)}?exp=${expiresAt.getTime()}`,
+      url: `${this.publicBase()}?key=${encodeURIComponent(input.key)}&exp=${expiresAt.getTime()}`,
       expiresAt,
     };
   }
 
   async head(key: string) {
-    return this.objects.get(key) ?? null;
+    const obj = this.objects.get(key);
+    if (!obj) return null;
+    return { sizeBytes: obj.bytes.length, contentType: obj.contentType };
   }
 
   async delete(key: string) {
     this.objects.delete(key);
   }
+}
+
+let sharedMemoryStorage: MemoryStorageProvider | null = null;
+
+export function getSharedMemoryStorage(): MemoryStorageProvider {
+  if (!sharedMemoryStorage) sharedMemoryStorage = new MemoryStorageProvider();
+  return sharedMemoryStorage;
 }
 
 /**
@@ -224,6 +260,10 @@ export class S3CompatibleStorageProvider implements IStorageProvider {
 }
 
 export function createStorageFromEnv(): IStorageProvider {
+  // Explicit local memory mode (stable for cloud agents without MinIO)
+  if (process.env.STORAGE_DRIVER === "memory") {
+    return getSharedMemoryStorage();
+  }
   const endpoint = process.env.S3_ENDPOINT;
   const accessKey = process.env.S3_ACCESS_KEY;
   const secretKey = process.env.S3_SECRET_KEY;
@@ -238,7 +278,7 @@ export function createStorageFromEnv(): IStorageProvider {
       forcePathStyle: true,
     });
   }
-  return new MemoryStorageProvider();
+  return getSharedMemoryStorage();
 }
 
 export class NoopTranscodeAdapter implements TranscodePort {

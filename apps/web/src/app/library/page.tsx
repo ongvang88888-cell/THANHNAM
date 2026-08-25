@@ -5,11 +5,30 @@ import { useRouter } from "next/navigation";
 import { apiGet } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
+type LibraryProduct = {
+  id: string;
+  name: string;
+  slug: string;
+  type: string;
+  course?: { id: string } | null;
+  document?: { id: string } | null;
+};
+
+function hrefFor(p: LibraryProduct): string {
+  if (p.type === "DIGITAL_DOCUMENT" && p.document?.id) {
+    return `/documents/${p.document.id}`;
+  }
+  if (p.type === "VIDEO_COURSE") {
+    return `/products/${p.slug}`;
+  }
+  return `/products/${p.slug}`;
+}
+
 export default function LibraryPage() {
   const { token, user, logout } = useAuth();
   const router = useRouter();
   const [data, setData] = useState<{
-    products: Array<{ id: string; name: string; slug: string; type: string }>;
+    products: LibraryProduct[];
     continueLearning?: Array<{ lessonId: string; lessonTitle: string; courseTitle: string }>;
   } | null>(null);
 
@@ -19,10 +38,7 @@ export default function LibraryPage() {
       return;
     }
     Promise.all([
-      apiGet<{ products: Array<{ id: string; name: string; slug: string; type: string }> }>(
-        "/me/library",
-        token,
-      ),
+      apiGet<{ products: LibraryProduct[] }>("/me/library", token),
       apiGet<Array<{ lessonId: string; lessonTitle: string; courseTitle: string }>>(
         "/me/continue",
         token,
@@ -65,9 +81,16 @@ export default function LibraryPage() {
       <h2 style={{ fontFamily: "var(--font-display)" }}>Owned products</h2>
       <div className="grid">
         {data?.products.map((p) => (
-          <a className="product" key={p.id} href={`/products/${p.slug}`}>
+          <a className="product" key={p.id} href={hrefFor(p)}>
             <div className="type">{p.type}</div>
             <h3>{p.name}</h3>
+            <p className="muted">
+              {p.type === "DIGITAL_DOCUMENT"
+                ? "Open document"
+                : p.type.includes("BUNDLE")
+                  ? "Open bundle"
+                  : "Open course"}
+            </p>
           </a>
         ))}
       </div>
