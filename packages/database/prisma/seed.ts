@@ -464,6 +464,66 @@ async function main() {
     },
   });
 
+  // Flash campaign (P4-A)
+  const flashEnds = new Date(Date.now() + 7 * 24 * 3600_000);
+  const flash = await prisma.promotionCampaign.upsert({
+    where: { appId_slug: { appId: app.id, slug: "flash-welcome" } },
+    update: {
+      enabled: true,
+      percentOff: 15,
+      startsAt: new Date(Date.now() - 3600_000),
+      endsAt: flashEnds,
+      badgeText: "Flash -15%",
+    },
+    create: {
+      appId: app.id,
+      name: "Flash Welcome",
+      slug: "flash-welcome",
+      percentOff: 15,
+      badgeText: "Flash -15%",
+      startsAt: new Date(Date.now() - 3600_000),
+      endsAt: flashEnds,
+    },
+  });
+  await prisma.promotionCampaignProduct.upsert({
+    where: {
+      campaignId_productId: { campaignId: flash.id, productId: product.id },
+    },
+    update: {},
+    create: { campaignId: flash.id, productId: product.id },
+  });
+
+  // Drip + prereq on paid lesson (P4-B)
+  const previewLesson = await prisma.lesson.findFirst({
+    where: { section: { courseId: course.id }, isPreview: true },
+  });
+  const depthLesson = await prisma.lesson.findFirst({
+    where: { section: { courseId: course.id }, title: "Types in Depth" },
+  });
+  if (depthLesson) {
+    await prisma.lesson.update({
+      where: { id: depthLesson.id },
+      data: {
+        dripDaysAfterPurchase: 1,
+        prerequisiteLessonId: previewLesson?.id ?? null,
+      },
+    });
+  }
+
+  if (course) {
+    const annCount = await prisma.courseAnnouncement.count({ where: { courseId: course.id } });
+    if (annCount === 0) {
+      await prisma.courseAnnouncement.create({
+        data: {
+          courseId: course.id,
+          authorId: teacher.id,
+          title: "Chào mừng khóa học",
+          body: "Hãy hoàn thành bài preview trước khi mở Types in Depth (drip 1 ngày sau khi mua).",
+        },
+      });
+    }
+  }
+
   console.log("Seed complete");
   console.log({
     app: app.slug,
@@ -475,6 +535,7 @@ async function main() {
     },
     coupon: "WELCOME10 (10% off)",
     affiliate: "TEACHERREF (teacher, 10% commission)",
+    campaign: "flash-welcome (15% while active)",
   });
 }
 

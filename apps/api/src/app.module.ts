@@ -16,6 +16,9 @@ import { AnalyticsModule } from "./analytics/analytics.module";
 import { ReviewsModule } from "./reviews/reviews.module";
 import { SubscriptionsModule } from "./subscriptions/subscriptions.module";
 import { LearningModule } from "./learning/learning.module";
+import { AffiliateModule } from "./affiliate/affiliate.module";
+import { CampaignsModule } from "./campaigns/campaigns.module";
+import { JobsModule } from "./jobs/jobs.module";
 import { HealthController } from "./health.controller";
 import { CommonModule } from "./common/common.module";
 
@@ -39,6 +42,9 @@ import { CommonModule } from "./common/common.module";
     ReviewsModule,
     SubscriptionsModule,
     LearningModule,
+    AffiliateModule,
+    CampaignsModule,
+    JobsModule,
   ],
   controllers: [HealthController],
 })

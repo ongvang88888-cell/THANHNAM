@@ -30,6 +30,8 @@ import { MomoPaymentProvider } from "./providers/momo.provider";
 import { ZalopayPaymentProvider } from "./providers/zalopay.provider";
 import { GooglePlayPaymentProvider } from "./providers/google-play.provider";
 import { AppleIapPaymentProvider } from "./providers/apple-iap.provider";
+import { CampaignsModule, CampaignsService } from "../campaigns/campaigns.module";
+import { AffiliateModule, AffiliateService } from "../affiliate/affiliate.module";
 
 class CheckoutDto {
   @IsString()
@@ -59,6 +61,11 @@ class CheckoutDto {
   @IsOptional()
   @IsString()
   affiliateCode?: string;
+
+  /** Last-click visitor cookie key (30-day attribution window) */
+  @IsOptional()
+  @IsString()
+  visitorKey?: string;
 }
 
 class GooglePlayConfirmDto {
@@ -108,6 +115,8 @@ export class CommerceService {
 
   constructor(
   @Inject(PrismaService) private readonly prisma: PrismaService,
+  @Inject(CampaignsService) private readonly campaigns: CampaignsService,
+  @Inject(AffiliateService) private readonly affiliate: AffiliateService,
 ) {
     this.providers = {
       mock: new MockPaymentProvider(),
@@ -190,20 +199,25 @@ export class CommerceService {
       couponId = coupon.id;
     }
 
+    const campaign = await this.campaigns.activeForProduct(user.appId, product.id);
+    if (campaign) {
+      const campDisc = this.campaigns.discountForCampaign(campaign, listPrice);
+      if (campDisc > discountMinor) {
+        discountMinor = campDisc;
+        // Campaign wins on amount; keep couponId if also present for analytics
+      }
+    }
+
     let affiliateCodeId: string | undefined;
-    if (dto.affiliateCode?.trim()) {
-      const aff = await this.prisma.affiliateCode.findUnique({
-        where: {
-          appId_code: { appId: user.appId, code: dto.affiliateCode.trim().toUpperCase() },
-        },
+    try {
+      affiliateCodeId = await this.affiliate.resolveCodeId(user.appId, {
+        affiliateCode: dto.affiliateCode,
+        visitorKey: dto.visitorKey,
+        userId: user.userId,
       });
-      if (!aff || !aff.active) {
-        throw new AppError(ErrorCodes.NOT_FOUND, "Affiliate code not found", 404);
-      }
-      if (aff.ownerUserId === user.userId) {
-        throw new AppError(ErrorCodes.VALIDATION, "Cannot use your own affiliate code", 400);
-      }
-      affiliateCodeId = aff.id;
+    } catch (e) {
+      if (e instanceof AppError) throw e;
+      throw e;
     }
 
     const amount = Math.max(0, listPrice - discountMinor);
@@ -989,7 +1003,7 @@ export class CommerceController {
 }
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, CampaignsModule, AffiliateModule],
   controllers: [CommerceController],
   providers: [CommerceService],
   exports: [CommerceService],

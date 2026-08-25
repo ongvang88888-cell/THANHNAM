@@ -45,6 +45,15 @@ export class AccessService {
       policies.push({ policyType: "PREVIEW", priority: 5, params: {} });
     }
 
+    // P4-B: lesson-level prerequisite always; drip only after entitlement (keep purchase CTA)
+    if (lesson.prerequisiteLessonId) {
+      policies.push({
+        policyType: "PREREQUISITE_REQUIRED",
+        priority: 15,
+        params: { lessonIds: [lesson.prerequisiteLessonId] },
+      });
+    }
+
     let entitlements: EntitlementInput[] = [];
     let completedLessonIds: string[] = [];
     if (user) {
@@ -67,6 +76,31 @@ export class AccessService {
         status: e.status,
         expiresAt: e.expiresAt,
       }));
+
+      const productEnt = rows.find(
+        (e) =>
+          (e.resourceType === "product" && e.resourceId === productId) ||
+          (e.resourceType === "course" && e.resourceId === course.id),
+      );
+      if (productEnt) {
+        if (lesson.dripUnlockAt) {
+          policies.push({
+            policyType: "TIME_LOCKED",
+            priority: 12,
+            params: { unlockAt: lesson.dripUnlockAt.toISOString() },
+          });
+        }
+        if (lesson.dripDaysAfterPurchase != null && lesson.dripDaysAfterPurchase > 0) {
+          const unlockAt = new Date(
+            productEnt.grantedAt.getTime() + lesson.dripDaysAfterPurchase * 24 * 3600_000,
+          );
+          policies.push({
+            policyType: "TIME_LOCKED",
+            priority: 12,
+            params: { unlockAt: unlockAt.toISOString() },
+          });
+        }
+      }
 
       const completed = await this.prisma.lessonProgress.findMany({
         where: { userId: user.userId, status: "COMPLETED" },

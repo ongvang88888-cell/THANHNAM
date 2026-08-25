@@ -62,13 +62,51 @@ export default function ProductPage() {
   const [provider, setProvider] = useState<"mock" | "stripe" | "vnpay" | "momo" | "zalopay">("mock");
   const [couponCode, setCouponCode] = useState("");
   const [affiliateCode, setAffiliateCode] = useState("");
+  const [campaignBadge, setCampaignBadge] = useState<string | null>(null);
 
   useEffect(() => {
-    apiGet<ProductDetail>(`/products/${slug}`).then(setProduct).catch((e) => setMsg(e.message));
+    let cancelled = false;
+    (async () => {
+      try {
+        const p = await apiGet<ProductDetail>(`/products/${slug}`);
+        if (cancelled) return;
+        setProduct(p);
+        const campaigns = await apiGet<
+          Array<{
+            badgeText: string;
+            percentOff: number | null;
+            endsAt: string;
+            products: Array<{ productId: string }>;
+          }>
+        >("/campaigns/active");
+        if (cancelled) return;
+        const hit = campaigns.find((c) => c.products.some((x) => x.productId === p.id));
+        if (hit) {
+          setCampaignBadge(
+            `${hit.badgeText}${hit.percentOff ? ` · đến ${new Date(hit.endsAt).toLocaleDateString("vi-VN")}` : ""}`,
+          );
+        }
+      } catch (e) {
+        if (!cancelled) setMsg(e instanceof Error ? e.message : "Load failed");
+      }
+    })();
+
     if (typeof window !== "undefined") {
-      const ref = new URLSearchParams(window.location.search).get("ref");
-      if (ref) setAffiliateCode(ref);
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("ref");
+      let visitorKey = localStorage.getItem("edu_visitor_key");
+      if (!visitorKey) {
+        visitorKey = `vk_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+        localStorage.setItem("edu_visitor_key", visitorKey);
+      }
+      if (ref) {
+        setAffiliateCode(ref);
+        apiPost("/affiliate/track", { code: ref, visitorKey }).catch(() => undefined);
+      }
     }
+    return () => {
+      cancelled = true;
+    };
   }, [slug]);
 
   async function buy(event: FormEvent) {
@@ -82,6 +120,8 @@ export default function ProductPage() {
     setMsg(null);
     try {
       const returnUrl = `${window.location.origin}/checkout/return`;
+      const visitorKey =
+        typeof window !== "undefined" ? localStorage.getItem("edu_visitor_key") || undefined : undefined;
       const res = await apiPost<CheckoutResult>(
         "/checkout/sessions",
         {
@@ -92,6 +132,7 @@ export default function ProductPage() {
           returnUrl: `${returnUrl}?orderId=PENDING`,
           ...(couponCode.trim() ? { couponCode: couponCode.trim() } : {}),
           ...(affiliateCode.trim() ? { affiliateCode: affiliateCode.trim() } : {}),
+          ...(visitorKey ? { visitorKey } : {}),
         },
         token,
       );
@@ -142,6 +183,11 @@ export default function ProductPage() {
   return (
     <section>
       <div className="badge paid">{product.type}</div>
+      {campaignBadge && (
+        <div className="badge" style={{ marginLeft: 8, background: "var(--accent, #C4A35A)", color: "#111" }}>
+          {campaignBadge}
+        </div>
+      )}
       <h1 style={{ fontFamily: "var(--font-display)", fontSize: "2.4rem", margin: "8px 0" }}>
         {product.name}
       </h1>

@@ -13,7 +13,7 @@ import {
   Inject,
 } from "@nestjs/common";
 import { IsOptional, IsString, MinLength } from "class-validator";
-import { AppError, ErrorCodes } from "@edu/shared-core";
+import { AppError, ErrorCodes, hasAnyRole } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
 import { AuthGuard, CurrentUser, type RequestUser } from "../auth/auth.guard";
 import { AuthModule } from "../auth/auth.module";
@@ -54,6 +54,29 @@ class NoteUpdateDto {
 class WishlistDto {
   @IsString()
   productId!: string;
+}
+
+class AnnouncementDto {
+  @IsString()
+  courseId!: string;
+
+  @IsString()
+  @MinLength(1)
+  title!: string;
+
+  @IsString()
+  @MinLength(1)
+  body!: string;
+}
+
+class LessonCommentDto {
+  @IsString()
+  @MinLength(1)
+  body!: string;
+
+  @IsOptional()
+  @IsString()
+  parentId?: string;
 }
 
 @Injectable()
@@ -187,6 +210,61 @@ export class LearningService {
     await this.prisma.wishlistItem.delete({ where: { id: row.id } });
     return { ok: true };
   }
+
+  listAnnouncements(courseId: string) {
+    return this.prisma.courseAnnouncement.findMany({
+      where: { courseId },
+      include: { author: { select: { displayName: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+  }
+
+  async createAnnouncement(user: RequestUser, dto: AnnouncementDto) {
+    const course = await this.prisma.course.findFirst({
+      where: { id: dto.courseId, appId: user.appId },
+    });
+    if (!course) throw new AppError(ErrorCodes.NOT_FOUND, "Course not found", 404);
+    const can =
+      course.creatorUserId === user.userId ||
+      hasAnyRole(user as never, ["admin", "super_admin", "teacher"]);
+    if (!can) throw new AppError(ErrorCodes.FORBIDDEN, "Teacher/admin only", 403);
+    return this.prisma.courseAnnouncement.create({
+      data: {
+        courseId: dto.courseId,
+        authorId: user.userId,
+        title: dto.title,
+        body: dto.body,
+      },
+    });
+  }
+
+  listComments(lessonId: string) {
+    return this.prisma.lessonComment.findMany({
+      where: { lessonId },
+      include: { user: { select: { displayName: true } } },
+      orderBy: { createdAt: "asc" },
+      take: 200,
+    });
+  }
+
+  async addComment(user: RequestUser, lessonId: string, dto: LessonCommentDto) {
+    const lesson = await this.prisma.lesson.findUnique({
+      where: { id: lessonId },
+      include: { section: { include: { course: true } } },
+    });
+    if (!lesson || lesson.section.course.appId !== user.appId) {
+      throw new AppError(ErrorCodes.NOT_FOUND, "Lesson not found", 404);
+    }
+    return this.prisma.lessonComment.create({
+      data: {
+        lessonId,
+        userId: user.userId,
+        body: dto.body,
+        parentId: dto.parentId ?? null,
+      },
+    });
+  }
 }
 
 @Controller()
@@ -259,6 +337,36 @@ export class LearningController {
   @UseGuards(AuthGuard)
   removeWishlist(@CurrentUser() user: RequestUser, @Param("productId") productId: string) {
     return this.learning.removeWishlist(user, productId);
+  }
+
+  @Get("courses/:courseId/announcements")
+  announcements(@Param("courseId") courseId: string) {
+    return this.learning.listAnnouncements(courseId);
+  }
+
+  @Post("courses/:courseId/announcements")
+  @UseGuards(AuthGuard)
+  createAnnouncement(
+    @CurrentUser() user: RequestUser,
+    @Param("courseId") courseId: string,
+    @Body() dto: AnnouncementDto,
+  ) {
+    return this.learning.createAnnouncement(user, { ...dto, courseId });
+  }
+
+  @Get("lessons/:lessonId/comments")
+  comments(@Param("lessonId") lessonId: string) {
+    return this.learning.listComments(lessonId);
+  }
+
+  @Post("lessons/:lessonId/comments")
+  @UseGuards(AuthGuard)
+  addComment(
+    @CurrentUser() user: RequestUser,
+    @Param("lessonId") lessonId: string,
+    @Body() dto: LessonCommentDto,
+  ) {
+    return this.learning.addComment(user, lessonId, dto);
   }
 }
 

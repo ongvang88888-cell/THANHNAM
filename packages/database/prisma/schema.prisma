@@ -148,6 +148,13 @@ enum AffiliateCommissionStatus {
   REVERSED
 }
 
+enum AffiliatePayoutStatus {
+  REQUESTED
+  APPROVED
+  PAID
+  REJECTED
+}
+
 model App {
   id                   String   @id @default(cuid())
   slug                 String   @unique
@@ -178,6 +185,9 @@ model App {
   affiliateCodes AffiliateCode[]
   affiliateCommissions AffiliateCommission[]
   coupons Coupon[]
+  promotionCampaigns PromotionCampaign[]
+  affiliateAttributions AffiliateAttribution[]
+  affiliatePayouts AffiliatePayout[]
 }
 
 model User {
@@ -216,6 +226,9 @@ model User {
   auditLogs          AuditLog[]
   affiliateCodes     AffiliateCode[]
   wishlistItems      WishlistItem[]
+  affiliatePayouts   AffiliatePayout[]
+  lessonComments     LessonComment[]
+  courseAnnouncements CourseAnnouncement[] @relation("AnnouncementAuthor")
 
   @@unique([appId, email])
   @@index([appId, status])
@@ -346,6 +359,7 @@ model Product {
   orderItems   OrderItem[]
   reviews      Review[]
   wishlistItems WishlistItem[]
+  campaignProducts PromotionCampaignProduct[]
 
   @@unique([appId, slug])
   @@index([appId, type, status])
@@ -394,6 +408,7 @@ model Course {
   quizzes  Quiz[]
   progress CourseProgress[]
   certificates Certificate[]
+  announcements CourseAnnouncement[]
 
   @@index([appId, status])
 }
@@ -411,18 +426,24 @@ model CourseSection {
 }
 
 model Lesson {
-  id                 String  @id @default(cuid())
-  sectionId          String
-  title              String
-  position           Int
-  durationSec        Int     @default(0)
-  isPreview          Boolean @default(false)
-  completionRuleJson Json    @default("{}")
+  id                   String    @id @default(cuid())
+  sectionId            String
+  title                String
+  position             Int
+  durationSec          Int       @default(0)
+  isPreview            Boolean   @default(false)
+  completionRuleJson   Json      @default("{}")
+  /** Relative drip: unlock N days after product entitlement grantedAt */
+  dripDaysAfterPurchase Int?
+  /** Absolute drip unlock timestamp (optional) */
+  dripUnlockAt         DateTime?
+  prerequisiteLessonId String?
 
   section   CourseSection    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   contents  LessonContent[]
   policies  AccessPolicy[]
   progress  LessonProgress[]
+  comments  LessonComment[]
 
   @@index([sectionId, position])
 }
@@ -921,6 +942,7 @@ model AffiliateCode {
   owner        User                   @relation(fields: [ownerUserId], references: [id])
   commissions  AffiliateCommission[]
   orders       Order[]
+  attributions AffiliateAttribution[]
 
   @@unique([appId, code])
   @@index([ownerUserId])
@@ -955,6 +977,107 @@ model WishlistItem {
   product Product @relation(fields: [productId], references: [id])
 
   @@unique([userId, productId])
+  @@index([userId])
+}
+
+model PromotionCampaign {
+  id             String    @id @default(cuid())
+  appId          String
+  name           String
+  slug           String
+  percentOff     Int?
+  amountOffMinor Int?
+  currency       String    @default("VND")
+  badgeText      String    @default("Flash sale")
+  startsAt       DateTime
+  endsAt         DateTime
+  enabled        Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+
+  app      App                        @relation(fields: [appId], references: [id])
+  products PromotionCampaignProduct[]
+
+  @@unique([appId, slug])
+  @@index([appId, startsAt, endsAt])
+}
+
+model PromotionCampaignProduct {
+  campaignId String
+  productId  String
+
+  campaign PromotionCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  product  Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([campaignId, productId])
+  @@index([productId])
+}
+
+model AffiliateAttribution {
+  id              String   @id @default(cuid())
+  appId           String
+  visitorKey      String
+  userId          String?
+  affiliateCodeId String
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  app           App           @relation(fields: [appId], references: [id])
+  affiliateCode AffiliateCode @relation(fields: [affiliateCodeId], references: [id])
+
+  @@unique([appId, visitorKey])
+  @@index([userId])
+  @@index([affiliateCodeId])
+}
+
+model AffiliatePayout {
+  id              String                @id @default(cuid())
+  appId           String
+  ownerUserId     String
+  affiliateCodeId String?
+  amountMinor     Int
+  currency        String                @default("VND")
+  status          AffiliatePayoutStatus @default(REQUESTED)
+  bankInfoJson    Json                  @default("{}")
+  adminNote       String?
+  requestedAt     DateTime              @default(now())
+  resolvedAt      DateTime?
+  paidAt          DateTime?
+
+  app   App  @relation(fields: [appId], references: [id])
+  owner User @relation(fields: [ownerUserId], references: [id])
+
+  @@index([appId, status])
+  @@index([ownerUserId, status])
+}
+
+model CourseAnnouncement {
+  id        String   @id @default(cuid())
+  courseId  String
+  authorId  String
+  title     String
+  body      String
+  createdAt DateTime @default(now())
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  author User   @relation("AnnouncementAuthor", fields: [authorId], references: [id])
+
+  @@index([courseId, createdAt])
+}
+
+model LessonComment {
+  id        String   @id @default(cuid())
+  lessonId  String
+  userId    String
+  body      String
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([lessonId, createdAt])
   @@index([userId])
 }
 
