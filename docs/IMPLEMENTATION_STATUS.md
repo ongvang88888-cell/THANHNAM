@@ -1,49 +1,34 @@
 # Implementation status (Phase 5+)
 
-Last updated: 2026-08-25 (P2 Apple IAP + store hardening)
+Last updated: 2026-08-25 (P3 commerce stability)
 
-## P2 Apple IAP + store hardening (current)
+## P3 commerce money-path stability (current)
+
+See **`docs/P3_RUNBOOK.md`**.
+
+- Order row lock (`FOR UPDATE`) on fulfill + refund
+- Refund idempotency via `Transaction` REFUND + `providerEventId`
+- Full-refund-only for digital entitlements
+- Stable SHA-256 store confirm event ids
+- Fulfill no longer marks order FAILED on non-SUCCEEDED events
+- Pure helpers + unit tests in `@edu/monetization-core` (`money-stability`)
+
+## P2 Apple IAP + store hardening
 
 See **`docs/P2_RUNBOOK.md`**.
 
-- Apple IAP adapter + `POST /payments/apple-iap/confirm` + ASN V2 webhook
-- `PaymentPolicyConfig` (iOS / Android / Web allowlists)
-- SKU binding + purchase-token reuse guard (409)
-- Play RTDN Pub/Sub envelope parsing
-- Mobile `iap.ts` façade (dev bridge + EAS native hook)
-- Seed `appleSku` alongside `playSku`
-
-## P1 Google Play / mobile / refunds
+## P1 Google Play / refunds / MediaConvert
 
 See **`docs/P1_RUNBOOK.md`**.
-
-- Google Play Billing adapter + confirm + admin refund/revoke
-- MediaConvert SigV4 + webhook
 
 ## P0 web commerce
 
 See **`docs/P0_RUNBOOK.md`**.
 
-## Verified (P2 target smoke)
+## Deferred after P3
 
-- iOS policy: stripe/google_play rejected; apple_iap checkout → confirm `iap_test_*` → FULFILLED
-- Token reuse on second order → 409
-- SKU mismatch → 400
-- Play Pub/Sub RTDN refund path still maps to revoke
-
-## Still needs credentials / ops
-
-| Item | What you provide |
-|------|------------------|
-| Apple IAP | App Store Connect API key + IAP products + ASN URL |
-| Google Play | Service account + Play Console SKUs |
-| Stripe / VNPay | Live keys |
-| AWS MediaConvert | Real account wiring |
-| EAS | `projectId` + `EXPO_PUBLIC_NATIVE_IAP=1` native module |
-
-## Deferred after P2
-
+- MoMo / ZaloPay adapters
+- Affiliate commission ledger + reverse-on-refund
 - Marketplace revenue split (D4 off)
-- MoMo / ZaloPay
-- Affiliate commission reverse on refund
-- Full Apple JWS root-chain verify (API lookup is production SoT when keys set)
+- Coupon apply on checkout (schema ready)
+- EAS native IAP (`EXPO_PUBLIC_NATIVE_IAP=1` + react-native-iap)

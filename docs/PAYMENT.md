@@ -49,9 +49,12 @@ do not sprinkle conditionals across UI forever.
 ## Security invariants
 
 - Idempotent fulfill (`Transaction.providerEventId`)
+- Idempotent refund (`Transaction` type `REFUND` + same unique key)
 - Store token/transaction cannot be reused across orders
 - Checkout `expectedSku` must match verified store SKU when present
 - Apple `appAccountToken` (UUID) correlates ASN → order without trusting client alone
+- Digital goods: **full refund only** (no partial amount)
+- Concurrent fulfill/refund serialized with `SELECT … FOR UPDATE` on `Order`
 
 ## Entitlement fulfillment
 

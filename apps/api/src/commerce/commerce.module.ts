@@ -1,10 +1,18 @@
 import { Body, Controller, Get, Headers, Injectable, Module, Param, Post, Req, UseGuards, Inject } from "@nestjs/common";
 import { IsIn, IsInt, IsOptional, IsString, Min, MinLength } from "class-validator";
 import {
+  assertChargeAmountMatches,
+  assertFullRefundOnly,
   assertProviderAllowedForPlatform,
   assertSkuMatchesExpected,
   buildEntitlementGrants,
+  canFulfillOrder,
+  canRefundOrder,
+  isAlreadyFulfilled,
+  isAlreadyRefunded,
+  normalizeRefundAmount,
   resolveStoreSku,
+  stableProviderEventId,
   type PaymentProvider,
   type VerifiedPaymentEvent,
 } from "@edu/monetization-core";
@@ -234,15 +242,15 @@ export class CommerceService {
       raw: Record<string, unknown>;
     },
   ) {
+    // Never mutate order to FAILED on REFUNDED/unknown — refund path owns REFUNDED.
     if (event.status !== "SUCCEEDED") {
-      await this.prisma.order.update({
-        where: { id: orderId },
-        data: { status: "FAILED" },
-      });
-      return { ok: false };
+      return { ok: false, reason: `event_status_${event.status}` };
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // Serialize concurrent webhook/confirm for the same order (Postgres).
+      await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${orderId} FOR UPDATE`;
+
       const existingTx = await tx.transaction.findUnique({
         where: { providerEventId: event.providerEventId },
       });
@@ -256,17 +264,29 @@ export class CommerceService {
         },
       });
 
-      if (order.status === "FULFILLED" || order.status === "PAID") {
+      if (isAlreadyFulfilled(order.status)) {
         return { ok: true, already: true };
+      }
+      if (isAlreadyRefunded(order.status)) {
+        throw new AppError(ErrorCodes.VALIDATION, "Cannot fulfill a refunded order", 409);
+      }
+      if (!canFulfillOrder(order.status)) {
+        throw new AppError(
+          ErrorCodes.VALIDATION,
+          `Cannot fulfill order in status ${order.status}`,
+          409,
+        );
       }
 
       const payment = order.payments[0];
       if (!payment) throw new AppError(ErrorCodes.NOT_FOUND, "Payment missing", 404);
 
-      if (event.amountMinor > 0 && event.amountMinor !== payment.amountMinor) {
+      try {
+        assertChargeAmountMatches(event.amountMinor, payment.amountMinor);
+      } catch (e) {
         throw new AppError(
           ErrorCodes.PAYMENT_FAILED,
-          `Payment amount mismatch: expected ${payment.amountMinor}, got ${event.amountMinor}`,
+          e instanceof Error ? e.message : "Payment amount mismatch",
           400,
         );
       }
@@ -340,7 +360,11 @@ export class CommerceService {
           appId: order.appId,
           userId: order.userId,
           name: "payment_success",
-          propsJson: { orderId: order.id, amountMinor: event.amountMinor },
+          propsJson: {
+            orderId: order.id,
+            amountMinor: event.amountMinor || payment.amountMinor,
+            providerEventId: event.providerEventId,
+          },
         },
       });
 
@@ -433,8 +457,15 @@ export class CommerceService {
     if (!payment || payment.provider !== input.provider) {
       throw new AppError(ErrorCodes.VALIDATION, `Order is not a ${input.provider} payment`, 400);
     }
-    if (order.status === "FULFILLED" || order.status === "PAID") {
+    if (isAlreadyFulfilled(order.status)) {
       return { ok: true, already: true, order };
+    }
+    if (!canFulfillOrder(order.status)) {
+      throw new AppError(
+        ErrorCodes.VALIDATION,
+        `Cannot confirm payment for order in status ${order.status}`,
+        409,
+      );
     }
 
     const normalized = (payment.normalizedJson ?? {}) as Record<string, unknown>;
@@ -452,8 +483,14 @@ export class CommerceService {
         amountMinor: payment.amountMinor,
         eventId:
           input.provider === "google_play"
-            ? `gp_confirm_${String(input.body.purchaseToken || "").slice(0, 16)}`
-            : `apple_confirm_${String(input.body.transactionId || "").slice(0, 16)}`,
+            ? stableProviderEventId(
+                "gp_confirm",
+                String(input.body.purchaseToken || ""),
+              )
+            : stableProviderEventId(
+                "apple_confirm",
+                String(input.body.transactionId || ""),
+              ),
       }),
     );
 
@@ -575,39 +612,108 @@ export class CommerceService {
       skipProviderCall?: boolean;
     },
   ) {
-    const order = await this.prisma.order.findUnique({
+    const orderPeek = await this.prisma.order.findUnique({
       where: { id: String(orderId) },
-      include: {
-        payments: { include: { refunds: true } },
-        items: true,
-      },
+      include: { payments: true, items: true },
     });
-    if (!order) throw new AppError(ErrorCodes.NOT_FOUND, "Order not found", 404);
-    if (order.status === "REFUNDED") {
+    if (!orderPeek) throw new AppError(ErrorCodes.NOT_FOUND, "Order not found", 404);
+    if (isAlreadyRefunded(orderPeek.status)) {
       return { ok: true, already: true };
     }
-    if (order.status !== "PAID" && order.status !== "FULFILLED" && order.status !== "REFUND_PENDING") {
-      throw new AppError(ErrorCodes.VALIDATION, `Cannot refund order in status ${order.status}`, 400);
+    if (!canRefundOrder(orderPeek.status)) {
+      throw new AppError(
+        ErrorCodes.VALIDATION,
+        `Cannot refund order in status ${orderPeek.status}`,
+        400,
+      );
     }
 
-    const payment = order.payments[0];
-    if (!payment) throw new AppError(ErrorCodes.NOT_FOUND, "Payment missing", 404);
-    const amount =
-      opts.amountMinor && opts.amountMinor > 0 ? opts.amountMinor : payment.amountMinor;
-    const provider = this.provider(payment.provider);
+    const paymentPeek = orderPeek.payments[0];
+    if (!paymentPeek) throw new AppError(ErrorCodes.NOT_FOUND, "Payment missing", 404);
 
-    let providerRefundId = opts.providerEventId || `local_refund_${order.id}`;
+    const amount = normalizeRefundAmount(opts.amountMinor, paymentPeek.amountMinor);
+    try {
+      assertFullRefundOnly(amount, paymentPeek.amountMinor);
+    } catch (e) {
+      throw new AppError(
+        ErrorCodes.VALIDATION,
+        e instanceof Error ? e.message : "Partial refund not allowed",
+        400,
+      );
+    }
+
+    const providerEventId = opts.providerEventId || `local_refund_${orderPeek.id}`;
+
+    // Fast idempotent path for webhook replays (unique Transaction.providerEventId)
+    const existingRefundTx = await this.prisma.transaction.findUnique({
+      where: { providerEventId },
+    });
+    if (existingRefundTx) {
+      return {
+        ok: true,
+        already: true,
+        replayed: true,
+        orderId: orderPeek.id,
+        providerRefundId: providerEventId,
+        amountMinor: amount,
+      };
+    }
+
+    const provider = this.provider(paymentPeek.provider);
+    let providerRefundId = providerEventId;
+    let externalRefundId: string | undefined;
     if (!opts.skipProviderCall && provider.refund) {
       const result = await provider.refund({
-        providerRef: payment.providerRef || payment.id,
+        providerRef: paymentPeek.providerRef || paymentPeek.id,
         amountMinor: amount,
         reason: opts.reason,
-        orderId: order.id,
+        orderId: orderPeek.id,
       });
-      providerRefundId = result.providerRefundId;
+      externalRefundId = result.providerRefundId;
     }
 
-    await this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${orderId} FOR UPDATE`;
+
+      const again = await tx.transaction.findUnique({ where: { providerEventId } });
+      if (again) {
+        return {
+          ok: true,
+          already: true,
+          replayed: true,
+          orderId,
+          providerRefundId: providerEventId,
+          amountMinor: amount,
+        };
+      }
+
+      const order = await tx.order.findUniqueOrThrow({
+        where: { id: String(orderId) },
+        include: { payments: true, items: true },
+      });
+      if (isAlreadyRefunded(order.status)) {
+        return { ok: true, already: true, orderId: order.id, providerRefundId, amountMinor: amount };
+      }
+      if (!canRefundOrder(order.status)) {
+        throw new AppError(
+          ErrorCodes.VALIDATION,
+          `Cannot refund order in status ${order.status}`,
+          400,
+        );
+      }
+
+      const payment = order.payments[0];
+      if (!payment) throw new AppError(ErrorCodes.NOT_FOUND, "Payment missing", 404);
+
+      await tx.transaction.create({
+        data: {
+          paymentId: payment.id,
+          type: "REFUND",
+          amountMinor: amount,
+          providerEventId,
+        },
+      });
+
       await tx.refund.create({
         data: {
           paymentId: payment.id,
@@ -616,10 +722,12 @@ export class CommerceService {
           status: "SUCCEEDED",
         },
       });
+
       await tx.payment.update({
         where: { id: payment.id },
-        data: { status: amount >= payment.amountMinor ? "REFUNDED" : "PARTIALLY_REFUNDED" },
+        data: { status: "REFUNDED" },
       });
+
       await tx.order.update({
         where: { id: order.id },
         data: { status: "REFUNDED" },
@@ -641,7 +749,12 @@ export class CommerceService {
           channel: "in_app",
           title: "Refund processed",
           body: "Đơn hàng đã được hoàn tiền; quyền truy cập liên quan đã bị thu hồi.",
-          metaJson: { orderId: order.id, providerRefundId },
+          metaJson: {
+            orderId: order.id,
+            providerRefundId,
+            externalRefundId,
+            reason: opts.reason,
+          },
         },
       });
 
@@ -653,13 +766,27 @@ export class CommerceService {
             action: "order.refund",
             resourceType: "order",
             resourceId: order.id,
-            metaJson: { amountMinor: amount, reason: opts.reason, providerRefundId },
+            metaJson: {
+              amountMinor: amount,
+              reason: opts.reason,
+              providerRefundId,
+              externalRefundId,
+            },
           },
         });
       }
-    });
 
-    return { ok: true, orderId: order.id, providerRefundId, amountMinor: amount };
+      await tx.analyticsEvent.create({
+        data: {
+          appId: order.appId,
+          userId: order.userId,
+          name: "payment_refunded",
+          propsJson: { orderId: order.id, amountMinor: amount, providerEventId },
+        },
+      });
+
+      return { ok: true, orderId: order.id, providerRefundId, amountMinor: amount };
+    });
   }
 }
 
