@@ -13,6 +13,56 @@ type KeyCache = {
 let cache: KeyCache | null = null;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
+/** Official Google AdMob SSV public-key endpoint (default). */
+export const ADMOB_SSV_KEYS_DEFAULT_URL =
+  "https://gstatic.com/admob/reward/verifier-keys.json";
+
+/** Hosts allowed for ADMOB_SSV_KEYS_URL overrides (SSRF guard). */
+const ADMOB_SSV_KEYS_ALLOWED_HOSTS = new Set([
+  "gstatic.com",
+  "www.gstatic.com",
+]);
+
+/**
+ * Resolve AdMob verifier-keys URL from env with an HTTPS + host allowlist.
+ * Intentionally takes no caller-supplied URL to avoid SSRF sinks.
+ */
+export function resolveAdmobVerifierKeysUrl(
+  configured = process.env.ADMOB_SSV_KEYS_URL,
+): string {
+  const raw = configured?.trim();
+  if (!raw) return ADMOB_SSV_KEYS_DEFAULT_URL;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error("ADMOB_SSV_KEYS_URL is not a valid URL");
+  }
+
+  if (parsed.protocol !== "https:") {
+    throw new Error("ADMOB_SSV_KEYS_URL must use https");
+  }
+  if (parsed.username || parsed.password) {
+    throw new Error("ADMOB_SSV_KEYS_URL must not include credentials");
+  }
+  if (parsed.port && parsed.port !== "443") {
+    throw new Error("ADMOB_SSV_KEYS_URL must use the default HTTPS port");
+  }
+
+  const host = parsed.hostname.toLowerCase();
+  const allowed = [...ADMOB_SSV_KEYS_ALLOWED_HOSTS].some(
+    (h) => host === h || host.endsWith(`.${h}`),
+  );
+  if (!allowed) {
+    throw new Error(
+      `ADMOB_SSV_KEYS_URL host "${host}" is not allowlisted for AdMob key fetch`,
+    );
+  }
+
+  return parsed.toString();
+}
+
 /**
  * Build the SSV message string per Google AdMob docs:
  * query string excluding signature and key_id, keys sorted... 
@@ -27,13 +77,11 @@ export function buildAdmobSsvMessage(params: Record<string, string>): string {
     .join("&");
 }
 
-export async function fetchAdmobVerifierKeys(
-  url = process.env.ADMOB_SSV_KEYS_URL ||
-    "https://gstatic.com/admob/reward/verifier-keys.json",
-): Promise<Map<number, AdmobKey>> {
+export async function fetchAdmobVerifierKeys(): Promise<Map<number, AdmobKey>> {
   if (cache && Date.now() - cache.fetchedAt < CACHE_TTL_MS) {
     return cache.keys;
   }
+  const url = resolveAdmobVerifierKeysUrl();
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to fetch AdMob keys: HTTP ${res.status}`);

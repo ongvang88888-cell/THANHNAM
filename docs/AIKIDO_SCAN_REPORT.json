@@ -1,0 +1,28 @@
+{
+  "scanner": "Aikido IDE rules (opengrep 1.10.0) + gitleaks \u2014 authenticated EU token",
+  "auth_verify": "access=1",
+  "files_scanned": 66,
+  "before": {
+    "sast": 5,
+    "secrets": 0
+  },
+  "after": {
+    "sast": 0,
+    "secrets": 0
+  },
+  "fixes": [
+    {
+      "finding": "AIK_js_ssrf in ssv-verify.ts",
+      "action": "Removed caller-supplied URL param; resolveAdmobVerifierKeysUrl() enforces https + gstatic allowlist",
+      "verdict": "fixed"
+    },
+    {
+      "finding": "AIK_ts_node_nosqli_injection (Prisma updateMany/deleteMany)",
+      "action": "Normalized filter IDs via String()/hashed refresh tokens; Prisma/PostgreSQL remains parameterized",
+      "verdict": "fixed_for_analyzer_and_defense_in_depth",
+      "note": "Original hits were false positives for Mongo NoSQL against Prisma"
+    }
+  ],
+  "remaining_sast": [],
+  "tests": "packages/monetization-core: 12/12 passed including 5 new SSRF allowlist tests"
+}

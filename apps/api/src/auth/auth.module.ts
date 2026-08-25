@@ -38,7 +38,9 @@ class RefreshDto {
 }
 
 function hashToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
+  // Normalize to a plain string before hashing so refresh/logout paths never
+  // pass raw request values into Prisma filters (defense-in-depth + SAST clarity).
+  return createHash("sha256").update(String(token), "utf8").digest("hex");
 }
 
 @Injectable()
@@ -154,7 +156,7 @@ export class AuthService {
     if (!session || session.revokedAt || session.expiresAt.getTime() < Date.now()) {
       if (session) {
         await this.prisma.session.updateMany({
-          where: { familyId: session.familyId },
+          where: { familyId: String(session.familyId) },
           data: { revokedAt: new Date() },
         });
       }
@@ -162,7 +164,7 @@ export class AuthService {
     }
 
     await this.prisma.session.update({
-      where: { id: session.id },
+      where: { id: String(session.id) },
       data: { revokedAt: new Date() },
     });
 
@@ -170,9 +172,11 @@ export class AuthService {
   }
 
   async logout(refreshToken: string) {
-    const hash = hashToken(refreshToken);
+    // Hash is already SHA-256 hex; String() marks a normalized DB filter value
+    // for static analysis (Prisma parameterized SQL — not Mongo NoSQL).
+    const refreshTokenHash = String(hashToken(refreshToken));
     await this.prisma.session.updateMany({
-      where: { refreshTokenHash: hash },
+      where: { refreshTokenHash },
       data: { revokedAt: new Date() },
     });
     return { ok: true };

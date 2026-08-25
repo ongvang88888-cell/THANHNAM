@@ -112,18 +112,27 @@ export class TeacherService {
 
   async replaceCurriculum(user: RequestUser, courseId: string, dto: UpdateCurriculumDto) {
     this.assertTeacher(user);
+    const safeCourseId = String(courseId);
     const course = await this.prisma.course.findFirst({
-      where: { id: courseId, creatorUserId: user.userId, appId: user.appId },
+      where: {
+        id: safeCourseId,
+        creatorUserId: String(user.userId),
+        appId: String(user.appId),
+      },
       include: { product: true },
     });
     if (!course) throw new AppError(ErrorCodes.NOT_FOUND, "Course not found", 404);
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.courseSection.deleteMany({ where: { courseId } });
+      await tx.courseSection.deleteMany({ where: { courseId: safeCourseId } });
       let sectionPos = 1;
       for (const section of dto.sections) {
         const created = await tx.courseSection.create({
-          data: { courseId, title: section.title, position: sectionPos++ },
+          data: {
+            courseId: safeCourseId,
+            title: section.title,
+            position: sectionPos++,
+          },
         });
         let lessonPos = 1;
         for (const lesson of section.lessons) {

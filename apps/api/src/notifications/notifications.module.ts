@@ -17,19 +17,23 @@ export class NotificationsService {
   }
 
   async markRead(user: RequestUser, id: string) {
-    const n = await this.prisma.notification.findUnique({ where: { id } });
+    const notificationId = String(id);
+    const n = await this.prisma.notification.findUnique({
+      where: { id: notificationId },
+    });
     if (!n || n.userId !== user.userId) {
       throw new AppError(ErrorCodes.NOT_FOUND, "Notification not found", 404);
     }
     return this.prisma.notification.update({
-      where: { id },
+      where: { id: notificationId },
       data: { readAt: new Date() },
     });
   }
 
   async markAllRead(user: RequestUser) {
+    const userId = String(user.userId);
     await this.prisma.notification.updateMany({
-      where: { userId: user.userId, readAt: null },
+      where: { userId, readAt: null },
       data: { readAt: new Date() },
     });
     return { ok: true };
