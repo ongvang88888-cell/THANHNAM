@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { apiDelete, apiGet, formatVnd } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useRequireAuth } from "@/lib/auth";
 
 type Row = {
   productId: string;
@@ -16,8 +15,7 @@ type Row = {
 };
 
 export default function WishlistPage() {
-  const { token } = useAuth();
-  const router = useRouter();
+  const { token, ready } = useRequireAuth();
   const [items, setItems] = useState<Row[]>([]);
 
   function load() {
@@ -26,12 +24,9 @@ export default function WishlistPage() {
   }
 
   useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!ready || !token) return;
     load();
-  }, [token, router]);
+  }, [ready, token]);
 
   return (
     <section>

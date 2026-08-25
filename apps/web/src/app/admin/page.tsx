@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { apiGet, apiPost, formatVnd } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { hasRole, useRequireAuth } from "@/lib/auth";
 
 type Dash = {
   users: number;
@@ -31,8 +30,7 @@ type OrderRow = {
 };
 
 export default function AdminPage() {
-  const { token, user } = useAuth();
-  const router = useRouter();
+  const { token, user, ready } = useRequireAuth();
   const [dash, setDash] = useState<Dash | null>(null);
   const [queue, setQueue] = useState<ReviewItem[]>([]);
   const [orders, setOrders] = useState<OrderRow[]>([]);
@@ -65,12 +63,9 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!ready || !token) return;
     load().catch((e) => setError(e.message));
-  }, [token, router]);
+  }, [ready, token]);
 
   async function publish(id: string) {
     if (!token) return;
@@ -85,6 +80,10 @@ export default function AdminPage() {
     await apiPost(`/orders/${orderId}/refund`, { reason: "admin_ui_refund" }, token);
     setMsg(`Refunded ${orderId}`);
     await load();
+  }
+
+  if (ready && user && !hasRole(user, ["admin", "support_agent"])) {
+    return <p className="error">Tài khoản này không có quyền quản trị.</p>;
   }
 
   return (

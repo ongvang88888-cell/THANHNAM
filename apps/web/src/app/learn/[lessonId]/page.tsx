@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { apiGet, apiPost, apiPut, type AccessDecision } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useRequireAuth } from "@/lib/auth";
 
 type LessonContent = {
   id: string;
@@ -21,14 +21,19 @@ type LessonPayload = {
   durationSec?: number;
 };
 
-type Comment = { id: string; body: string; createdAt: string; user: { displayName: string } };
+type Comment = {
+  id: string;
+  body: string;
+  createdAt: string;
+  parentId?: string | null;
+  user: { displayName: string };
+};
 type Note = { id: string; body: string };
 type Announcement = { id: string; title: string; body: string; createdAt: string };
 
 export default function LearnPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
-  const { token } = useAuth();
-  const router = useRouter();
+  const { token, ready } = useRequireAuth();
   const [lesson, setLesson] = useState<LessonPayload | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -36,15 +41,13 @@ export default function LearnPage() {
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentBody, setCommentBody] = useState("");
+  const [replyTo, setReplyTo] = useState<string | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [noteBody, setNoteBody] = useState("");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   async function load() {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!ready || !token) return;
     const data = await apiGet<LessonPayload>(`/lessons/${lessonId}`, token);
     setLesson(data);
     setPlaybackUrl(null);
@@ -80,9 +83,10 @@ export default function LearnPage() {
   }
 
   useEffect(() => {
+    if (!ready || !token) return;
     load().catch((e) => setMsg(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lessonId, token]);
+  }, [lessonId, ready, token]);
 
   async function saveProgress(completed = false) {
     if (!token || !lesson) return;
@@ -256,30 +260,63 @@ export default function LearnPage() {
       <div style={{ marginTop: 20 }}>
         <h3>Bình luận</h3>
         <ul className="lesson-list">
-          {comments.map((c) => (
-            <li key={c.id}>
-              <div>
-                <strong>{c.user.displayName}</strong>
-                <div className="muted">{c.body}</div>
-              </div>
-              <span className="muted">{new Date(c.createdAt).toLocaleString("vi-VN")}</span>
-            </li>
-          ))}
+          {comments
+            .filter((c) => !c.parentId)
+            .map((c) => (
+              <li key={c.id} style={{ display: "block" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                  <div>
+                    <strong>{c.user.displayName}</strong>
+                    <div className="muted">{c.body}</div>
+                  </div>
+                  <span className="muted">{new Date(c.createdAt).toLocaleString("vi-VN")}</span>
+                </div>
+                <button type="button" className="secondary" onClick={() => setReplyTo(c.id)}>
+                  Trả lời
+                </button>
+                <ul className="lesson-list" style={{ marginLeft: 16 }}>
+                  {comments
+                    .filter((r) => r.parentId === c.id)
+                    .map((r) => (
+                      <li key={r.id}>
+                        <div>
+                          <strong>{r.user.displayName}</strong>
+                          <div className="muted">{r.body}</div>
+                        </div>
+                        <span className="muted">{new Date(r.createdAt).toLocaleString("vi-VN")}</span>
+                      </li>
+                    ))}
+                </ul>
+              </li>
+            ))}
         </ul>
+        {replyTo && (
+          <p className="muted">
+            Đang trả lời một bình luận.{" "}
+            <button type="button" className="secondary" onClick={() => setReplyTo(null)}>
+              Hủy
+            </button>
+          </p>
+        )}
         <input
           value={commentBody}
           onChange={(e) => setCommentBody(e.target.value)}
-          placeholder="Viết bình luận…"
+          placeholder={replyTo ? "Viết trả lời…" : "Viết bình luận…"}
         />
         <button
           type="button"
           className="secondary"
           onClick={() => {
             if (!token || !commentBody.trim()) return;
-            apiPost<Comment>(`/lessons/${lesson.id}/comments`, { body: commentBody }, token)
+            apiPost<Comment>(
+              `/lessons/${lesson.id}/comments`,
+              { body: commentBody, ...(replyTo ? { parentId: replyTo } : {}) },
+              token,
+            )
               .then((c) => {
                 setComments((prev) => [...prev, { ...c, user: c.user ?? { displayName: "Bạn" } }]);
                 setCommentBody("");
+                setReplyTo(null);
               })
               .catch((e: Error) => setMsg(e.message));
           }}

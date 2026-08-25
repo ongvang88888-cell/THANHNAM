@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { apiGet } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useRequireAuth } from "@/lib/auth";
 
 type Cert = {
   publicId: string;
@@ -12,17 +11,13 @@ type Cert = {
 };
 
 export default function CertificatesPage() {
-  const { token } = useAuth();
-  const router = useRouter();
+  const { token, ready } = useRequireAuth();
   const [items, setItems] = useState<Cert[]>([]);
 
   useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!ready || !token) return;
     apiGet<Cert[]>("/me/certificates", token).then(setItems).catch(console.error);
-  }, [token, router]);
+  }, [ready, token]);
 
   return (
     <section>

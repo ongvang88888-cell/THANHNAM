@@ -256,12 +256,24 @@ export class LearningService {
     if (!lesson || lesson.section.course.appId !== user.appId) {
       throw new AppError(ErrorCodes.NOT_FOUND, "Lesson not found", 404);
     }
+    let parentId: string | null = dto.parentId ?? null;
+    if (parentId) {
+      const parent = await this.prisma.lessonComment.findFirst({
+        where: { id: parentId, lessonId },
+      });
+      if (!parent) {
+        throw new AppError(ErrorCodes.VALIDATION, "Parent comment not found", 400);
+      }
+      if (parent.parentId) {
+        parentId = parent.parentId;
+      }
+    }
     return this.prisma.lessonComment.create({
       data: {
         lessonId,
         userId: user.userId,
         body: dto.body,
-        parentId: dto.parentId ?? null,
+        parentId,
       },
       include: { user: { select: { displayName: true } } },
     });

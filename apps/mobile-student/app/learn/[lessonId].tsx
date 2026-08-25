@@ -7,7 +7,7 @@ import { useAuth } from "../../src/lib/auth";
 
 export default function LearnScreen() {
   const { lessonId } = useLocalSearchParams<{ lessonId: string }>();
-  const { token } = useAuth();
+  const { token, ready } = useAuth();
   const [lesson, setLesson] = useState<{
     id: string;
     title: string;
@@ -42,12 +42,13 @@ export default function LearnScreen() {
   }
 
   useEffect(() => {
+    if (!ready) return;
     if (!token) {
       router.replace("/login");
       return;
     }
     load().catch((e) => setMsg(String(e)));
-  }, [token, lessonId]);
+  }, [ready, token, lessonId]);
 
   async function watchAd() {
     if (!token || !lesson) return;

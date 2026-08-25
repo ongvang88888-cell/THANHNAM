@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { apiGet, apiPatch, apiPost } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useRequireAuth } from "@/lib/auth";
 
 type Course = {
   id: string;
@@ -24,8 +24,7 @@ type Course = {
 
 export default function TeacherCoursePage() {
   const { id } = useParams<{ id: string }>();
-  const { token } = useAuth();
-  const router = useRouter();
+  const { token, ready } = useRequireAuth();
   const [course, setCourse] = useState<Course | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [annTitle, setAnnTitle] = useState("Thông báo mới");
@@ -40,12 +39,9 @@ export default function TeacherCoursePage() {
   }
 
   useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!ready || !token) return;
     load();
-  }, [token, id, router]);
+  }, [ready, token, id]);
 
   if (!course) return <p className="muted">{msg || "Loading…"}</p>;
 

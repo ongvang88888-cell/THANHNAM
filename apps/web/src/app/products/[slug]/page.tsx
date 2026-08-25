@@ -61,7 +61,7 @@ type CheckoutResult = {
 
 export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { token } = useAuth();
+  const { token, ready } = useAuth();
   const router = useRouter();
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -128,6 +128,7 @@ export default function ProductPage() {
 
   async function buy(event: FormEvent) {
     event.preventDefault();
+    if (!ready) return;
     if (!token) {
       router.push("/login");
       return;
@@ -266,9 +267,13 @@ export default function ProductPage() {
         <button
           type="button"
           className="secondary"
-          disabled={!token}
           onClick={() => {
-            if (!token || !product) return;
+            if (!ready) return;
+            if (!token) {
+              router.push("/login");
+              return;
+            }
+            if (!product) return;
             apiPost("/wishlist", { productId: product.id }, token)
               .then(() => setWishMsg("Đã thêm vào yêu thích"))
               .catch((e: Error) => setWishMsg(e.message));
@@ -332,7 +337,77 @@ export default function ProductPage() {
           <CourseQuizzes courseId={product.course.id} token={token} />
         </div>
       )}
+
+      <ProductReviews productId={product.id} token={token} />
     </section>
+  );
+}
+
+function ProductReviews({ productId, token }: { productId: string; token: string | null }) {
+  const [items, setItems] = useState<
+    Array<{ id: string; rating: number; body: string; user: { displayName: string | null } }>
+  >([]);
+  const [rating, setRating] = useState(5);
+  const [body, setBody] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  function load() {
+    apiGet<Array<{ id: string; rating: number; body: string; user: { displayName: string | null } }>>(
+      `/products/${productId}/reviews`,
+    )
+      .then(setItems)
+      .catch(() => setItems([]));
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId]);
+
+  return (
+    <div className="panel" style={{ marginTop: 24 }}>
+      <h2 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>Đánh giá</h2>
+      {items.length === 0 && <p className="muted">Chưa có đánh giá.</p>}
+      <ul className="lesson-list">
+        {items.map((r) => (
+          <li key={r.id}>
+            <div>
+              <strong>{r.user.displayName || "Học viên"}</strong> · {r.rating}/5
+              <div className="muted">{r.body}</div>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {token && (
+        <div className="stack" style={{ marginTop: 12 }}>
+          <label>Điểm (1–5)</label>
+          <input
+            type="number"
+            min={1}
+            max={5}
+            value={rating}
+            onChange={(e) => setRating(Number(e.target.value) || 5)}
+          />
+          <input value={body} onChange={(e) => setBody(e.target.value)} placeholder="Nhận xét (tuỳ chọn)" />
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              apiPost(`/products/${productId}/reviews`, { rating, body }, token)
+                .then(() => {
+                  setMsg("Đã lưu đánh giá");
+                  setBody("");
+                  load();
+                })
+                .catch((e: Error) => setMsg(e.message));
+            }}
+          >
+            Gửi đánh giá
+          </button>
+          {msg && <p className="muted">{msg}</p>}
+        </div>
+      )}
+    </div>
   );
 }
 

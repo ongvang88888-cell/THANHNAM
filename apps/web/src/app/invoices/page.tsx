@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { apiGet, formatVnd } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useRequireAuth } from "@/lib/auth";
 
 type Invoice = {
   id: string;
@@ -15,17 +14,13 @@ type Invoice = {
 };
 
 export default function InvoicesPage() {
-  const { token } = useAuth();
-  const router = useRouter();
+  const { token, ready } = useRequireAuth();
   const [items, setItems] = useState<Invoice[]>([]);
 
   useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!ready || !token) return;
     apiGet<Invoice[]>("/invoices", token).then(setItems).catch(console.error);
-  }, [token, router]);
+  }, [ready, token]);
 
   return (
     <section>

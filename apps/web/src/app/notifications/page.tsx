@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { apiGet } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { apiGet, apiPatch } from "@/lib/api";
+import { useRequireAuth } from "@/lib/auth";
 
 type Notif = {
   id: string;
@@ -14,30 +13,17 @@ type Notif = {
 };
 
 export default function NotificationsPage() {
-  const { token } = useAuth();
-  const router = useRouter();
+  const { token, ready } = useRequireAuth();
   const [items, setItems] = useState<Notif[]>([]);
 
   useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!ready || !token) return;
     apiGet<Notif[]>("/notifications", token).then(setItems).catch(console.error);
-  }, [token, router]);
+  }, [ready, token]);
 
   async function markAll() {
     if (!token) return;
-    await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1"}/notifications/read-all`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "X-App-Id": process.env.NEXT_PUBLIC_APP_ID || "education_app",
-        },
-      },
-    );
+    await apiPatch("/notifications/read-all", {}, token);
     setItems((prev) => prev.map((n) => ({ ...n, readAt: n.readAt ?? new Date().toISOString() })));
   }
 

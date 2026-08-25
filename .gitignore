@@ -11,4 +11,5 @@ coverage/
 *.key
 .DS_Store
 agent-tools/
+.playwright-mcp/
 *.tsbuildinfo

@@ -21,13 +21,14 @@ type LibProduct = {
 };
 
 export default function LibraryScreen() {
-  const { token } = useAuth();
+  const { token, ready } = useAuth();
   const [items, setItems] = useState<LibProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!ready) return;
     if (!token) {
       setLoading(false);
       setError("Cần đăng nhập để xem thư viện.");
@@ -47,7 +48,7 @@ export default function LibraryScreen() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [ready, token]);
 
   async function openItem(item: LibProduct) {
     if (!token) return;

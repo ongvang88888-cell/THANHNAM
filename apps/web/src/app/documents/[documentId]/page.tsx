@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { apiPost } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useRequireAuth } from "@/lib/auth";
 
 type DocPayload = {
   documentId: string;
@@ -16,20 +16,16 @@ type DocPayload = {
 
 export default function DocumentPage() {
   const params = useParams<{ documentId: string }>();
-  const { token } = useAuth();
-  const router = useRouter();
+  const { token, ready } = useRequireAuth();
   const [doc, setDoc] = useState<DocPayload | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!ready || !token) return;
     void apiPost<DocPayload>(`/documents/${params.documentId}/content`, {}, token)
       .then(setDoc)
       .catch((err: Error) => setError(err.message));
-  }, [params.documentId, token, router]);
+  }, [params.documentId, ready, token]);
 
   return (
     <section>

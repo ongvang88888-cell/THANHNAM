@@ -1,21 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPost } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useRequireAuth } from "@/lib/auth";
 
 export default function AccountPage() {
-  const { token, user, logout } = useAuth();
+  const { token, user, ready, logout } = useRequireAuth();
   const router = useRouter();
   const [msg, setMsg] = useState<string | null>(null);
   const [exportJson, setExportJson] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!token) router.push("/login");
-  }, [token, router]);
-
-  if (!user) return <p className="muted">Loading…</p>;
+  if (!ready || !user) return <p className="muted">Loading…</p>;
 
   return (
     <section className="panel stack" style={{ maxWidth: 640 }}>

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { apiGet, apiPost } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useRequireAuth } from "@/lib/auth";
 
 type QuizPayload = {
   id: string;
@@ -19,8 +19,7 @@ type QuizPayload = {
 
 export default function QuizPage() {
   const { quizId } = useParams<{ quizId: string }>();
-  const { token } = useAuth();
-  const router = useRouter();
+  const { token, ready } = useRequireAuth();
   const [quiz, setQuiz] = useState<QuizPayload | null>(null);
   const [selected, setSelected] = useState<Record<string, string[]>>({});
   const [result, setResult] = useState<{
@@ -32,14 +31,11 @@ export default function QuizPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!ready || !token) return;
     apiGet<QuizPayload>(`/quizzes/${quizId}`, token)
       .then(setQuiz)
       .catch((e) => setError(e.message));
-  }, [quizId, token, router]);
+  }, [quizId, ready, token]);
 
   function toggle(qid: string, aid: string, multi: boolean) {
     setSelected((prev) => {

@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { apiGet } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useRequireAuth } from "@/lib/auth";
 
 type LibraryProduct = {
   id: string;
@@ -25,18 +24,14 @@ function hrefFor(p: LibraryProduct): string {
 }
 
 export default function LibraryPage() {
-  const { token, user, logout } = useAuth();
-  const router = useRouter();
+  const { token, user, ready, logout } = useRequireAuth();
   const [data, setData] = useState<{
     products: LibraryProduct[];
     continueLearning?: Array<{ lessonId: string; lessonTitle: string; courseTitle: string }>;
   } | null>(null);
 
   useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!ready || !token) return;
     Promise.all([
       apiGet<{ products: LibraryProduct[] }>("/me/library", token),
       apiGet<Array<{ lessonId: string; lessonTitle: string; courseTitle: string }>>(
@@ -46,9 +41,9 @@ export default function LibraryPage() {
     ])
       .then(([library, cont]) => setData({ ...library, continueLearning: cont }))
       .catch(console.error);
-  }, [token, router]);
+  }, [ready, token]);
 
-  if (!user) return <p className="muted">Loading...</p>;
+  if (!ready || !user) return <p className="muted">Loading...</p>;
 
   return (
     <section>

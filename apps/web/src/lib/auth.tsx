@@ -9,7 +9,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { apiPost, setApiTokens } from "./api";
+import { useRouter } from "next/navigation";
+import { ApiError, apiGet, apiPost, getApiTokens, setApiTokens } from "./api";
 
 export type User = {
   id: string;
@@ -63,6 +64,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setApiTokens(t, r);
     }
     setReady(true);
+    if (!t) return;
+    void apiGet<User>("/auth/me", t)
+      .then((me) => {
+        const next: User = {
+          id: me.id,
+          email: me.email,
+          displayName: me.displayName,
+          roles: me.roles ?? [],
+          appId: me.appId,
+          emailVerifiedAt: me.emailVerifiedAt,
+        };
+        setUser(next);
+        const pair = getApiTokens();
+        persist(pair.accessToken ?? t, pair.refreshToken ?? r, next);
+      })
+      .catch((err: unknown) => {
+        if (err instanceof ApiError && err.status === 401) {
+          setToken(null);
+          setRefreshToken(null);
+          setUser(null);
+          persist(null, null, null);
+        }
+      });
   }, []);
 
   useEffect(() => {
@@ -70,11 +94,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const detail = (ev as CustomEvent).detail as {
         accessToken?: string;
         refreshToken?: string;
+        user?: User;
       };
       if (!detail?.accessToken) return;
       setToken(detail.accessToken);
       if (detail.refreshToken) setRefreshToken(detail.refreshToken);
-      persist(detail.accessToken, detail.refreshToken ?? refreshToken, user);
+      if (detail.user) setUser(detail.user);
+      persist(detail.accessToken, detail.refreshToken ?? refreshToken, detail.user ?? user);
     }
     window.addEventListener("edu-auth-refreshed", onRefresh);
     return () => window.removeEventListener("edu-auth-refreshed", onRefresh);
@@ -113,6 +139,21 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("AuthProvider missing");
   return ctx;
+}
+
+/** Wait for localStorage hydration before treating a missing token as logged-out. */
+export function useRequireAuth() {
+  const auth = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!auth.ready) return;
+    if (!auth.token) {
+      router.replace("/login");
+    }
+  }, [auth.ready, auth.token, router]);
+
+  return auth;
 }
 
 export function hasRole(user: User | null, roles: string[]) {

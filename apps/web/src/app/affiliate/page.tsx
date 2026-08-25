@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { apiGet, apiPost, formatVnd } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useRequireAuth } from "@/lib/auth";
 
 type Balance = {
   earnedMinor: number;
@@ -21,8 +20,7 @@ type Payout = {
 };
 
 export default function AffiliatePage() {
-  const { token } = useAuth();
-  const router = useRouter();
+  const { token, ready } = useRequireAuth();
   const [balance, setBalance] = useState<Balance | null>(null);
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
@@ -42,12 +40,9 @@ export default function AffiliatePage() {
   }
 
   useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!ready || !token) return;
     load();
-  }, [token, router]);
+  }, [ready, token]);
 
   if (!balance) return <p className="muted">{error || "Loading…"}</p>;
 

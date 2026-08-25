@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { apiGet, formatVnd } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useRequireAuth } from "@/lib/auth";
 
 type Invoice = {
   number: string;
@@ -24,20 +24,16 @@ type Invoice = {
 
 export default function InvoiceDetailPage() {
   const { number } = useParams<{ number: string }>();
-  const { token } = useAuth();
-  const router = useRouter();
+  const { token, ready } = useRequireAuth();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!ready || !token) return;
     apiGet<Invoice>(`/invoices/${number}`, token)
       .then(setInvoice)
       .catch((e: Error) => setError(e.message));
-  }, [number, token, router]);
+  }, [number, ready, token]);
 
   if (error) return <p className="error">{error}</p>;
   if (!invoice) return <p className="muted">Loading…</p>;

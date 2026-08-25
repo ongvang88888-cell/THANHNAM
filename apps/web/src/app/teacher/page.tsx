@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { apiGet, apiPatch, apiPost, apiPutBinary, formatVnd } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { hasRole, useRequireAuth } from "@/lib/auth";
 
 type CourseRow = {
   id: string;
@@ -30,8 +29,7 @@ type BundleRow = {
 };
 
 export default function TeacherPage() {
-  const { token, user } = useAuth();
-  const router = useRouter();
+  const { token, user, ready } = useRequireAuth();
   const [tab, setTab] = useState<"courses" | "documents" | "bundles" | "upload" | "affiliate">("courses");
   const [courses, setCourses] = useState<CourseRow[]>([]);
   const [documents, setDocuments] = useState<DocRow[]>([]);
@@ -66,13 +64,10 @@ export default function TeacherPage() {
   }
 
   useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!ready || !token) return;
     refresh().catch((e) => setError(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, router]);
+  }, [ready, token]);
 
   async function createCourse() {
     if (!token) return;
@@ -236,6 +231,10 @@ export default function TeacherPage() {
     await apiPost(`/documents/versions/${session.versionId}/complete`, { sizeBytes: file.size }, token);
     setMsg(`Document version uploaded for ${docUploadId}`);
     await refresh();
+  }
+
+  if (ready && user && !hasRole(user, ["teacher", "admin"])) {
+    return <p className="error">Tài khoản này không có quyền giảng viên.</p>;
   }
 
   return (
