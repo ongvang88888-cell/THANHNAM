@@ -19,8 +19,15 @@ type ReviewItem = {
   type: string;
   status: string;
   slug: string;
-  creatorUserId?: string | null;
-  updatedAt?: string;
+};
+
+type OrderRow = {
+  id: string;
+  status: string;
+  totalMinor: number;
+  currency: string;
+  user?: { email: string };
+  payments: Array<{ provider: string; status: string }>;
 };
 
 export default function AdminPage() {
@@ -28,17 +35,20 @@ export default function AdminPage() {
   const router = useRouter();
   const [dash, setDash] = useState<Dash | null>(null);
   const [queue, setQueue] = useState<ReviewItem[]>([]);
+  const [orders, setOrders] = useState<OrderRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   async function load() {
     if (!token) return;
-    const [d, q] = await Promise.all([
+    const [d, q, o] = await Promise.all([
       apiGet<Dash>("/admin/dashboard", token),
       apiGet<ReviewItem[]>("/admin/review-queue", token),
+      apiGet<OrderRow[]>("/admin/orders", token),
     ]);
     setDash(d);
     setQueue(q);
+    setOrders(o);
   }
 
   useEffect(() => {
@@ -56,10 +66,18 @@ export default function AdminPage() {
     await load();
   }
 
+  async function refund(orderId: string) {
+    if (!token) return;
+    if (!confirm(`Refund order ${orderId} and revoke entitlements?`)) return;
+    await apiPost(`/orders/${orderId}/refund`, { reason: "admin_ui_refund" }, token);
+    setMsg(`Refunded ${orderId}`);
+    await load();
+  }
+
   return (
     <section>
       <h1 style={{ fontFamily: "var(--font-display)" }}>Admin</h1>
-      <p className="muted">admin@edu.local · dashboard + review queue</p>
+      <p className="muted">admin@edu.local · dashboard + review + refunds</p>
       {user && <p>{user.email}</p>}
       {error && <p className="error">{error}</p>}
       {msg && <p className="ok">{msg}</p>}
@@ -104,6 +122,31 @@ export default function AdminPage() {
               <button type="button" onClick={() => publish(p.id).catch((e) => setError(e.message))}>
                 Publish
               </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <h2 style={{ fontFamily: "var(--font-display)" }}>Orders / refunds</h2>
+      <div className="panel">
+        <ul className="lesson-list">
+          {orders.slice(0, 30).map((o) => (
+            <li key={o.id}>
+              <div>
+                <strong>{o.status}</strong> · {formatVnd(o.totalMinor)} {o.currency}
+                <div className="muted">
+                  {o.id} · {o.user?.email} · {o.payments[0]?.provider}
+                </div>
+              </div>
+              {(o.status === "FULFILLED" || o.status === "PAID") && (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => refund(o.id).catch((e) => setError(e.message))}
+                >
+                  Refund
+                </button>
+              )}
             </li>
           ))}
         </ul>

@@ -13,9 +13,11 @@
     },
     "android": {
       "package": "com.educommerce.student",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#0B3D2E"
-      }
+      },
+      "permissions": []
     },
     "plugins": ["expo-router"],
     "experiments": {
@@ -23,7 +25,11 @@
     },
     "extra": {
       "apiUrl": "http://127.0.0.1:3001/api/v1",
-      "appId": "education_app"
-    }
+      "appId": "education_app",
+      "eas": {
+        "projectId": "replace-with-eas-project-id"
+      }
+    },
+    "owner": "educommerce"
   }
 }

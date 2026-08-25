@@ -11,8 +11,14 @@ export default function LearnScreen() {
     id: string;
     title: string;
     access: { code: string };
-    contents: Array<{ id: string; body?: string | null }>;
+    contents: Array<{
+      id: string;
+      contentType?: string;
+      body?: string | null;
+      refId?: string | null;
+    }>;
   } | null>(null);
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -20,6 +26,18 @@ export default function LearnScreen() {
     if (!token || !lessonId) return;
     const data = await api.getLesson(token, lessonId);
     setLesson(data);
+    setPlaybackUrl(null);
+    if (data.access.code === "CAN_ACCESS") {
+      const video = data.contents.find((c) => c.contentType === "VIDEO" && c.refId);
+      if (video?.refId) {
+        try {
+          const pb = await api.playback(token, video.refId, data.id);
+          setPlaybackUrl(pb.playbackUrl);
+        } catch (e) {
+          setMsg(e instanceof Error ? e.message : "Playback failed");
+        }
+      }
+    }
   }
 
   useEffect(() => {
@@ -69,9 +87,15 @@ export default function LearnScreen() {
       )}
       {lesson.access.code === "CAN_ACCESS" &&
         lesson.contents.map((c) => (
-          <Text key={c.id} style={styles.body}>
-            {c.body}
-          </Text>
+          <View key={c.id}>
+            {c.contentType === "VIDEO" ? (
+              <Text style={styles.body}>
+                Video ready: {playbackUrl ? playbackUrl.slice(0, 80) : "loading…"}
+              </Text>
+            ) : (
+              <Text style={styles.body}>{c.body}</Text>
+            )}
+          </View>
         ))}
       {msg && <Text style={styles.msg}>{msg}</Text>}
     </View>

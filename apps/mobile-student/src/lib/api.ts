@@ -18,6 +18,9 @@ export type ProductDetail = {
   description: string;
   type: string;
   prices: Array<{ amountMinor: number; currency: string }>;
+  metadataJson?: { playSku?: string };
+  course?: { id: string; sections?: Array<{ lessons?: Array<{ id: string }> }> } | null;
+  document?: { id: string } | null;
 };
 
 async function request<T>(
@@ -49,30 +52,73 @@ export const api = {
       accessToken: string;
       user: { id: string; email: string; displayName?: string };
     }>("/auth/login", { method: "POST", body: { email, password } }),
-  checkout: (token: string, productId: string) =>
-    request<{ order: { status: string }; fulfilled?: boolean }>(
-      "/checkout/sessions",
-      {
-        method: "POST",
-        token,
-        body: {
-          productId,
-          provider: "mock",
-          idempotencyKey: `mobile-${productId}-${Date.now()}`,
-        },
-      }
+  checkout: (
+    token: string,
+    productId: string,
+    provider: "mock" | "google_play" = "mock"
+  ) =>
+    request<{
+      order: { id: string; status: string };
+      fulfilled?: boolean;
+      intent?: {
+        clientAction?: {
+          type?: string;
+          sku?: string;
+          packageName?: string;
+        };
+      };
+    }>("/checkout/sessions", {
+      method: "POST",
+      token,
+      body: {
+        productId,
+        provider,
+        platform: provider === "google_play" ? "android" : "unknown",
+        idempotencyKey: `mobile-${provider}-${productId}-${Date.now()}`,
+      },
+    }),
+  confirmGooglePlay: (
+    token: string,
+    input: { orderId: string; purchaseToken: string; productId?: string }
+  ) =>
+    request<{ ok: boolean; fulfilled?: boolean; order: { status: string } }>(
+      "/payments/google-play/confirm",
+      { method: "POST", token, body: input }
     ),
   myLibrary: (token: string) =>
     request<{
-      products: Array<{ id: string; name: string; slug: string; type: string }>;
+      products: Array<{
+        id: string;
+        name: string;
+        slug: string;
+        type: string;
+        course?: { id: string } | null;
+        document?: { id: string } | null;
+      }>;
     }>("/me/library", { token }),
   getLesson: (token: string, lessonId: string) =>
     request<{
       id: string;
       title: string;
       access: { code: string };
-      contents: Array<{ id: string; body?: string | null }>;
+      contents: Array<{
+        id: string;
+        contentType?: string;
+        body?: string | null;
+        refId?: string | null;
+      }>;
     }>(`/lessons/${lessonId}`, { token }),
+  playback: (token: string, videoId: string, lessonId: string) =>
+    request<{ playbackUrl: string }>(`/videos/${videoId}/playback`, {
+      method: "POST",
+      token,
+      body: { lessonId },
+    }),
+  documentContent: (token: string, documentId: string) =>
+    request<{ url: string; title: string; mime: string }>(
+      `/documents/${documentId}/content`,
+      { method: "POST", token, body: {} }
+    ),
   rewardEligibility: (token: string, lessonId: string) =>
     request<{ eligible: boolean; reason?: string; rewardSessionId?: string }>(
       "/rewards/eligibility",

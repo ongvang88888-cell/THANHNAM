@@ -292,6 +292,44 @@ export class MediaService {
       expiresAt: signed.expiresAt,
     };
   }
+
+  async markVideoReadyFromJob(videoId: string, playlistPath?: string) {
+    const video = await this.prisma.video.findUnique({ where: { id: String(videoId) } });
+    if (!video) return null;
+    const assetKey =
+      playlistPath?.replace(/^s3:\/\/[^/]+\//, "") ||
+      (video.storageKey ? `${video.storageKey}.m3u8` : `renditions/${video.id}/index.m3u8`);
+    await this.prisma.videoAsset.deleteMany({ where: { videoId: video.id } });
+    await this.prisma.videoAsset.create({
+      data: {
+        videoId: video.id,
+        quality: "720p",
+        format: "hls",
+        storageKey: assetKey,
+        sizeBytes: BigInt(0),
+      },
+    });
+    await this.prisma.video.update({ where: { id: video.id }, data: { status: "READY" } });
+    await this.prisma.videoProcessingJob.updateMany({
+      where: { videoId: video.id, status: { in: ["QUEUED", "PROCESSING"] } },
+      data: { status: "READY" },
+    });
+    return { videoId: video.id, status: "READY" };
+  }
+
+  async markVideoFailed(videoId: string) {
+    const video = await this.prisma.video.findUnique({ where: { id: String(videoId) } });
+    if (!video) return null;
+    await this.prisma.video.update({
+      where: { id: video.id },
+      data: { status: "FAILED" },
+    });
+    await this.prisma.videoProcessingJob.updateMany({
+      where: { videoId: video.id, status: { in: ["QUEUED", "PROCESSING"] } },
+      data: { status: "FAILED", error: "MediaConvert ERROR" },
+    });
+    return { videoId: video.id, status: "FAILED" };
+  }
 }
 
 @Controller("media/local")
@@ -387,6 +425,40 @@ export class MediaController {
   @UseGuards(AuthGuard)
   document(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.media.documentContent(user, id);
+  }
+
+  @Post("media/webhooks/mediaconvert")
+  async mediaConvertWebhook(@Req() req: { body: Buffer | object; rawBody?: Buffer }) {
+    const raw =
+      req.rawBody?.toString("utf8") ??
+      (Buffer.isBuffer(req.body) ? req.body.toString("utf8") : JSON.stringify(req.body));
+    let payload: {
+      detail?: { status?: string; userMetadata?: { videoId?: string }; outputGroupDetails?: Array<{ playlistFilePaths?: string[] }> };
+      Message?: string;
+    };
+    try {
+      payload = JSON.parse(raw) as typeof payload;
+      if (payload.Message) {
+        payload = JSON.parse(payload.Message) as typeof payload;
+      }
+    } catch {
+      throw new AppError(ErrorCodes.VALIDATION, "Invalid MediaConvert webhook body", 400);
+    }
+    const detail = payload.detail;
+    const videoId = detail?.userMetadata?.videoId;
+    if (!videoId) return { ok: true, ignored: true };
+    if (detail?.status === "COMPLETE") {
+      const playlist = detail.outputGroupDetails?.[0]?.playlistFilePaths?.[0];
+      const result = await this.media.markVideoReadyFromJob(videoId, playlist);
+      if (!result) return { ok: true, ignored: true, reason: "video_not_found", videoId };
+      return { ok: true, videoId, status: "READY" };
+    }
+    if (detail?.status === "ERROR") {
+      const result = await this.media.markVideoFailed(videoId);
+      if (!result) return { ok: true, ignored: true, reason: "video_not_found", videoId };
+      return { ok: true, videoId, status: "FAILED" };
+    }
+    return { ok: true, videoId, status: detail?.status };
   }
 }
 

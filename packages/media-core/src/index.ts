@@ -291,7 +291,7 @@ export class NoopTranscodeAdapter implements TranscodePort {
   }
 }
 
-/** AWS MediaConvert adapter — queues job metadata; real AWS call when credentials present. */
+/** AWS MediaConvert adapter — CreateJob when credentials + endpoint present. */
 export class MediaConvertTranscodeAdapter implements TranscodePort {
   async enqueue(input: {
     videoId: string;
@@ -300,12 +300,106 @@ export class MediaConvertTranscodeAdapter implements TranscodePort {
   }): Promise<{ jobId: string }> {
     const role = process.env.MEDIACONVERT_ROLE_ARN;
     const endpoint = process.env.MEDIACONVERT_ENDPOINT;
-    if (!role || !endpoint || !process.env.AWS_ACCESS_KEY_ID) {
+    const queue = process.env.MEDIACONVERT_QUEUE_ARN;
+    const bucket = process.env.S3_BUCKET_PRIVATE || process.env.S3_BUCKET || "edu-private";
+    const region = process.env.S3_REGION || process.env.AWS_REGION || "ap-southeast-1";
+
+    if (!role || !endpoint || !process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
       return { jobId: `mc-local-${input.videoId}` };
     }
-    // Full MediaConvert CreateJob payload requires account-specific presets;
-    // return a deterministic job id for orchestration; worker completes later.
-    return { jobId: `mc-${input.videoId}-${Date.now()}` };
+
+    const destination = `s3://${bucket}/${input.outputPrefix}/`;
+    const fileInput = input.sourceKey.startsWith("s3://")
+      ? input.sourceKey
+      : `s3://${bucket}/${input.sourceKey}`;
+
+    const body = {
+      Role: role,
+      ...(queue ? { Queue: queue } : {}),
+      UserMetadata: { videoId: input.videoId },
+      Settings: {
+        Inputs: [
+          {
+            FileInput: fileInput,
+            AudioSelectors: {
+              "Audio Selector 1": { DefaultSelection: "DEFAULT" },
+            },
+            VideoSelector: {},
+          },
+        ],
+        OutputGroups: [
+          {
+            Name: "HLS",
+            OutputGroupSettings: {
+              Type: "HLS_GROUP_SETTINGS",
+              HlsGroupSettings: {
+                Destination: destination,
+                SegmentLength: 6,
+                MinSegmentLength: 0,
+              },
+            },
+            Outputs: [
+              {
+                ContainerSettings: { Container: "M3U8" },
+                VideoDescription: {
+                  CodecSettings: {
+                    Codec: "H_264",
+                    H264Settings: {
+                      RateControlMode: "QVBR",
+                      MaxBitrate: 2_500_000,
+                    },
+                  },
+                },
+                AudioDescriptions: [
+                  {
+                    CodecSettings: {
+                      Codec: "AAC",
+                      AacSettings: {
+                        Bitrate: 96_000,
+                        CodingMode: "CODING_MODE_2_0",
+                        SampleRate: 48_000,
+                      },
+                    },
+                  },
+                ],
+                NameModifier: "_720",
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    try {
+      const { SignAWS4 } = await import("./aws4");
+      const url = new URL(`${endpoint.replace(/\/$/, "")}/2017-08-29/jobs`);
+      const payload = JSON.stringify(body);
+      const headers = SignAWS4.sign({
+        method: "POST",
+        url,
+        region,
+        service: "mediaconvert",
+        body: payload,
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        sessionToken: process.env.AWS_SESSION_TOKEN,
+      });
+      const res = await fetch(url.toString(), {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: payload,
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("[MediaConvert] CreateJob failed", res.status, text.slice(0, 300));
+        return { jobId: `mc-error-${input.videoId}-${Date.now()}` };
+      }
+      const json = (await res.json()) as { Job?: { Id?: string } };
+      return { jobId: json.Job?.Id || `mc-${input.videoId}-${Date.now()}` };
+    } catch (e) {
+      console.error("[MediaConvert] enqueue error", e);
+      return { jobId: `mc-fallback-${input.videoId}-${Date.now()}` };
+    }
   }
 }
 

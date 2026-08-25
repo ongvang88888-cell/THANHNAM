@@ -1,13 +1,18 @@
 import { Body, Controller, Get, Headers, Injectable, Module, Param, Post, Req, UseGuards, Inject } from "@nestjs/common";
-import { IsIn, IsOptional, IsString, MinLength } from "class-validator";
-import { buildEntitlementGrants, type PaymentProvider } from "@edu/monetization-core";
-import { AppError, ErrorCodes } from "@edu/shared-core";
+import { IsIn, IsInt, IsOptional, IsString, Min, MinLength } from "class-validator";
+import {
+  assertProviderAllowedForPlatform,
+  buildEntitlementGrants,
+  type PaymentProvider,
+} from "@edu/monetization-core";
+import { AppError, ErrorCodes, hasAnyRole } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
 import { AuthGuard, CurrentUser, type RequestUser } from "../auth/auth.guard";
 import { AuthModule } from "../auth/auth.module";
 import { MockPaymentProvider } from "./providers/mock.provider";
 import { StripePaymentProvider } from "./providers/stripe.provider";
 import { VnpayPaymentProvider } from "./providers/vnpay.provider";
+import { GooglePlayPaymentProvider } from "./providers/google-play.provider";
 
 class CheckoutDto {
   @IsString()
@@ -18,12 +23,40 @@ class CheckoutDto {
   idempotencyKey!: string;
 
   @IsOptional()
-  @IsIn(["mock", "stripe", "vnpay"])
-  provider?: "mock" | "stripe" | "vnpay";
+  @IsIn(["mock", "stripe", "vnpay", "google_play"])
+  provider?: "mock" | "stripe" | "vnpay" | "google_play";
 
   @IsOptional()
   @IsString()
   returnUrl?: string;
+
+  @IsOptional()
+  @IsIn(["web", "android", "ios", "unknown"])
+  platform?: "web" | "android" | "ios" | "unknown";
+}
+
+class GooglePlayConfirmDto {
+  @IsString()
+  orderId!: string;
+
+  @IsString()
+  @MinLength(8)
+  purchaseToken!: string;
+
+  @IsOptional()
+  @IsString()
+  productId?: string;
+}
+
+class RefundDto {
+  @IsOptional()
+  @IsString()
+  reason?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  amountMinor?: number;
 }
 
 @Injectable()
@@ -37,6 +70,7 @@ export class CommerceService {
       mock: new MockPaymentProvider(),
       stripe: new StripePaymentProvider(),
       vnpay: new VnpayPaymentProvider(),
+      google_play: new GooglePlayPaymentProvider(),
     };
   }
 
@@ -48,6 +82,18 @@ export class CommerceService {
   }
 
   async checkout(user: RequestUser, dto: CheckoutDto) {
+    const platform = dto.platform ?? "unknown";
+    const providerName = dto.provider || (process.env.DEFAULT_PAYMENT_PROVIDER ?? "mock");
+    try {
+      assertProviderAllowedForPlatform(providerName, platform);
+    } catch (e) {
+      throw new AppError(
+        ErrorCodes.VALIDATION,
+        e instanceof Error ? e.message : "Provider not allowed",
+        400,
+      );
+    }
+
     const product = await this.prisma.product.findFirst({
       where: { id: dto.productId, appId: user.appId, status: "PUBLISHED" },
       include: {
@@ -69,7 +115,10 @@ export class CommerceService {
 
     const amount = product.prices[0].amountMinor;
     const currency = product.prices[0].currency;
-    const provider = this.provider(dto.provider);
+    const provider = this.provider(providerName);
+    const meta = (product.metadataJson ?? {}) as Record<string, unknown>;
+    const playSku =
+      typeof meta.playSku === "string" && meta.playSku.length > 0 ? meta.playSku : product.slug;
 
     const order = await this.prisma.$transaction(async (tx) => {
       const created = await tx.order.create({
@@ -94,10 +143,9 @@ export class CommerceService {
       const returnUrl = (dto.returnUrl || "http://localhost:3000/checkout/return")
         .replace(/ORDER_PLACEHOLDER|PENDING/g, created.id)
         .replace(/([?&]orderId=)[^&]*/i, `$1${created.id}`);
-      const withOrder =
-        returnUrl.includes("orderId=")
-          ? returnUrl
-          : `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}orderId=${created.id}`;
+      const withOrder = returnUrl.includes("orderId=")
+        ? returnUrl
+        : `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}orderId=${created.id}`;
 
       const intent = await provider.createIntent({
         orderId: created.id,
@@ -105,7 +153,13 @@ export class CommerceService {
         currency,
         idempotencyKey: dto.idempotencyKey,
         returnUrl: withOrder,
-        metadata: { productId: product.id, userId: user.userId },
+        metadata: {
+          productId: product.id,
+          userId: user.userId,
+          playSku,
+          sku: playSku,
+          platform,
+        },
       });
 
       await tx.payment.create({
@@ -300,11 +354,172 @@ export class CommerceService {
     const provider = this.provider(providerName);
     const event = await provider.verifyWebhook(headers, rawBody);
     const payment = await this.prisma.payment.findFirst({
-      where: { provider: provider.name, providerRef: event.providerRef },
+      where: {
+        provider: provider.name,
+        OR: [
+          { providerRef: event.providerRef },
+          ...(event.orderId ? [{ orderId: event.orderId }] : []),
+        ],
+      },
     });
     const orderId = event.orderId || payment?.orderId;
     if (!orderId) throw new AppError(ErrorCodes.NOT_FOUND, "Order not found for webhook", 404);
+    if (event.status === "REFUNDED") {
+      return this.refundOrderInternal(orderId, {
+        reason: "provider_webhook",
+        providerEventId: event.providerEventId,
+        amountMinor: event.amountMinor || payment?.amountMinor,
+        skipProviderCall: true,
+      });
+    }
     return this.fulfillPaidOrder(orderId, event);
+  }
+
+  async confirmGooglePlay(user: RequestUser, dto: GooglePlayConfirmDto) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: String(dto.orderId), userId: user.userId, appId: user.appId },
+      include: { payments: true, items: true },
+    });
+    if (!order) throw new AppError(ErrorCodes.NOT_FOUND, "Order not found", 404);
+    const payment = order.payments[0];
+    if (!payment || payment.provider !== "google_play") {
+      throw new AppError(ErrorCodes.VALIDATION, "Order is not a Google Play payment", 400);
+    }
+    if (order.status === "FULFILLED" || order.status === "PAID") {
+      return { ok: true, already: true, order };
+    }
+
+    const productId = dto.productId || order.items[0]?.productId;
+    const event = await this.provider("google_play").verifyWebhook(
+      {},
+      JSON.stringify({
+        orderId: order.id,
+        purchaseToken: dto.purchaseToken,
+        productId,
+        amountMinor: payment.amountMinor,
+        eventId: `gp_confirm_${dto.purchaseToken.slice(0, 16)}`,
+      }),
+    );
+
+    await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: { providerRef: dto.purchaseToken },
+    });
+
+    await this.fulfillPaidOrder(order.id, event);
+    const updated = await this.prisma.order.findUniqueOrThrow({
+      where: { id: order.id },
+      include: { items: true, payments: true },
+    });
+    return { ok: true, order: updated, fulfilled: true };
+  }
+
+  async refundOrder(actor: RequestUser, orderId: string, dto: RefundDto) {
+    if (!hasAnyRole(actor as never, ["admin", "super_admin", "support_agent"])) {
+      throw new AppError(ErrorCodes.FORBIDDEN, "Admin refund only", 403);
+    }
+    return this.refundOrderInternal(orderId, {
+      reason: dto.reason || "admin_refund",
+      amountMinor: dto.amountMinor,
+      actorUserId: actor.userId,
+      skipProviderCall: false,
+    });
+  }
+
+  private async refundOrderInternal(
+    orderId: string,
+    opts: {
+      reason: string;
+      amountMinor?: number;
+      actorUserId?: string;
+      providerEventId?: string;
+      skipProviderCall?: boolean;
+    },
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: String(orderId) },
+      include: {
+        payments: { include: { refunds: true } },
+        items: true,
+      },
+    });
+    if (!order) throw new AppError(ErrorCodes.NOT_FOUND, "Order not found", 404);
+    if (order.status === "REFUNDED") {
+      return { ok: true, already: true };
+    }
+    if (order.status !== "PAID" && order.status !== "FULFILLED" && order.status !== "REFUND_PENDING") {
+      throw new AppError(ErrorCodes.VALIDATION, `Cannot refund order in status ${order.status}`, 400);
+    }
+
+    const payment = order.payments[0];
+    if (!payment) throw new AppError(ErrorCodes.NOT_FOUND, "Payment missing", 404);
+    const amount = opts.amountMinor ?? payment.amountMinor;
+    const provider = this.provider(payment.provider);
+
+    let providerRefundId = opts.providerEventId || `local_refund_${order.id}`;
+    if (!opts.skipProviderCall && provider.refund) {
+      const result = await provider.refund({
+        providerRef: payment.providerRef || payment.id,
+        amountMinor: amount,
+        reason: opts.reason,
+        orderId: order.id,
+      });
+      providerRefundId = result.providerRefundId;
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.refund.create({
+        data: {
+          paymentId: payment.id,
+          amountMinor: amount,
+          reason: opts.reason,
+          status: "SUCCEEDED",
+        },
+      });
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: { status: amount >= payment.amountMinor ? "REFUNDED" : "PARTIALLY_REFUNDED" },
+      });
+      await tx.order.update({
+        where: { id: order.id },
+        data: { status: "REFUNDED" },
+      });
+
+      const sourceRefs = order.items.map((i) => i.id);
+      await tx.entitlement.updateMany({
+        where: {
+          userId: order.userId,
+          sourceRef: { in: sourceRefs },
+          status: "ACTIVE",
+        },
+        data: { status: "REVOKED" },
+      });
+
+      await tx.notification.create({
+        data: {
+          userId: order.userId,
+          channel: "in_app",
+          title: "Refund processed",
+          body: "Đơn hàng đã được hoàn tiền; quyền truy cập liên quan đã bị thu hồi.",
+          metaJson: { orderId: order.id, providerRefundId },
+        },
+      });
+
+      if (opts.actorUserId) {
+        await tx.auditLog.create({
+          data: {
+            appId: order.appId,
+            actorUserId: opts.actorUserId,
+            action: "order.refund",
+            resourceType: "order",
+            resourceId: order.id,
+            metaJson: { amountMinor: amount, reason: opts.reason, providerRefundId },
+          },
+        });
+      }
+    });
+
+    return { ok: true, orderId: order.id, providerRefundId, amountMinor: amount };
   }
 }
 
@@ -336,6 +551,22 @@ export class CommerceController {
   @UseGuards(AuthGuard)
   entitlements(@CurrentUser() user: RequestUser) {
     return this.commerce.myEntitlements(user);
+  }
+
+  @Post("payments/google-play/confirm")
+  @UseGuards(AuthGuard)
+  confirmPlay(@CurrentUser() user: RequestUser, @Body() dto: GooglePlayConfirmDto) {
+    return this.commerce.confirmGooglePlay(user, dto);
+  }
+
+  @Post("orders/:id/refund")
+  @UseGuards(AuthGuard)
+  refund(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Body() dto: RefundDto,
+  ) {
+    return this.commerce.refundOrder(user, id, dto);
   }
 
   @Post("payments/webhooks/:provider")

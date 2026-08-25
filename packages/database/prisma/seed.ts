@@ -100,7 +100,9 @@ async function main() {
 
   const product = await prisma.product.upsert({
     where: { appId_slug: { appId: app.id, slug: "typescript-fundamentals" } },
-    update: {},
+    update: {
+      metadataJson: { playSku: "typescript_fundamentals" },
+    },
     create: {
       appId: app.id,
       type: ProductType.VIDEO_COURSE,
@@ -111,6 +113,7 @@ async function main() {
       visibility: Visibility.PUBLIC,
       creatorUserId: teacher.id,
       categoryId: category.id,
+      metadataJson: { playSku: "typescript_fundamentals" },
     },
   });
 
@@ -348,7 +351,7 @@ async function main() {
   // Document product
   const docProduct = await prisma.product.upsert({
     where: { appId_slug: { appId: app.id, slug: "ts-cheat-sheet" } },
-    update: {},
+    update: { metadataJson: { playSku: "ts_cheat_sheet" } },
     create: {
       appId: app.id,
       type: ProductType.DIGITAL_DOCUMENT,
@@ -359,6 +362,7 @@ async function main() {
       visibility: Visibility.PUBLIC,
       creatorUserId: teacher.id,
       categoryId: category.id,
+      metadataJson: { playSku: "ts_cheat_sheet" },
     },
   });
   await prisma.productPrice.deleteMany({ where: { productId: docProduct.id } });

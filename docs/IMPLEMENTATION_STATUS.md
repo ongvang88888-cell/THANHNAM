@@ -1,8 +1,19 @@
 # Implementation status (Phase 5+)
 
-Last updated: 2026-08-25 (P0 web commerce)
+Last updated: 2026-08-25 (P1 Play Billing + refunds)
 
-## P0 web commerce (current)
+## P1 Google Play / mobile / refunds (current)
+
+See **`docs/P1_RUNBOOK.md`**.
+
+- Google Play Billing adapter (`google_play`) + `POST /payments/google-play/confirm`
+- Platform checkout policy (Android → Play/mock; Web → mock/stripe/vnpay)
+- Admin refund + entitlement **REVOKED** (`POST /orders/:id/refund`)
+- Mobile student: Mock/Play checkout (dev `gp_test_*`), library/docs/learn, `eas.json`
+- MediaConvert SigV4 CreateJob + `POST /media/webhooks/mediaconvert`
+- Seed `metadataJson.playSku` on course/doc products
+
+## P0 web commerce
 
 See **`docs/P0_RUNBOOK.md`**.
 
@@ -26,13 +37,15 @@ See **`docs/P0_RUNBOOK.md`**.
 - **Subscriptions**: `POST /subscriptions/start` + entitlement grant (MVP mock activate)
 - **Workers**: BullMQ entitlement expiry (every 5m) + media/webhook queues
 - **Mobile**: learn screen + reward unlock flow
-- **Tests**: monetization 7 + education quiz 2
+- **Tests**: monetization 15 (incl. payment policy) + education quiz
 
-## Verified
+## Verified (P1 smoke)
 
-- Health, checkout fulfill, quiz submit score 100, notifications > 0
-- `next build` success (quiz/notifications/certificate routes)
-- Workers boot + expire job
+- Health OK
+- `stripe` on `android` → 400 policy reject; `google_play` on `web` → 400
+- Play checkout → `play_billing` SKU → confirm `gp_test_*` → **FULFILLED**
+- Admin refund → order/payment **REFUNDED**, entitlements **REVOKED**
+- MediaConvert webhook accepts EventBridge-shaped payload
 
 ## Still needs your credentials / ops (cannot fake in this VM)
 
@@ -40,16 +53,17 @@ See **`docs/P0_RUNBOOK.md`**.
 |------|------------------|
 | Stripe live | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
 | VNPay live | `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET` |
+| Google Play | Play Console SKUs + `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` |
 | AdMob enforce | Set `ADMOB_SSV_ENFORCE=true` + real SSV callbacks |
 | AWS S3 / MediaConvert | Real AWS keys, bucket, `MEDIACONVERT_*` |
 | Aikido SAST | Sign in MCP (see agent message for URLs) |
 | GitHub remote | Push branch from a checkout with repo access |
-| Store builds | EAS / Play / App Store accounts |
+| Store builds | EAS project ID / Play / App Store accounts |
 
-## Deferred by product decision (not MVP blockers)
+## Deferred (next after P1)
 
+- Apple IAP adapter (policy already lists `apple_iap`)
+- Native Play Billing in EAS/dev-client (not Expo Go)
 - Marketplace revenue split (D4 off)
 - Full affiliate payouts, AI generation UX
-- Separate Next apps per surface (unified `apps/web` is intentional for MVP)
 - MoMo/ZaloPay adapters
-- Google Play Billing (P1 after P0 web revenue path)
