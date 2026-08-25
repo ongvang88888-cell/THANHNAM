@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "EduCommerce Student",
+    "slug": "edu-commerce-student",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "educommerce",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.educommerce.student"
+    },
+    "android": {
+      "package": "com.educommerce.student",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B3D2E"
+      }
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiUrl": "http://127.0.0.1:3001/api/v1",
+      "appId": "education_app"
+    }
+  }
+}

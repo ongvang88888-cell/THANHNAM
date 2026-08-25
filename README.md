@@ -1,6 +1,6 @@
 # Education Commerce Platform
 
-**Status:** Architecture Package complete · **D1–D5 locked** · **implementation not started** until Phase 5 is authorized.
+**Status:** Architecture Package complete · D1–D5 locked · **MVP implementation running**
 
 A production-grade platform for selling video courses, digital documents, bundles/combos, subscriptions, and rewarded-ad unlocks — with Student, Teacher, Admin, and Public Storefront surfaces on Web and Mobile.
 
@@ -9,40 +9,78 @@ A production-grade platform for selling video courses, digital documents, bundle
 | Phase | Name | Status |
 |-------|------|--------|
 | 0 | Requirements analysis | Done |
-| 1 | Architecture Package | **Done** |
-| 1b | Decisions D1–D5 | **Locked** — [architecture/DECISIONS_D1_D5.md](./architecture/DECISIONS_D1_D5.md) |
-| 2+ | Implementation | **Blocked until Phase 5 kickoff authorized** |
+| 1 | Architecture Package | Done |
+| 1b | Decisions D1–D5 | Locked — [architecture/DECISIONS_D1_D5.md](./architecture/DECISIONS_D1_D5.md) |
+| 5 | MVP implementation | **In progress** — see [docs/IMPLEMENTATION_STATUS.md](./docs/IMPLEMENTATION_STATUS.md) |
 
-## Start here
+## Quick start (local)
 
-1. [`ARCHITECTURE_PACKAGE.md`](./ARCHITECTURE_PACKAGE.md) — master index of all 38 deliverables
-2. [`docs/DEVELOPMENT_GUIDE.md`](./docs/DEVELOPMENT_GUIDE.md) — how engineers work in this repo
-3. [`docs/NEW_APP.md`](./docs/NEW_APP.md) — how to ship app #2 without rewriting Core
-4. [`.cursor/rules/`](./.cursor/rules/) — mandatory agent/developer constraints
+Prerequisites: Node 20+, pnpm 9, PostgreSQL 16, Redis.
+
+```bash
+cp .env.example .env
+# ensure DATABASE_URL / Redis match your local services
+
+pnpm install
+pnpm db:generate
+pnpm db:push
+pnpm db:seed
+
+# API (NestJS) — compile then run (tsx breaks DI metadata)
+cd apps/api && pnpm exec tsc -p tsconfig.json && node dist/main.js
+
+# Web (Next.js) — another terminal
+cd apps/web && NEXT_PUBLIC_API_URL=http://127.0.0.1:3001/api/v1 pnpm dev
+
+# Workers (optional)
+cd apps/workers && pnpm exec tsx src/main.ts
+
+# Mobile (Expo shell)
+cd apps/mobile-student && pnpm start
+```
+
+API: `http://127.0.0.1:3001/api/v1/health`  
+Web: `http://127.0.0.1:3000`
+
+### Demo accounts
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | `admin@edu.local` | `Password123!` |
+| Teacher | `teacher@edu.local` | `Password123!` |
+| Student | `student@edu.local` | `Password123!` |
+
+Header: `X-App-Id: education_app`
 
 ## Priority order (non-negotiable)
 
 CORRECTNESS → SECURITY → RELIABILITY → MAINTAINABILITY → REUSABILITY → SCALABILITY → PERFORMANCE → DX → SPEED
 
-## What this is not
-
-- Not a single-course demo
-- Not an app that hard-codes `if (user.isPremium)`
-- Not a copy of Teachable/Thinkific/Kajabi/Moodle UI or code
-
-## Repository layout (planned; packages empty until Phase 5+)
+## Repository layout
 
 ```
-apps/                 # student-web, teacher-web, admin-web, storefront, mobile
+apps/
+  api/              # NestJS modular monolith
+  web/              # Next.js unified storefront + student + teacher + admin
+  mobile-student/   # Expo React Native student shell
+  workers/          # BullMQ background jobs
 packages/
-  shared-core/        # auth contracts, RBAC, config, logging, errors, API client
-  education-core/     # courses, lessons, progress, quiz, certificates
-  monetization-core/  # products, orders, payments, entitlements, rewards, affiliates
-  media-core/         # video pipeline, documents, signed URLs, storage adapters
-docs/                 # canonical documentation
-architecture/         # Architecture Package deep dives
-.cursor/rules/        # Cursor / agent governance
+  shared-core/      # errors, roles helpers
+  education-core/   # progress, certificates
+  monetization-core/# access engine, fulfillment, payment/reward ports
+  media-core/       # storage ports + MIME allowlist
+  database/         # Prisma schema + seed
+docs/               # canonical documentation
+architecture/       # Architecture Package deep dives
+.cursor/rules/      # Cursor / agent governance
 ```
+
+## Architecture docs
+
+1. [`ARCHITECTURE_PACKAGE.md`](./ARCHITECTURE_PACKAGE.md) — master index
+2. [`docs/DEVELOPMENT_GUIDE.md`](./docs/DEVELOPMENT_GUIDE.md)
+3. [`docs/NEW_APP.md`](./docs/NEW_APP.md)
+4. [`.cursor/rules/`](./.cursor/rules/)
 
 ## License / secrets
 

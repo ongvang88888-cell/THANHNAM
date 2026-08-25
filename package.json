@@ -1,0 +1,20 @@
+{
+  "name": "edu-commerce-platform",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "db:generate": "pnpm --filter @edu/database generate",
+    "db:migrate": "pnpm --filter @edu/database migrate:dev",
+    "db:push": "pnpm --filter @edu/database push",
+    "db:seed": "pnpm --filter @edu/database seed"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.2"
+  }
+}
