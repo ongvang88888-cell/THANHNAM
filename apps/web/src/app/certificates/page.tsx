@@ -13,17 +13,24 @@ type Cert = {
 export default function CertificatesPage() {
   const { token, ready } = useRequireAuth();
   const [items, setItems] = useState<Cert[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ready || !token) return;
-    apiGet<Cert[]>("/me/certificates", token).then(setItems).catch(console.error);
+    setError(null);
+    apiGet<Cert[]>("/me/certificates", token)
+      .then(setItems)
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : "Không tải được chứng chỉ");
+      });
   }, [ready, token]);
 
   return (
     <section>
       <h1 style={{ fontFamily: "var(--font-display)" }}>Chứng chỉ</h1>
       <div className="panel">
-        {items.length === 0 && <p className="muted">Hoàn thành khóa học để nhận chứng chỉ.</p>}
+        {error && <p className="error">{error}</p>}
+        {!error && items.length === 0 && <p className="muted">Hoàn thành khóa học để nhận chứng chỉ.</p>}
         <ul className="lesson-list">
           {items.map((c) => (
             <li key={c.publicId}>

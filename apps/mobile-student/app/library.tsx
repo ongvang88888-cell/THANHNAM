@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -18,6 +19,7 @@ type LibProduct = {
   type: string;
   course?: { id: string } | null;
   document?: { id: string } | null;
+  firstLessonId?: string | null;
 };
 
 export default function LibraryScreen() {
@@ -56,10 +58,18 @@ export default function LibraryScreen() {
     if (item.type === "DIGITAL_DOCUMENT" && item.document?.id) {
       try {
         const doc = await api.documentContent(token, item.document.id);
-        setMsg(`${doc.title}: ${doc.url.slice(0, 64)}…`);
+        if (doc.url) {
+          await Linking.openURL(doc.url);
+        } else {
+          setMsg(doc.title);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Document failed");
       }
+      return;
+    }
+    if (item.firstLessonId) {
+      router.push(`/learn/${item.firstLessonId}`);
       return;
     }
     router.push(`/product/${item.slug}`);
@@ -79,7 +89,7 @@ export default function LibraryScreen() {
             <Text style={styles.cardTitle}>{item.name}</Text>
             <Text style={styles.meta}>
               {item.type}
-              {item.type === "DIGITAL_DOCUMENT" ? " · tap to download URL" : " · open product"}
+              {item.type === "DIGITAL_DOCUMENT" ? " · mở tài liệu" : " · tiếp tục học"}
             </Text>
           </Pressable>
         )}

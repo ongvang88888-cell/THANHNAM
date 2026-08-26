@@ -1,8 +1,22 @@
 # Implementation status
 
-Last updated: 2026-08-25 (go-live completion slice)
+Last updated: 2026-08-26 (stability / publish-readiness slice)
 
 ## Shipped in this slice
+
+- ZaloPay webhook MAC is strict when KEY1/KEY2 is set
+- Lesson comments require CAN_ACCESS
+- Progress updates preserve omitted video/time fields
+- Admin grant is scoped to the same `appId`
+- Auth refresh/reset/verify/resend are throttled
+- Production boot requires `CORS_ORIGINS` + payment secret for the default rail
+- Subscription checkout idempotency is stable (`sub-{user}-{product}`)
+- MediaConvert webhook authenticates with `MEDIA_WEBHOOK_SECRET`
+- Affiliate payout status is validated
+- Web: post-login `?next=`, verify-email once, library continue, empty-curriculum link hidden, load errors surfaced
+- Mobile: `/auth/me` on boot, buy → login, documents open via system URL
+
+## Previous go-live slice
 
 - Production runtime gates (mock payments, JWT, CORS, storage, SSV, IAP test tokens)
 - Auth: verify email, forgot/reset, lockout, GDPR export/delete, live session/roles

@@ -377,6 +377,7 @@ export class AuthController {
     return this.auth.login(dto, req.headers["x-app-id"], req.ip || req.headers["x-forwarded-for"]);
   }
 
+  @Throttle({ auth: { limit: 20, ttl: 60_000 } })
   @Post("refresh")
   refresh(@Body() dto: RefreshDto) {
     return this.auth.refresh(dto.refreshToken);
@@ -393,16 +394,19 @@ export class AuthController {
     return this.auth.forgot(dto, req.headers["x-app-id"]);
   }
 
+  @Throttle({ auth: { limit: 8, ttl: 60_000 } })
   @Post("reset")
   reset(@Body() dto: ResetDto) {
     return this.auth.resetPassword(dto);
   }
 
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @Post("verify-email")
   verifyEmail(@Body() dto: VerifyDto) {
     return this.auth.verifyEmail(dto);
   }
 
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @Post("resend-verification")
   @UseGuards(AuthGuard)
   resend(@CurrentUser() user: RequestUser) {

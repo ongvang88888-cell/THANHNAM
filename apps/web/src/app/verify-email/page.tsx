@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { apiPost } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -10,9 +10,11 @@ function VerifyInner() {
   const { token, user, setSession } = useAuth();
   const [status, setStatus] = useState("Đang xác minh…");
   const [error, setError] = useState<string | null>(null);
+  const verifyToken = search.get("token");
+  const authRef = useRef({ token, user, setSession });
+  authRef.current = { token, user, setSession };
 
   useEffect(() => {
-    const verifyToken = search.get("token");
     if (!verifyToken) {
       setError("Thiếu token xác minh");
       setStatus("");
@@ -21,15 +23,19 @@ function VerifyInner() {
     apiPost<{ ok: boolean }>("/auth/verify-email", { token: verifyToken })
       .then(() => {
         setStatus("Email đã được xác minh.");
-        if (token && user) {
-          setSession(token, { ...user, emailVerifiedAt: new Date().toISOString() });
+        const current = authRef.current;
+        if (current.token && current.user) {
+          current.setSession(current.token, {
+            ...current.user,
+            emailVerifiedAt: new Date().toISOString(),
+          });
         }
       })
       .catch((e: Error) => {
         setError(e.message);
         setStatus("");
       });
-  }, [search, token, user, setSession]);
+  }, [verifyToken]);
 
   return (
     <section className="panel">

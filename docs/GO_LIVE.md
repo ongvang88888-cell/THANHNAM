@@ -15,7 +15,7 @@ This platform can run a **closed beta / first paying cohort** after the items be
 9. `PUBLIC_WEB_URL` points at the live site
 10. Payment provider credentials for the rails you actually sell on
 
-The API refuses to boot when JWT/database/storage secrets look like local defaults.
+The API refuses to boot when JWT/database/storage secrets look like local defaults, when `CORS_ORIGINS` is missing, or when the default VN payment rail has no secret. MediaConvert webhooks require `MEDIA_WEBHOOK_SECRET` (`x-webhook-secret`).
 
 ## What is now implemented
 

@@ -72,7 +72,7 @@ export class SubscriptionsService {
       provider,
       platform: "web",
       returnUrl: dto.returnUrl,
-      idempotencyKey: dto.idempotencyKey || `sub-${user.userId}-${product.id}-${Date.now()}`,
+      idempotencyKey: dto.idempotencyKey || `sub-${user.userId}-${product.id}`,
     });
   }
 }

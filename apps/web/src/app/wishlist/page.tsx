@@ -17,10 +17,16 @@ type Row = {
 export default function WishlistPage() {
   const { token, ready } = useRequireAuth();
   const [items, setItems] = useState<Row[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   function load() {
     if (!token) return;
-    apiGet<Row[]>("/wishlist", token).then(setItems).catch(console.error);
+    setError(null);
+    apiGet<Row[]>("/wishlist", token)
+      .then(setItems)
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : "Không tải được yêu thích");
+      });
   }
 
   useEffect(() => {
@@ -31,8 +37,9 @@ export default function WishlistPage() {
   return (
     <section>
       <h1 style={{ fontFamily: "var(--font-display)" }}>Yêu thích</h1>
+      {error && <p className="error">{error}</p>}
       <div className="grid">
-        {items.length === 0 && <p className="muted">Chưa có sản phẩm yêu thích.</p>}
+        {!error && items.length === 0 && <p className="muted">Chưa có sản phẩm yêu thích.</p>}
         {items.map((row) => (
           <div className="product" key={row.productId}>
             <div className="type">{row.product.type}</div>
@@ -47,7 +54,11 @@ export default function WishlistPage() {
               className="secondary"
               onClick={() => {
                 if (!token) return;
-                apiDelete(`/wishlist/${row.productId}`, token).then(load).catch(console.error);
+                apiDelete(`/wishlist/${row.productId}`, token)
+                  .then(load)
+                  .catch((e: unknown) => {
+                    setError(e instanceof Error ? e.message : "Không bỏ được yêu thích");
+                  });
               }}
             >
               Bỏ yêu thích

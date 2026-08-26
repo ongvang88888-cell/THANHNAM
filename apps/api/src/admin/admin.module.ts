@@ -123,10 +123,16 @@ export class AdminService {
 
   async grant(user: RequestUser, dto: AdminGrantDto) {
     this.assertAdmin(user);
+    const target = await this.prisma.user.findFirst({
+      where: { id: dto.userId, appId: user.appId },
+    });
+    if (!target) {
+      throw new AppError(ErrorCodes.NOT_FOUND, "User not found in this app", 404);
+    }
     const entitlement = await this.prisma.entitlement.create({
       data: {
         appId: user.appId,
-        userId: dto.userId,
+        userId: target.id,
         resourceType: dto.resourceType,
         resourceId: dto.resourceId,
         source: "ADMIN",

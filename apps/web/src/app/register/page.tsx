@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPost } from "@/lib/api";
-import { useAuth, type User } from "@/lib/auth";
+import { safeNextPath, useAuth, type User } from "@/lib/auth";
 
 export default function RegisterPage() {
   const { setSession } = useAuth();
@@ -38,7 +38,13 @@ export default function RegisterPage() {
         emailVerifiedAt: me.emailVerifiedAt,
       };
       setSession(res.accessToken, user, res.refreshToken);
-      router.push(res.verifyToken ? `/verify-email?token=${encodeURIComponent(res.verifyToken)}` : "/library");
+      const next = safeNextPath(new URLSearchParams(window.location.search).get("next"));
+      if (res.verifyToken) {
+        const verify = `/verify-email?token=${encodeURIComponent(res.verifyToken)}`;
+        router.push(next ? `${verify}&next=${encodeURIComponent(next)}` : verify);
+      } else {
+        router.push(next ?? "/library");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Đăng ký thất bại");
     } finally {

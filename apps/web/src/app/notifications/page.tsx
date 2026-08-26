@@ -15,10 +15,16 @@ type Notif = {
 export default function NotificationsPage() {
   const { token, ready } = useRequireAuth();
   const [items, setItems] = useState<Notif[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ready || !token) return;
-    apiGet<Notif[]>("/notifications", token).then(setItems).catch(console.error);
+    setError(null);
+    apiGet<Notif[]>("/notifications", token)
+      .then(setItems)
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : "Không tải được thông báo");
+      });
   }, [ready, token]);
 
   async function markAll() {
@@ -36,7 +42,8 @@ export default function NotificationsPage() {
         </button>
       </div>
       <div className="panel">
-        {items.length === 0 && <p className="muted">Chưa có thông báo.</p>}
+        {error && <p className="error">{error}</p>}
+        {!error && items.length === 0 && <p className="muted">Chưa có thông báo.</p>}
         <ul className="lesson-list">
           {items.map((n) => (
             <li key={n.id}>

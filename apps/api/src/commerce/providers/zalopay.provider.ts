@@ -73,11 +73,9 @@ export class ZalopayPaymentProvider implements PaymentProvider {
     const appId = params.appid || process.env.ZALOPAY_APP_ID || "2553";
     const data = `${appId}|${appTransId}|${amount}|${status}`;
     const expected = createHmac("sha256", key2).update(data).digest("hex");
-    if (process.env.ZALOPAY_KEY1 && checksum !== expected && checksum !== params.checksum) {
-      // Dev: also accept createIntent MAC style when KEY2 unset
-      if (checksum.length < 16) {
-        throw new AppError(ErrorCodes.FORBIDDEN, "Invalid ZaloPay checksum", 401);
-      }
+    const liveKeys = Boolean(process.env.ZALOPAY_KEY1 || process.env.ZALOPAY_KEY2);
+    if (liveKeys && checksum !== expected) {
+      throw new AppError(ErrorCodes.FORBIDDEN, "Invalid ZaloPay checksum", 401);
     }
     const ok = status === "1" || status === "0" || status === "";
     return {

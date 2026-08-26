@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPost } from "@/lib/api";
-import { useAuth, type User } from "@/lib/auth";
+import { safeNextPath, useAuth, type User } from "@/lib/auth";
 
 export default function LoginPage() {
   const { setSession } = useAuth();
@@ -36,7 +36,8 @@ export default function LoginPage() {
         emailVerifiedAt: me.emailVerifiedAt,
       };
       setSession(res.accessToken, user, res.refreshToken);
-      router.push("/library");
+      const next = safeNextPath(new URLSearchParams(window.location.search).get("next"));
+      router.push(next ?? "/library");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Đăng nhập thất bại");
     } finally {

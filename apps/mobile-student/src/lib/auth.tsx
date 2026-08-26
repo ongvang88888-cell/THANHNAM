@@ -47,6 +47,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(JSON.parse(u) as User);
       }
       setReady(true);
+      if (!t) return;
+      try {
+        const me = await api.me(t);
+        const next = { id: me.id, email: me.email };
+        setUser(next);
+        await storageSet(USER, JSON.stringify(next));
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "";
+        if (/401|Unauthorized|Not authenticated/i.test(msg)) {
+          setToken(null);
+          setRefreshToken(null);
+          setMobileRefreshToken(null);
+          setUser(null);
+          await Promise.all([storageDelete(ACCESS), storageDelete(REFRESH), storageDelete(USER)]);
+        }
+      }
     })().catch(() => setReady(true));
   }, []);
 

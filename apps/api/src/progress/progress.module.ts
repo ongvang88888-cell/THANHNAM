@@ -65,10 +65,16 @@ export class ProgressService {
       include: { section: true },
     });
 
+    const existing = await this.prisma.lessonProgress.findUnique({
+      where: { userId_lessonId: { userId: user.userId, lessonId } },
+    });
+    const videoPositionMs = dto.videoPositionMs ?? existing?.videoPositionMs ?? 0;
+    const timeSpentMs = dto.timeSpentMs ?? existing?.timeSpentMs ?? 0;
+
     const complete = Boolean(
       dto.completed ||
         isLessonComplete({
-          videoPositionMs: dto.videoPositionMs ?? 0,
+          videoPositionMs,
           durationMs: lesson.durationSec * 1000,
         }),
     );
@@ -76,16 +82,16 @@ export class ProgressService {
     const progress = await this.prisma.lessonProgress.upsert({
       where: { userId_lessonId: { userId: user.userId, lessonId } },
       update: {
-        videoPositionMs: dto.videoPositionMs ?? 0,
-        timeSpentMs: dto.timeSpentMs ?? 0,
+        videoPositionMs,
+        timeSpentMs,
         status: complete ? "COMPLETED" : "IN_PROGRESS",
         completedAt: complete ? new Date() : null,
       },
       create: {
         userId: user.userId,
         lessonId,
-        videoPositionMs: dto.videoPositionMs ?? 0,
-        timeSpentMs: dto.timeSpentMs ?? 0,
+        videoPositionMs,
+        timeSpentMs,
         status: complete ? "COMPLETED" : "IN_PROGRESS",
         completedAt: complete ? new Date() : null,
       },
@@ -145,9 +151,32 @@ export class ProgressService {
     const productIds = entitlements.map((e) => e.resourceId);
     const products = await this.prisma.product.findMany({
       where: { id: { in: productIds } },
-      include: { course: true, document: true },
+      include: {
+        course: {
+          include: {
+            sections: {
+              orderBy: { position: "asc" },
+              include: {
+                lessons: { orderBy: { position: "asc" }, take: 1, select: { id: true } },
+              },
+            },
+          },
+        },
+        document: true,
+      },
     });
-    return { products, entitlements };
+    return {
+      products: products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        type: p.type,
+        course: p.course ? { id: p.course.id } : null,
+        document: p.document ? { id: p.document.id } : null,
+        firstLessonId: p.course?.sections.find((s) => s.lessons[0])?.lessons[0]?.id ?? null,
+      })),
+      entitlements,
+    };
   }
 
   myCertificates(user: RequestUser) {

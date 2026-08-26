@@ -130,7 +130,7 @@ export default function ProductPage() {
     event.preventDefault();
     if (!ready) return;
     if (!token) {
-      router.push("/login");
+      router.push(`/login?next=${encodeURIComponent(`/products/${slug}`)}`);
       return;
     }
     if (!product) return;
@@ -270,7 +270,7 @@ export default function ProductPage() {
           onClick={() => {
             if (!ready) return;
             if (!token) {
-              router.push("/login");
+              router.push(`/login?next=${encodeURIComponent(`/products/${slug}`)}`);
               return;
             }
             if (!product) return;
@@ -287,10 +287,10 @@ export default function ProductPage() {
         {wishMsg && <p className="ok">{wishMsg}</p>}
       </form>
 
-      {isCourse && product.course && (
+      {isCourse && product.course?.sections[0]?.lessons[0]?.id && (
         <p>
           Đã mua?{" "}
-          <a href={`/learn/${product.course.sections[0]?.lessons[0]?.id ?? ""}`}>
+          <a href={`/learn/${product.course.sections[0].lessons[0].id}`}>
             Mở bài đầu tiên
           </a>
         </p>

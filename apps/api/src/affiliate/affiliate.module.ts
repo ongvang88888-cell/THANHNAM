@@ -10,7 +10,7 @@ import {
   UseGuards,
   Inject,
 } from "@nestjs/common";
-import { IsInt, IsOptional, IsString, Min, MinLength } from "class-validator";
+import { IsIn, IsInt, IsOptional, IsString, Min, MinLength } from "class-validator";
 import { AppError, ErrorCodes, hasAnyRole } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
 import { AuthGuard, CurrentUser, type RequestUser } from "../auth/auth.guard";
@@ -40,7 +40,7 @@ class PayoutRequestDto {
 }
 
 class ResolvePayoutDto {
-  @IsString()
+  @IsIn(["APPROVED", "PAID", "REJECTED"])
   status!: "APPROVED" | "PAID" | "REJECTED";
 
   @IsOptional()

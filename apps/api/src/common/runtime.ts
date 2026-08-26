@@ -100,4 +100,17 @@ export function assertProductionSecrets(): void {
   if ((process.env.STORAGE_DRIVER || "memory") === "memory" && !allowLocalMedia()) {
     throw new Error("STORAGE_DRIVER=memory is not allowed in production");
   }
+  if (!process.env.CORS_ORIGINS?.trim()) {
+    throw new Error("CORS_ORIGINS is required in production");
+  }
+  const provider = defaultPaymentProvider();
+  if (provider === "vnpay" && !process.env.VNPAY_HASH_SECRET) {
+    throw new Error("VNPAY_HASH_SECRET is required when DEFAULT_PAYMENT_PROVIDER=vnpay");
+  }
+  if (provider === "momo" && !process.env.MOMO_SECRET_KEY) {
+    throw new Error("MOMO_SECRET_KEY is required when DEFAULT_PAYMENT_PROVIDER=momo");
+  }
+  if (provider === "zalopay" && !process.env.ZALOPAY_KEY1) {
+    throw new Error("ZALOPAY_KEY1 is required when DEFAULT_PAYMENT_PROVIDER=zalopay");
+  }
 }

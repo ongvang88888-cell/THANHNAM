@@ -8,6 +8,7 @@ import {
   Post,
   Put,
   Query,
+  Headers,
   Req,
   Res,
   UseGuards,
@@ -25,7 +26,7 @@ import {
   type IStorageProvider,
   type TranscodePort,
 } from "@edu/media-core";
-import { allowLocalMedia } from "../common/runtime";
+import { allowLocalMedia, isProduction } from "../common/runtime";
 import { AppError, ErrorCodes, hasAnyRole } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
 import { AccessService } from "../access/access.module";
@@ -446,7 +447,17 @@ export class MediaController {
   }
 
   @Post("media/webhooks/mediaconvert")
-  async mediaConvertWebhook(@Req() req: { body: Buffer | object; rawBody?: Buffer }) {
+  async mediaConvertWebhook(
+    @Req() req: { body: Buffer | object; rawBody?: Buffer },
+    @Headers("x-webhook-secret") webhookSecret?: string,
+  ) {
+    const expected = process.env.MEDIA_WEBHOOK_SECRET || "";
+    if (isProduction() && !expected) {
+      throw new AppError(ErrorCodes.FORBIDDEN, "Media webhook is not configured", 401);
+    }
+    if (expected && webhookSecret !== expected) {
+      throw new AppError(ErrorCodes.FORBIDDEN, "Invalid media webhook secret", 401);
+    }
     const raw =
       req.rawBody?.toString("utf8") ??
       (Buffer.isBuffer(req.body) ? req.body.toString("utf8") : JSON.stringify(req.body));

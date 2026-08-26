@@ -182,6 +182,10 @@ export default function TeacherPage() {
 
   async function attachVideoToCourse() {
     if (!token || !lastVideoId || !attachCourseId) return;
+    const ok = window.confirm(
+      "Thao tác này sẽ thay thế toàn bộ chương trình khóa học bằng một section video. Tiếp tục?",
+    );
+    if (!ok) return;
     await apiPatch(
       `/teacher/courses/${attachCourseId}/curriculum`,
       {

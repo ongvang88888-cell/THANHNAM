@@ -17,6 +17,7 @@ import { AppError, ErrorCodes, hasAnyRole } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
 import { AuthGuard, CurrentUser, type RequestUser } from "../auth/auth.guard";
 import { AuthModule } from "../auth/auth.module";
+import { AccessModule, AccessService } from "../access/access.module";
 
 class BookmarkDto {
   @IsString()
@@ -81,7 +82,10 @@ class LessonCommentDto {
 
 @Injectable()
 export class LearningService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(AccessService) private readonly access: AccessService,
+  ) {}
 
   listBookmarks(user: RequestUser) {
     return this.prisma.bookmark.findMany({
@@ -256,6 +260,10 @@ export class LearningService {
     if (!lesson || lesson.section.course.appId !== user.appId) {
       throw new AppError(ErrorCodes.NOT_FOUND, "Lesson not found", 404);
     }
+    const decision = await this.access.evaluateLesson(user, lessonId);
+    if (decision.code !== "CAN_ACCESS") {
+      throw new AppError(decision.code, "Cannot comment without lesson access", 403);
+    }
     let parentId: string | null = dto.parentId ?? null;
     if (parentId) {
       const parent = await this.prisma.lessonComment.findFirst({
@@ -384,7 +392,7 @@ export class LearningController {
 }
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, AccessModule],
   controllers: [LearningController],
   providers: [LearningService],
 })

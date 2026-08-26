@@ -77,6 +77,7 @@ function platformForProvider(provider: "mock" | "google_play" | "apple_iap") {
 }
 
 export const api = {
+  me: (token: string) => request<{ id: string; email: string }>("/auth/me", { token }),
   listProducts: () =>
     request<{ items: ProductListItem[] }>("/products").then((r) => r.items),
   getProduct: (slug: string) => request<ProductDetail>(`/products/${slug}`),
@@ -177,6 +178,7 @@ export const api = {
         type: string;
         course?: { id: string } | null;
         document?: { id: string } | null;
+        firstLessonId?: string | null;
       }>;
     }>("/me/library", { token }),
   getLesson: (token: string, lessonId: string) =>

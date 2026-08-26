@@ -36,7 +36,7 @@ export default function ProductScreen() {
 
   async function buy() {
     if (!token || !product) {
-      setMsg("Đăng nhập trước khi mua.");
+      router.push("/login");
       return;
     }
     setBusy(true);

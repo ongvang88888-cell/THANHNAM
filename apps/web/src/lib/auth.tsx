@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ApiError, apiGet, apiPost, getApiTokens, setApiTokens } from "./api";
 
 export type User = {
@@ -141,17 +141,28 @@ export function useAuth() {
   return ctx;
 }
 
+/** Only same-origin relative paths. Reject protocol-relative and open redirects. */
+export function safeNextPath(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith("/")) return null;
+  if (raw.startsWith("//")) return null;
+  if (raw.includes("://")) return null;
+  return raw;
+}
+
 /** Wait for localStorage hydration before treating a missing token as logged-out. */
 export function useRequireAuth() {
   const auth = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!auth.ready) return;
     if (!auth.token) {
-      router.replace("/login");
+      const next = safeNextPath(pathname);
+      router.replace(next ? `/login?next=${encodeURIComponent(next)}` : "/login");
     }
-  }, [auth.ready, auth.token, router]);
+  }, [auth.ready, auth.token, pathname, router]);
 
   return auth;
 }

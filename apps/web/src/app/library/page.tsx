@@ -11,14 +11,15 @@ type LibraryProduct = {
   type: string;
   course?: { id: string } | null;
   document?: { id: string } | null;
+  firstLessonId?: string | null;
 };
 
 function hrefFor(p: LibraryProduct): string {
   if (p.type === "DIGITAL_DOCUMENT" && p.document?.id) {
     return `/documents/${p.document.id}`;
   }
-  if (p.type === "VIDEO_COURSE") {
-    return `/products/${p.slug}`;
+  if (p.type === "VIDEO_COURSE" && p.firstLessonId) {
+    return `/learn/${p.firstLessonId}`;
   }
   return `/products/${p.slug}`;
 }
@@ -29,9 +30,11 @@ export default function LibraryPage() {
     products: LibraryProduct[];
     continueLearning?: Array<{ lessonId: string; lessonTitle: string; courseTitle: string }>;
   } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ready || !token) return;
+    setError(null);
     Promise.all([
       apiGet<{ products: LibraryProduct[] }>("/me/library", token),
       apiGet<Array<{ lessonId: string; lessonTitle: string; courseTitle: string }>>(
@@ -40,7 +43,9 @@ export default function LibraryPage() {
       ),
     ])
       .then(([library, cont]) => setData({ ...library, continueLearning: cont }))
-      .catch(console.error);
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : "Không tải được thư viện");
+      });
   }, [ready, token]);
 
   if (!ready || !user) return <p className="muted">Loading...</p>;
@@ -66,6 +71,8 @@ export default function LibraryPage() {
           </button>
         </div>
       </div>
+
+      {error && <p className="error">{error}</p>}
 
       <h2 style={{ fontFamily: "var(--font-display)" }}>Continue Learning</h2>
       <div className="panel">
