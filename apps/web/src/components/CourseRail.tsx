@@ -1,5 +1,6 @@
 import type { CatalogCampaign, CatalogProduct } from "@/lib/catalog";
 import { CourseCard } from "./CourseCard";
+import { HorizontalRail } from "./HorizontalRail";
 
 export function CourseRail({
   title,
@@ -25,11 +26,11 @@ export function CourseRail({
           </a>
         ) : null}
       </div>
-      <div className="u-rail-track">
+      <HorizontalRail label={title}>
         {products.map((product) => (
           <CourseCard key={product.id} product={product} badge={badgeFor(product.id)} />
         ))}
-      </div>
+      </HorizontalRail>
     </section>
   );
 }

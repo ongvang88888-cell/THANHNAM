@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CourseRail } from "@/components/CourseRail";
+import { HeroSlider } from "@/components/HeroSlider";
+import { HorizontalRail } from "@/components/HorizontalRail";
+import { UnicaIcon } from "@/components/UnicaIcon";
 import { apiGet } from "@/lib/api";
 import {
   coverStyle,
@@ -10,13 +13,12 @@ import {
   type CatalogCampaign,
   type CatalogProduct,
 } from "@/lib/catalog";
-import { FEATURED_TEACHERS, HERO_SLIDES, LIVE_CLASSES, QUICK_LINKS } from "@/lib/unica-data";
+import { FEATURED_TEACHERS, LIVE_CLASSES, QUICK_LINKS } from "@/lib/unica-data";
 
 export default function HomePage() {
   const [items, setItems] = useState<CatalogProduct[]>([]);
   const [campaigns, setCampaigns] = useState<CatalogCampaign[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [slide, setSlide] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,23 +39,12 @@ export default function HomePage() {
     };
   }, []);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setSlide((i) => (i + 1) % HERO_SLIDES.length);
-    }, 6000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const current = HERO_SLIDES[slide] ?? HERO_SLIDES[0];
   const courses = useMemo(() => items.filter((p) => isCourseType(p.type)), [items]);
   const bundles = useMemo(() => items.filter((p) => isBundleType(p.type)), [items]);
   const docs = useMemo(() => items.filter((p) => p.type === "DIGITAL_DOCUMENT"), [items]);
   const free = useMemo(() => items.filter((p) => (p.price?.amountMinor ?? 0) === 0), [items]);
   const sale = useMemo(
-    () =>
-      items.filter(
-        (p) => p.price?.compareAtMinor && p.price.compareAtMinor > p.price.amountMinor,
-      ),
+    () => items.filter((p) => p.price?.compareAtMinor && p.price.compareAtMinor > p.price.amountMinor),
     [items],
   );
   const newest = items.slice(0, 8);
@@ -63,40 +54,15 @@ export default function HomePage() {
 
   return (
     <>
-      <section className="u-hero">
-        {current && (
-          <div className="u-slide">
-            <div>
-              <span className="u-kicker">{current.kicker}</span>
-              <h1>{current.title}</h1>
-              <p>{current.subtitle}</p>
-              <a className="btn" href={current.href}>
-                {current.cta}
-              </a>
-            </div>
-            <div className={`u-slide-art ${current.tone}`}>
-              <span>unica</span>
-            </div>
-          </div>
-        )}
-        <div className="u-hero-dots">
-          {HERO_SLIDES.map((row, i) => (
-            <button
-              key={row.id}
-              type="button"
-              className={i === slide ? "is-on" : undefined}
-              aria-label={`Slide ${i + 1}`}
-              onClick={() => setSlide(i)}
-            />
-          ))}
-        </div>
-      </section>
+      <HeroSlider />
 
       <div className="u-wrap">
         <div className="u-quick">
           {QUICK_LINKS.map((link) => (
             <a key={link.label} href={link.href}>
-              <i>{link.label.slice(0, 1)}</i>
+              <i>
+                <UnicaIcon name={link.icon} />
+              </i>
               {link.label}
             </a>
           ))}
@@ -107,14 +73,16 @@ export default function HomePage() {
         <section className="u-rail">
           <div className="u-rail-head">
             <h2>Lịch học trực tiếp</h2>
-            <a href="/khoa-hoc">
+            <a href="/live">
               Xem tiếp <span aria-hidden>›</span>
             </a>
           </div>
-          <div className="u-live-track">
+          <HorizontalRail label="Lịch học trực tiếp">
             {LIVE_CLASSES.map((row) => (
-              <a key={row.id} className="u-live" href="/khoa-hoc">
-                <div className={`u-live-art ${row.tone}`}>{row.platform}</div>
+              <a key={row.id} className="u-live" href="/live">
+                <div className={`u-live-art ${row.tone}`}>
+                  <span>{row.platform}</span>
+                </div>
                 <h3>{row.title}</h3>
                 <div className="u-live-meta">
                   <span>
@@ -124,7 +92,7 @@ export default function HomePage() {
                 </div>
               </a>
             ))}
-          </div>
+          </HorizontalRail>
         </section>
 
         <CourseRail title="Top bán chạy" href="/khoa-hoc?sort=best" products={best} campaigns={campaigns} />
@@ -143,7 +111,7 @@ export default function HomePage() {
               Xem tiếp <span aria-hidden>›</span>
             </a>
           </div>
-          <div className="u-teachers">
+          <HorizontalRail label="Giảng viên tiêu biểu">
             {FEATURED_TEACHERS.map((teacher) => (
               <a key={teacher.name} className="u-teacher" href="/giang-vien">
                 <div className="u-avatar" style={coverStyle(teacher.name)}>
@@ -153,19 +121,21 @@ export default function HomePage() {
                 <span>{teacher.role}</span>
               </a>
             ))}
-          </div>
+          </HorizontalRail>
         </section>
+      </div>
 
-        <section className="u-become">
+      <section className="u-become">
+        <div className="u-wrap u-become-inner">
           <div>
             <h2>Trở thành Giảng viên Unica</h2>
-            <p>Giúp mọi người trở nên tốt hơn — bao gồm cả chính bạn</p>
+            <p>Giúp mọi người trở nên tốt hơn - bao gồm cả chính bạn</p>
           </div>
           <a className="btn" href="/giang-vien">
             Đăng ký ngay
           </a>
-        </section>
-      </div>
+        </div>
+      </section>
     </>
   );
 }

@@ -38,9 +38,11 @@ export default function CategoryPage() {
     });
   }, [items, catSlug, childSlug]);
 
-  const shown = filtered.length ? filtered : items;
+  const matched = filtered.length > 0;
+  const shown = matched ? filtered : items;
   const badgeFor = (id: string) =>
     campaigns.find((c) => c.products.some((p) => p.productId === id))?.badgeText;
+  const title = child?.name || category?.name || catSlug;
 
   return (
     <div className="u-wrap">
@@ -49,11 +51,15 @@ export default function CategoryPage() {
         <span>/</span>
         <a href="/khoa-hoc">Khóa học</a>
         <span>/</span>
-        <span>{child?.name || category?.name || "Danh mục"}</span>
+        <span>{title}</span>
       </div>
       <div className="u-page-head">
-        <h1>Khóa học {child?.name || category?.name || catSlug}</h1>
-        <p className="muted">Chủ đề phổ biến trong danh mục này. Sắp xếp theo học nhiều nhất.</p>
+        <h1>Khóa học {title}</h1>
+        <p className="muted">
+          {matched
+            ? "Chủ đề phổ biến trong danh mục này. Sắp xếp theo học nhiều nhất."
+            : "Chưa có khóa đúng chủ đề này — gợi ý các khóa nổi bật trên Unica."}
+        </p>
       </div>
       <div className="u-filters">
         {category?.children.map((row) => (

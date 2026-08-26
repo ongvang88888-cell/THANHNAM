@@ -88,9 +88,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       type="button"
                       className={cat.slug === currentCat.slug ? "is-on" : undefined}
                       onMouseEnter={() => setActiveCat(cat.slug)}
-                      onClick={() => {
-                        setActiveCat(cat.slug);
-                      }}
+                      onClick={() => setActiveCat(cat.slug)}
                     >
                       {cat.name}
                     </button>
@@ -121,16 +119,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             <a className="hide-sm" href="/hoi-vien">
               Hội viên
             </a>
-            {teacher && (
-              <a className="hide-md" href="/teacher">
-                Giảng viên
-              </a>
-            )}
-            {admin && (
-              <a className="hide-md" href="/admin">
-                Quản trị
-              </a>
-            )}
             <button
               type="button"
               className="u-icon-btn u-mob-search"
@@ -197,6 +185,19 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="u-drawer" onClick={() => setMenuOpen(false)}>
           <div className="u-drawer-panel" onClick={(e) => e.stopPropagation()}>
             <UnicaLogo />
+            <div className="u-drawer-auth">
+              {user ? (
+                <a href="/library">Khóa học của tôi</a>
+              ) : (
+                <>
+                  <a href="/login">Đăng nhập</a>
+                  <a href="/register">Đăng ký</a>
+                </>
+              )}
+            </div>
+            <a href="/kich-hoat">Kích hoạt khóa học</a>
+            <a href="/hoi-vien">Hội viên</a>
+            <a href="/doanh-nghiep">Doanh nghiệp</a>
             <p className="muted">Danh mục đào tạo</p>
             {UNICA_CATEGORIES.map((cat) => (
               <a key={cat.slug} href={`/course/${cat.slug}`}>
@@ -204,13 +205,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               </a>
             ))}
             <hr />
+            <a href="/app">Tải app</a>
             <a href="/khoa-hoc">Tất cả khóa học</a>
-            <a href="/kich-hoat">Kích hoạt khóa học</a>
-            <a href="/doanh-nghiep">Doanh nghiệp</a>
-            <a href="/hoi-vien">Hội viên</a>
             <a href="/giang-vien">Trở thành giảng viên</a>
-            {user ? <a href="/library">Khóa học của tôi</a> : <a href="/login">Đăng nhập</a>}
-            {!user && <a href="/register">Đăng ký</a>}
           </div>
         </div>
       )}
@@ -237,16 +234,22 @@ export function AppShell({ children }: { children: ReactNode }) {
               <h4>Về Unica</h4>
               <ul>
                 <li>
-                  <a href="/about">Giới thiệu</a>
+                  <a href="/about">Giới thiệu về Unica</a>
                 </li>
                 <li>
-                  <a href="/terms">Điều khoản</a>
+                  <a href="/faq">Hướng dẫn sử dụng</a>
+                </li>
+                <li>
+                  <a href="/kich-hoat">Kích hoạt khóa học</a>
+                </li>
+                <li>
+                  <a href="/blog">Góc chia sẻ</a>
+                </li>
+                <li>
+                  <a href="/terms">Điều khoản dịch vụ</a>
                 </li>
                 <li>
                   <a href="/privacy">Chính sách bảo mật</a>
-                </li>
-                <li>
-                  <a href="/data-deletion">Xóa dữ liệu</a>
                 </li>
               </ul>
             </div>
@@ -257,38 +260,47 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <a href="/giang-vien">Đăng ký giảng viên</a>
                 </li>
                 <li>
+                  <a href="/doanh-nghiep">Giải pháp e-learning</a>
+                </li>
+                <li>
+                  <a href="/doanh-nghiep">Đào tạo doanh nghiệp</a>
+                </li>
+                <li>
+                  <a href="/giang-vien">Quay dựng video</a>
+                </li>
+                <li>
+                  <a href="/khoa-hoc?type=doc">Xuất bản sách</a>
+                </li>
+                <li>
                   <a href="/affiliate">Affiliate</a>
-                </li>
-                <li>
-                  <a href="/doanh-nghiep">Unica cho doanh nghiệp</a>
-                </li>
-                <li>
-                  <a href="/hoi-vien">Gói hội viên</a>
                 </li>
               </ul>
             </div>
             <div>
-              <h4>Hỗ trợ</h4>
-              <ul>
-                <li>
-                  <a href="/kich-hoat">Kích hoạt khóa học</a>
-                </li>
-                <li>
-                  <a href="/library">Khóa học của tôi</a>
-                </li>
-                <li>
-                  <a href="/cart">Giỏ hàng</a>
-                </li>
-                <li>
-                  <a href="/account">Tài khoản</a>
-                </li>
-              </ul>
+              <h4>Unica App</h4>
+              <div className="u-app-btns">
+                <a href="/app">App Store</a>
+                <a href="/app">Google Play</a>
+              </div>
+              <h4>Kết nối với Unica</h4>
+              <div className="u-social">
+                <a href="/about" aria-label="YouTube">
+                  YT
+                </a>
+                <a href="/about" aria-label="Facebook">
+                  f
+                </a>
+                <a href="/about" aria-label="TikTok">
+                  Tk
+                </a>
+              </div>
             </div>
           </div>
           <div className="u-wrap u-footer-legal">
             © Nền tảng học trực tuyến Unica — Học online mọi kỹ năng từ chuyên gia hàng đầu.
             <br />
-            Giao diện và luồng mua khóa được dựng theo unica.vn trên hạ tầng trường học hiện có.
+            Giao diện cửa hàng dựng theo unica.vn trên hạ tầng trường học hiện có. Không sử dụng mã số thuế hay
+            thương hiệu pháp lý của công ty Unica gốc.
           </div>
         </footer>
       )}
@@ -297,14 +309,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="u-chat">
           {chatOpen && (
             <div className="u-chat-pop">
-              <button type="button" className="plain" style={{ float: "right" }} onClick={() => setChatOpen(false)}>
+              <button type="button" className="plain u-chat-close" onClick={() => setChatOpen(false)}>
                 ×
               </button>
               Chào mừng bạn ghé thăm Unica. Mình có thể hỗ trợ gì cho bạn?
             </div>
           )}
           <button type="button" className="u-chat-btn" aria-label="Hỗ trợ" onClick={() => setChatOpen((open) => !open)}>
-            💬
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M4 5h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+            </svg>
             <span className="u-chat-dot">1</span>
           </button>
         </div>

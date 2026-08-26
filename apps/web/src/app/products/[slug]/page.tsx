@@ -308,7 +308,7 @@ export default function ProductPage() {
             )}
             <div className="u-buy-actions">
               <button type="submit" disabled={busy}>
-                {busy ? "Đang xử lý…" : "Mua ngay"}
+                {busy ? "Đang xử lý…" : "MUA NGAY"}
               </button>
               <button type="button" className="btn-green" onClick={addCart}>
                 {has(product.id) ? "Đã có trong giỏ" : "Thêm vào giỏ hàng"}

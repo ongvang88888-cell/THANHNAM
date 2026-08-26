@@ -14,6 +14,7 @@ export const UNICA_CATEGORIES: UnicaCategory[] = [
       { slug: "xay-dung-doi-nhom", name: "Xây dựng đội nhóm" },
       { slug: "van-hanh-doanh-nghiep", name: "Vận hành doanh nghiệp" },
       { slug: "quan-tri-nhan-su", name: "Quản trị nhân sự" },
+      { slug: "khoi-nghiep-online", name: "Kinh doanh online" },
     ],
   },
   {
@@ -25,6 +26,7 @@ export const UNICA_CATEGORIES: UnicaCategory[] = [
       { slug: "ban-hang-chot-sale", name: "Bán hàng & chốt sale" },
       { slug: "thuong-mai-dien-tu", name: "Thương mại điện tử" },
       { slug: "crm-chatbot-ai", name: "CRM & Chatbot AI" },
+      { slug: "facebook-ads", name: "Facebook Ads" },
     ],
   },
   {
@@ -35,6 +37,7 @@ export const UNICA_CATEGORIES: UnicaCategory[] = [
       { slug: "ai-automation", name: "AI Automation" },
       { slug: "lap-trinh", name: "Lập trình" },
       { slug: "data-bi", name: "Data & BI" },
+      { slug: "ai-agent", name: "AI Agent" },
     ],
   },
   {
@@ -55,11 +58,12 @@ export const UNICA_CATEGORIES: UnicaCategory[] = [
       { slug: "dung-video", name: "Dựng video" },
       { slug: "nhiep-anh", name: "Nhiếp ảnh" },
       { slug: "youtube", name: "YouTube" },
+      { slug: "reels", name: "Reels / Shorts" },
     ],
   },
   {
     slug: "ngoai-ngu",
-    name: "Ngoại ngữ",
+    name: "Ngoại Ngữ",
     children: [
       { slug: "tieng-anh", name: "Tiếng Anh" },
       { slug: "tieng-trung", name: "Tiếng Trung" },
@@ -69,7 +73,7 @@ export const UNICA_CATEGORIES: UnicaCategory[] = [
   },
   {
     slug: "tin-hoc-van-phong",
-    name: "Tin học văn phòng",
+    name: "Tin Học Văn Phòng",
     children: [
       { slug: "excel", name: "Excel" },
       { slug: "word", name: "Word" },
@@ -97,16 +101,17 @@ export const UNICA_CATEGORIES: UnicaCategory[] = [
   },
   {
     slug: "tai-chinh-dau-tu",
-    name: "Tài chính & Đầu tư",
+    name: "Tài Chính & Đầu tư",
     children: [
       { slug: "chung-khoan", name: "Chứng khoán" },
       { slug: "ke-toan", name: "Kế toán" },
       { slug: "dau-tu", name: "Đầu tư" },
+      { slug: "thue", name: "Thuế doanh nghiệp" },
     ],
   },
   {
     slug: "phong-cach-song",
-    name: "Phong cách sống",
+    name: "Phong Cách Sống",
     children: [
       { slug: "am-nhac", name: "Âm nhạc" },
       { slug: "nau-an", name: "Nấu ăn" },
@@ -114,11 +119,12 @@ export const UNICA_CATEGORIES: UnicaCategory[] = [
     ],
   },
   {
-    slug: "sach-hay",
+    slug: "sach-hay-nen-doc",
     name: "Sách hay nên đọc",
     children: [
       { slug: "sach-ky-nang", name: "Sách kỹ năng" },
       { slug: "sach-kinh-doanh", name: "Sách kinh doanh" },
+      { slug: "sach-ai", name: "Sách AI" },
     ],
   },
 ];
@@ -130,13 +136,13 @@ export type LiveClass = {
   time: string;
   platform: string;
   priceLabel: string;
-  tone: "red" | "navy" | "orange";
+  tone: "red" | "navy" | "orange" | "teal" | "gold";
 };
 
 export const LIVE_CLASSES: LiveClass[] = [
   {
     id: "lc-1",
-    title: "Xây dựng siêu trợ lý AI toàn năng cho công việc hàng ngày",
+    title: "Xây dựng siêu trợ lý AI toàn năng với OpenClaw",
     date: "26/08",
     time: "13:15 - 17:00",
     platform: "Zoom",
@@ -159,16 +165,16 @@ export const LIVE_CLASSES: LiveClass[] = [
     time: "19:45 - 22:00",
     platform: "Zoom",
     priceLabel: "Miễn phí",
-    tone: "orange",
+    tone: "gold",
   },
   {
     id: "lc-4",
-    title: "X5 tốc độ hoàn thành công việc với ChatGPT và Claude",
+    title: "X5 tốc độ hoàn thành công việc với ChatGPT Work & Claude Cowork",
     date: "27/08 - 28/08",
     time: "19:30 - 22:30",
     platform: "Zoom",
     priceLabel: "Miễn phí",
-    tone: "red",
+    tone: "orange",
   },
   {
     id: "lc-5",
@@ -177,7 +183,7 @@ export const LIVE_CLASSES: LiveClass[] = [
     time: "19:30 - 22:30",
     platform: "Zoom",
     priceLabel: "Miễn phí",
-    tone: "navy",
+    tone: "teal",
   },
   {
     id: "lc-6",
@@ -186,7 +192,7 @@ export const LIVE_CLASSES: LiveClass[] = [
     time: "13:15 - 17:00",
     platform: "Zoom",
     priceLabel: "Miễn phí",
-    tone: "orange",
+    tone: "navy",
   },
 ];
 
@@ -197,52 +203,116 @@ export type HeroSlide = {
   subtitle: string;
   cta: string;
   href: string;
-  tone: "tax" | "ai" | "voice";
+  tone: "tax" | "youtube" | "aihouse" | "autosale" | "reels" | "claude" | "wealth" | "agent" | "health";
 };
 
 export const HERO_SLIDES: HeroSlide[] = [
   {
-    id: "s1",
-    kicker: "Học miễn phí qua Zoom",
-    title: "Quản trị rủi ro thuế doanh nghiệp 2026",
-    subtitle: "Chủ doanh nghiệp, chủ shop, chủ hộ kinh doanh cần biết",
+    id: "s-tax",
+    kicker: "Zoom miễn phí",
+    title: "Kế toán thuế doanh nghiệp 2026",
+    subtitle: "Chủ doanh nghiệp, chủ shop, hộ kinh doanh cần biết",
     cta: "Nhận vé miễn phí",
-    href: "/khoa-hoc",
+    href: "/live",
     tone: "tax",
   },
   {
-    id: "s2",
-    kicker: "Top bán chạy",
-    title: "Học online mọi kỹ năng từ chuyên gia hàng đầu",
-    subtitle: "2000+ khóa học video, xem trước miễn phí, sở hữu trọn đời",
-    cta: "Xem khóa học",
-    href: "/khoa-hoc",
-    tone: "ai",
+    id: "s-yt",
+    kicker: "Khóa học Zoom",
+    title: "YouTube A.I thực chiến",
+    subtitle: "Kịch bản, dựng video và tăng trưởng kênh bằng AI",
+    cta: "Xem lịch học",
+    href: "/live",
+    tone: "youtube",
   },
   {
-    id: "s3",
-    kicker: "Siêu ưu đãi hôm nay",
-    title: "Làm chủ kỹ năng mới chỉ sau một khóa học",
-    subtitle: "Giảm giá sốc — hoàn tiền trong 07 ngày nếu không hài lòng",
+    id: "s-inhouse",
+    kicker: "Doanh nghiệp",
+    title: "AI Inhouse cho đội ngũ",
+    subtitle: "Đào tạo nội bộ, LMS và gói học theo công ty",
+    cta: "Tư vấn doanh nghiệp",
+    href: "/doanh-nghiep",
+    tone: "aihouse",
+  },
+  {
+    id: "s-auto",
+    kicker: "Siêu ưu đãi",
+    title: "Tự động hóa kinh doanh với AI",
+    subtitle: "Bùng nổ doanh số, giảm thao tác lặp lại mỗi ngày",
     cta: "Săn ưu đãi",
     href: "/khoa-hoc?sort=sale",
-    tone: "voice",
+    tone: "autosale",
+  },
+  {
+    id: "s-reels",
+    kicker: "Video ngắn",
+    title: "Reels Facebook 2026",
+    subtitle: "Dựng video triệu view bằng CapCut và AI",
+    cta: "Xem khóa học",
+    href: "/course/video-nhiep-anh",
+    tone: "reels",
+  },
+  {
+    id: "s-claude",
+    kicker: "Claude AI",
+    title: "Hệ thống hóa kinh doanh một người",
+    subtitle: "Xây quy trình, nội dung và bán hàng với Claude",
+    cta: "Học ngay",
+    href: "/course/ai-cong-nghe",
+    tone: "claude",
+  },
+  {
+    id: "s-wealth",
+    kicker: "Phong cách sống",
+    title: "Kiến tạo cuộc sống thịnh vượng",
+    subtitle: "Tư duy, tài chính và thói quen của người dẫn đầu",
+    cta: "Đăng ký Zoom",
+    href: "/live",
+    tone: "wealth",
+  },
+  {
+    id: "s-agent",
+    kicker: "AI Agent",
+    title: "Siêu trợ lý AI toàn năng",
+    subtitle: "OpenClaw, ChatGPT và Claude cho công việc hàng ngày",
+    cta: "Nhận vé miễn phí",
+    href: "/live",
+    tone: "agent",
+  },
+  {
+    id: "s-health",
+    kicker: "Sức khỏe",
+    title: "Bí quyết ăn đúng, sống trường thọ",
+    subtitle: "Dinh dưỡng thực chiến trong 3 ngày Zoom",
+    cta: "Xem lịch",
+    href: "/course/suc-khoe-lam-dep",
+    tone: "health",
   },
 ];
 
-export const QUICK_LINKS = [
+export type QuickLink = {
+  href: string;
+  label: string;
+  icon: "share" | "bag" | "store" | "cap" | "video" | "users" | "game" | "book" | "chart";
+};
+
+export const QUICK_LINKS: QuickLink[] = [
   { href: "/affiliate", label: "Affiliate", icon: "share" },
   { href: "/khoa-hoc", label: "Market", icon: "bag" },
-  { href: "/giang-vien", label: "Seller", icon: "home" },
+  { href: "/giang-vien", label: "Seller", icon: "store" },
   { href: "/library", label: "LMS", icon: "cap" },
-  { href: "/", label: "Web", icon: "grid" },
-] as const;
+  { href: "/live", label: "Webinar", icon: "video" },
+  { href: "/community", label: "Community", icon: "users" },
+  { href: "/khoa-hoc", label: "Game", icon: "game" },
+  { href: "/doanh-nghiep", label: "Edubit", icon: "book" },
+  { href: "/doanh-nghiep", label: "Salekit", icon: "chart" },
+];
 
 export const FEATURED_TEACHERS = [
   { name: "Chuyên gia Marketing", role: "Giảng viên Digital Marketing" },
-  { name: "Chuyên gia Yoga", role: "Huấn luyện viên sức khỏe" },
-  { name: "Chuyên gia Đào tạo", role: "Giám đốc đào tạo doanh nghiệp" },
-  { name: "CEO iNet", role: "Marketing Online Master" },
+  { name: "Huấn luyện viên Yoga", role: "Sức khỏe & thiền" },
+  { name: "Giám đốc đào tạo", role: "Đào tạo doanh nghiệp" },
+  { name: "CEO Marketing", role: "Marketing Online Master" },
   { name: "Giảng viên Guitar", role: "Nhạc cụ & biểu diễn" },
   { name: "Luật sư — Diễn giả", role: "Pháp lý doanh nghiệp" },
   { name: "Chuyên gia Tài chính", role: "Đầu tư & lãnh đạo" },
