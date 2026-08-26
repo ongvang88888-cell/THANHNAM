@@ -86,6 +86,7 @@ export default function AdminCourseImportPage() {
   const canMutate = hasRole(user, ["admin"]);
   const [teachers, setTeachers] = useState<LookupTeacher[]>([]);
   const [categories, setCategories] = useState<LookupCategory[]>([]);
+  const [lookupsReady, setLookupsReady] = useState(false);
   const [csv, setCsv] = useState("");
   const [lessonsCsv, setLessonsCsv] = useState("");
   const [courseName, setCourseName] = useState("");
@@ -104,6 +105,7 @@ export default function AdminCourseImportPage() {
       .then((data) => {
         setTeachers(data.teachers);
         setCategories(data.categories);
+        setLookupsReady(true);
       })
       .catch((e: Error) => setError(e.message));
   }, [ready, token]);
@@ -216,7 +218,8 @@ export default function AdminCourseImportPage() {
             </button>
           </div>
           <h3 style={{ marginTop: 20 }}>Email giảng viên đang có</h3>
-          {teachers.length === 0 && <p className="muted">Chưa có giảng viên. Tạo tài khoản trước.</p>}
+          {!lookupsReady && <p className="muted">Đang tải danh sách giảng viên…</p>}
+          {lookupsReady && teachers.length === 0 && <p className="muted">Chưa có giảng viên. Tạo tài khoản trước.</p>}
           <ul className="import-chips">
             {teachers.map((row) => (
               <li key={row.email}>
