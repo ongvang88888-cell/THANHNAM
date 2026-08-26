@@ -2,49 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { FileDrop } from "@/components/FileDrop";
+import { RecipeChecklist } from "@/components/LectureRecipeProgress";
 import { VideoQuickAdjust } from "@/components/VideoQuickAdjust";
 import { ApiError, apiGet, apiPatch, apiPost, apiPut, apiPutBinaryProgress } from "@/lib/api";
+import { PIPELINE_STEPS, pipelineStepById, type PipelineStepId, type RecipeRow } from "@/lib/lecture-recipe";
 
-const PIPELINE_STEPS = [
-  { id: "upload", label: "Đang tải video lên máy chủ", percent: 8 },
-  { id: "queue", label: "Đã nhận video — xếp hàng chỉnh", percent: 12 },
-  { id: "source", label: "Đang đọc file gốc", percent: 18 },
-  { id: "enhance", label: "Đang làm nét hình và giảm nhạc nền", percent: 40 },
-  { id: "trim", label: "Đang cắt đoạn im lặng", percent: 62 },
-  { id: "extras", label: "Đang tạo ảnh bìa, phụ đề và mô tả", percent: 78 },
-  { id: "apply", label: "Đang gắn video vào bài học", percent: 92 },
-  { id: "done", label: "Xong — sẵn sàng lưu vào bài", percent: 100 },
-] as const;
-
-type RecipeStatus = "applied" | "skipped" | "refused";
-type RecipeRow = { id: string; status: RecipeStatus; label: string; note?: string };
-
-const RECIPE_CHECKLIST: RecipeRow[] = [
-  { id: "studio_sound", status: "applied", label: "Lọc tạp và cân âm lượng lời giảng" },
-  { id: "auto_color", status: "applied", label: "Làm nét nhẹ, an toàn cho slide" },
-  { id: "silence_trim", status: "applied", label: "Cắt khoảng lặng dài" },
-  { id: "captions", status: "skipped", label: "Phụ đề 2 dòng, tối đa 42 ký tự", note: "Chưa có khóa Whisper — VTT nháp từ tiêu đề." },
-  { id: "thumbnail", status: "applied", label: "Ảnh bìa ở 25% thời lượng, tránh frame đen đầu clip" },
-  { id: "lesson_copy", status: "skipped", label: "Gợi ý tiêu đề và mô tả bài", note: "Chưa có khóa LLM — mô tả từ tiêu đề." },
-  { id: "illustrated_edition", status: "skipped", label: "Bản minh họa Ken Burns trên tiếng gốc", note: "Không tự dựng — tránh mất hình giáo viên." },
-  { id: "toon_restyle", status: "skipped", label: "Tô người thành hoạt hình", note: "Không mặc định. Studio thủ công — giữ slide và tiếng gốc." },
-  { id: "avatar_presenter", status: "skipped", label: "Người dẫn ảo từ kịch bản", note: "Không tự chạy. Studio thủ công — cần xác nhận người ảo." },
-  { id: "video_translate", status: "skipped", label: "Dịch / lồng tiếng", note: "Không tự chạy. HeyGen lip-sync hoặc lồng tiếng trên máy." },
-  { id: "eye_contact", status: "skipped", label: "Canh mắt nhìn camera", note: "Không tự chạy. Bản trên máy canh mặt, không warp ngươi." },
-  { id: "overdub", status: "skipped", label: "Sửa câu bằng giọng", note: "Không tự chạy. Chỉ clone giọng bạn sở hữu." },
-  { id: "filler_cut", status: "refused", label: "Cắt um/à và sửa lời", note: "Cần word-level Whisper." },
-  { id: "shorts_reframe", status: "refused", label: "Cắt short 9:16, chữ nhảy", note: "Sai hình khóa học ngang." },
-  { id: "v2v", status: "refused", label: "Sinh hoặc biến hình video bằng GPU", note: "Máy chủ không có GPU/key." },
-  { id: "content_id_dodge", status: "refused", label: "Né Content ID", note: "Cấm. Giảm nhạc nền không xóa bản quyền." },
-];
-
-const RECIPE_STATUS_LABEL: Record<RecipeStatus, string> = {
-  applied: "Đã áp",
-  skipped: "Bỏ qua",
-  refused: "Không làm",
-};
-
-type StepId = (typeof PIPELINE_STEPS)[number]["id"];
+type StepId = PipelineStepId;
 
 type AutoEdit = {
   id: string;
@@ -102,7 +65,7 @@ async function wait(ms: number) {
 }
 
 function stepById(id: string | undefined) {
-  return PIPELINE_STEPS.find((step) => step.id === id);
+  return pipelineStepById(id);
 }
 
 function friendlyError(err: unknown): string {
@@ -455,20 +418,3 @@ export function AutoVideoPublish(props: {
   );
 }
 
-function RecipeChecklist(props: { rows?: RecipeRow[] | null }) {
-  const rows = props.rows && props.rows.length > 0 ? props.rows : RECIPE_CHECKLIST;
-  return (
-    <div className="auto-publish-recipe">
-      <h4>Công thức chuyên gia v1</h4>
-      <ul>
-        {rows.map((row) => (
-          <li key={row.id} className={`is-${row.status}`}>
-            <span className="auto-publish-recipe-status">{RECIPE_STATUS_LABEL[row.status]}</span>
-            <span>{row.label}</span>
-            {row.note ? <small>{row.note}</small> : null}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}

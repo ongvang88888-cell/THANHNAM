@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FileDrop } from "@/components/FileDrop";
+import { LectureRecipeProgress } from "@/components/LectureRecipeProgress";
 import { VideoQuickAdjust } from "@/components/VideoQuickAdjust";
 import { ApiError, apiGet, apiPost, apiPutBinaryProgress } from "@/lib/api";
+import { PIPELINE_STEPS, pipelineStepById, type RecipeRow } from "@/lib/lecture-recipe";
 
 const MAX_UPLOAD_BYTES = 400 * 1024 * 1024;
 const MAX_PARALLEL = 2;
@@ -14,6 +16,7 @@ type CourseDetail = {
   title: string;
   sections: Array<{ id: string; title: string; lessons: Array<{ id: string; title: string }> }>;
 };
+type LessonOpt = { id: string; title: string; sectionTitle: string };
 
 type LibraryEdit = {
   id: string;
@@ -21,6 +24,7 @@ type LibraryEdit = {
   error: string | null;
   previewUrl: string | null;
   progress?: number;
+  step?: string;
   stepLabel?: string;
   output?: {
     durationMs?: number;
@@ -28,6 +32,7 @@ type LibraryEdit = {
     recipeId?: string;
     autoApplyError?: string;
     appliedAt?: string;
+    techniques?: RecipeRow[];
   } | null;
 };
 
@@ -43,12 +48,17 @@ type LibraryItem = {
   edit: LibraryEdit | null;
 };
 
+type RowTarget = { courseId: string; lessonId: string };
+
 type QueueRow = {
   localId: string;
+  videoId?: string;
   name: string;
   phase: "queued" | "upload" | "prepare" | "ready" | "failed";
   progress: number;
+  stepId?: string;
   label: string;
+  techniques?: RecipeRow[];
   error?: string;
 };
 
@@ -87,6 +97,16 @@ async function withThrottleRetry<T>(fn: () => Promise<T>, attempts = 4): Promise
   throw last instanceof Error ? last : new Error("Hệ thống đang bận.");
 }
 
+function flattenLessons(course: CourseDetail): LessonOpt[] {
+  return course.sections.flatMap((section) =>
+    section.lessons.map((lesson) => ({
+      id: lesson.id,
+      title: lesson.title,
+      sectionTitle: section.title,
+    })),
+  );
+}
+
 export function VideoInbox(props: {
   token: string;
   courses: CourseRow[];
@@ -100,9 +120,11 @@ export function VideoInbox(props: {
   const [msg, setMsg] = useState<string | null>(null);
   const [courseId, setCourseId] = useState(props.defaultCourseId ?? "");
   const [lessonId, setLessonId] = useState(props.defaultLessonId ?? "");
-  const [lessons, setLessons] = useState<Array<{ id: string; title: string; sectionTitle: string }>>([]);
+  const [lessons, setLessons] = useState<LessonOpt[]>([]);
+  const [lessonsByCourse, setLessonsByCourse] = useState<Record<string, LessonOpt[]>>({});
+  const [rowTarget, setRowTarget] = useState<Record<string, RowTarget>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [openAdjust, setOpenAdjust] = useState<string | null>(null);
+  const [brokenThumbs, setBrokenThumbs] = useState<Record<string, boolean>>({});
   const [showAssigned, setShowAssigned] = useState(false);
   const filesRef = useRef(new Map<string, File>());
   const runningRef = useRef(new Set<string>());
@@ -111,6 +133,14 @@ export function VideoInbox(props: {
   const assignedItems = useMemo(() => items.filter((row) => !row.inbox), [items]);
   const visibleItems = showAssigned ? [...inboxItems, ...assignedItems] : inboxItems;
   const inboxCount = inboxItems.length;
+  const libraryIds = useMemo(() => new Set(items.map((row) => row.id)), [items]);
+  const visibleQueue = useMemo(
+    () => queue.filter((row) => !row.videoId || !libraryIds.has(row.videoId)),
+    [queue, libraryIds],
+  );
+
+  const shouldPoll = items.some((row) => row.edit?.status === "QUEUED" || row.edit?.status === "PROCESSING")
+    || queue.some((row) => row.phase === "upload" || row.phase === "prepare");
 
   async function refreshLibrary(attempt = 0) {
     try {
@@ -134,6 +164,15 @@ export function VideoInbox(props: {
   }, [props.token]);
 
   useEffect(() => {
+    if (!shouldPoll) return;
+    const timer = window.setInterval(() => {
+      refreshLibrary().catch(() => undefined);
+    }, 3500);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldPoll, props.token]);
+
+  useEffect(() => {
     if (courseId) return;
     const next = props.defaultCourseId || props.courses[0]?.id;
     if (next) setCourseId(next);
@@ -149,14 +188,9 @@ export function VideoInbox(props: {
     apiGet<CourseDetail>(`/teacher/courses/${courseId}`, props.token)
       .then((course) => {
         if (cancelled) return;
-        const rows = course.sections.flatMap((section) =>
-          section.lessons.map((lesson) => ({
-            id: lesson.id,
-            title: lesson.title,
-            sectionTitle: section.title,
-          })),
-        );
+        const rows = flattenLessons(course);
         setLessons(rows);
+        setLessonsByCourse((current) => ({ ...current, [courseId]: rows }));
         setLessonId((current) => (rows.some((row) => row.id === current) ? current : rows[0]?.id ?? ""));
       })
       .catch((err: Error) => {
@@ -167,12 +201,86 @@ export function VideoInbox(props: {
     };
   }, [courseId, props.token]);
 
-  const selectedLessonTitle = useMemo(
-    () => lessons.find((row) => row.id === lessonId)?.title,
-    [lessons, lessonId],
-  );
+  useEffect(() => {
+    setRowTarget((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const item of items) {
+        if (next[item.id]) continue;
+        next[item.id] = {
+          courseId: item.assigned?.courseId || courseId,
+          lessonId: item.assigned?.lessonId || (item.assigned ? "" : lessonId),
+        };
+        changed = true;
+      }
+      return changed ? next : current;
+    });
+  }, [items, courseId, lessonId]);
 
-  async function pollEdit(videoId: string, editId: string): Promise<LibraryEdit> {
+  useEffect(() => {
+    setRowTarget((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const [id, target] of Object.entries(current)) {
+        const list = lessonsByCourse[target.courseId];
+        if (!list?.length) continue;
+        if (!target.lessonId || !list.some((row) => row.id === target.lessonId)) {
+          next[id] = { ...target, lessonId: list[0]?.id ?? "" };
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [lessonsByCourse]);
+
+  useEffect(() => {
+    const needed = new Set<string>();
+    for (const target of Object.values(rowTarget)) {
+      if (target.courseId && !lessonsByCourse[target.courseId]) needed.add(target.courseId);
+    }
+    if (needed.size === 0) return;
+    let cancelled = false;
+    void Promise.all(
+      [...needed].map(async (id) => {
+        const course = await apiGet<CourseDetail>(`/teacher/courses/${id}`, props.token);
+        return [id, flattenLessons(course)] as const;
+      }),
+    )
+      .then((rows) => {
+        if (cancelled) return;
+        setLessonsByCourse((current) => {
+          const next = { ...current };
+          for (const [id, list] of rows) next[id] = list;
+          return next;
+        });
+      })
+      .catch((err: Error) => {
+        if (!cancelled) setError(err.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [rowTarget, lessonsByCourse, props.token]);
+
+  function patchQueue(localId: string, next: Partial<QueueRow>) {
+    setQueue((rows) => rows.map((row) => (row.localId === localId ? { ...row, ...next } : row)));
+  }
+
+  function applyEditToQueue(localId: string, edit: LibraryEdit) {
+    const nextProgress = edit.progress;
+    const step = pipelineStepById(edit.step);
+    const label = edit.stepLabel || step?.label || "Đang chỉnh";
+    patchQueue(localId, {
+      phase: edit.status === "FAILED" ? "failed" : edit.status === "READY" ? "ready" : "prepare",
+      progress: typeof nextProgress === "number" ? Math.max(0, Math.min(100, Math.round(nextProgress))) : step?.percent,
+      stepId: edit.step ?? step?.id,
+      label,
+      techniques: edit.output?.techniques,
+      error: edit.status === "FAILED" ? edit.error || "Không chỉnh được video" : undefined,
+    });
+  }
+
+  async function pollEdit(localId: string, videoId: string, editId: string): Promise<LibraryEdit> {
     const deadline = Date.now() + 15 * 60 * 1000;
     let last: LibraryEdit | null = null;
     while (Date.now() < deadline) {
@@ -180,6 +288,7 @@ export function VideoInbox(props: {
         apiGet<LibraryEdit>(`/videos/${videoId}/ai/edits/${editId}`, props.token),
       );
       last = edit;
+      applyEditToQueue(localId, edit);
       if (edit.status === "FAILED" || edit.status === "READY") return edit;
       await wait(3500);
     }
@@ -187,10 +296,7 @@ export function VideoInbox(props: {
   }
 
   async function processFile(file: File, localId: string) {
-    const patch = (next: Partial<QueueRow>) => {
-      setQueue((rows) => rows.map((row) => (row.localId === localId ? { ...row, ...next } : row)));
-    };
-    patch({ phase: "upload", progress: 4, label: "Đang tải lên máy chủ" });
+    patchQueue(localId, { phase: "upload", progress: 4, stepId: "upload", label: PIPELINE_STEPS[0].label });
     const session = await apiPost<{ videoId: string; upload: { url: string } }>(
       "/videos/upload-sessions",
       {
@@ -200,20 +306,33 @@ export function VideoInbox(props: {
       },
       props.token,
     );
+    patchQueue(localId, { videoId: session.videoId });
     await apiPutBinaryProgress(session.upload.url, file, file.type || "video/mp4", (ratio) => {
-      patch({ progress: Math.max(4, Math.round(ratio * 28)), label: "Đang tải lên máy chủ" });
+      patchQueue(localId, {
+        progress: Math.max(4, Math.round(ratio * 8)),
+        stepId: "upload",
+        label: PIPELINE_STEPS[0].label,
+      });
     });
     await apiPost(`/videos/${session.videoId}/complete`, { sizeBytes: file.size }, props.token, { retry429: true });
-    patch({ phase: "prepare", progress: 32, label: "AI đang làm nét, lọc tiếng, cắt im lặng" });
+    patchQueue(localId, { phase: "prepare", progress: 12, stepId: "queue", label: PIPELINE_STEPS[1].label });
     const started = await withThrottleRetry(
       () => apiPost<LibraryEdit>(`/videos/${session.videoId}/ai/prepare`, {}, props.token, { retry429: true }),
       5,
     );
-    const edit = await pollEdit(session.videoId, started.id);
+    applyEditToQueue(localId, started);
+    await refreshLibrary().catch(() => undefined);
+    const edit = await pollEdit(localId, session.videoId, started.id);
     if (edit.status === "FAILED") {
       throw new Error(edit.error || "Không chỉnh được video");
     }
-    patch({ phase: "ready", progress: 100, label: "Xong — sẵn sàng gán vào bài" });
+    patchQueue(localId, {
+      phase: "ready",
+      progress: 100,
+      stepId: "done",
+      label: PIPELINE_STEPS[PIPELINE_STEPS.length - 1].label,
+      techniques: edit.output?.techniques,
+    });
     await refreshLibrary();
   }
 
@@ -262,24 +381,66 @@ export function VideoInbox(props: {
         name: file.name,
         phase: "queued",
         progress: 0,
-        label: "Chờ trong hàng",
+        stepId: "upload",
+        label: "Chờ trong hàng — cùng công thức chuyên gia như tải 1 video",
       });
     }
     if (accepted.length) setQueue((rows) => [...rows, ...accepted]);
   }
 
-  async function assign(videoId: string) {
-    if (!lessonId) {
-      setError("Chọn bài học bên dưới rồi bấm Gắn vào bài.");
+  function setRowCourse(videoId: string, nextCourseId: string) {
+    const nextLessons = lessonsByCourse[nextCourseId] ?? [];
+    setRowTarget((current) => ({
+      ...current,
+      [videoId]: {
+        courseId: nextCourseId,
+        lessonId: nextLessons[0]?.id ?? "",
+      },
+    }));
+  }
+
+  function setRowLesson(videoId: string, nextLessonId: string) {
+    setRowTarget((current) => ({
+      ...current,
+      [videoId]: {
+        courseId: current[videoId]?.courseId || courseId,
+        lessonId: nextLessonId,
+      },
+    }));
+  }
+
+  function applyDefaultToInbox() {
+    if (!courseId || !lessonId) {
+      setError("Chọn khóa và bài mặc định phía trên trước.");
       return;
     }
+    setRowTarget((current) => {
+      const next = { ...current };
+      for (const item of inboxItems) {
+        next[item.id] = { courseId, lessonId };
+      }
+      return next;
+    });
+    setMsg("Đã áp khóa/bài mặc định cho các hàng chưa gắn.");
+  }
+
+  async function saveRow(videoId: string) {
+    const target = rowTarget[videoId];
+    if (!target?.lessonId) {
+      setError("Chọn bài học ngay trên hàng này rồi bấm Lưu.");
+      return;
+    }
+    const rowLessons = lessonsByCourse[target.courseId] ?? (target.courseId === courseId ? lessons : []);
+    const lessonTitle = rowLessons.find((row) => row.id === target.lessonId)?.title;
     setBusyId(videoId);
     setError(null);
     try {
       await withThrottleRetry(() =>
-        apiPost(`/videos/${videoId}/assign`, { lessonId, courseId }, props.token, { retry429: true }),
+        apiPost(`/videos/${videoId}/assign`, { lessonId: target.lessonId, courseId: target.courseId }, props.token, {
+          retry429: true,
+        }),
       );
-      setMsg(`Đã gắn vào bài${selectedLessonTitle ? `: ${selectedLessonTitle}` : ""}.`);
+      setMsg(`Đã lưu vào bài${lessonTitle ? `: ${lessonTitle}` : ""}.`);
       props.onAssigned?.(videoId);
       await refreshLibrary();
     } catch (err) {
@@ -293,37 +454,24 @@ export function VideoInbox(props: {
     <div className="video-inbox">
       <h2>Kho video hàng loạt</h2>
       <p className="muted">
-        Tải nhiều video một lúc. AI tự chạy công thức chuyên gia. Sau đó chọn khóa/bài và gắn từng video — hoặc chỉnh
-        nhanh rồi mới gắn.
+        Tải nhiều video một lúc. Mỗi file chạy đủ công thức chuyên gia như tải 1 video: làm nét, lọc tiếng, cắt im lặng,
+        ảnh bìa và phụ đề. Khi xong, xem lại ngay trên hàng, chỉnh thông số, chọn bài rồi bấm Lưu.
       </p>
       <FileDrop
         accept="video/mp4,video/*,application/octet-stream"
         multiple
         disabled={queue.length >= 40}
         label="Chọn nhiều video vào kho"
-        hint="Có thể chọn hàng loạt. Tối đa 2 video AI chạy cùng lúc. Chưa cần chọn bài."
+        hint="Chọn hàng loạt. Tối đa 2 video AI chạy cùng lúc. Gắn bài trên từng hàng sau khi xem lại."
         onFile={(file) => enqueue([file])}
         onFiles={(files) => enqueue(files)}
       />
       <p className="muted auto-publish-legal">
         Chỉ dùng video bạn sở hữu. Đổi phong cách hay giảm nhạc nền không xóa bản quyền nội dung người khác.
       </p>
-      {queue.length > 0 && (
-        <ul className="video-inbox-queue">
-          {queue.map((row) => (
-            <li key={row.localId}>
-              <strong>{row.name}</strong>
-              <span>
-                {row.progress}% — {row.label}
-              </span>
-              {row.error && <small className="error">{row.error}</small>}
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="video-inbox-assign">
+      <div className="video-inbox-defaults">
         <label>
-          Gắn vào khóa
+          Mặc định khóa cho hàng mới
           <select value={courseId} onChange={(event) => setCourseId(event.target.value)}>
             {props.courses.length === 0 && <option value="">Chưa có khóa</option>}
             {props.courses.map((course) => (
@@ -334,7 +482,7 @@ export function VideoInbox(props: {
           </select>
         </label>
         <label>
-          Gắn vào bài
+          Mặc định bài cho hàng mới
           <select value={lessonId} onChange={(event) => setLessonId(event.target.value)}>
             {lessons.length === 0 && <option value="">Khóa này chưa có bài</option>}
             {lessons.map((lesson) => (
@@ -344,71 +492,154 @@ export function VideoInbox(props: {
             ))}
           </select>
         </label>
+        <button type="button" className="secondary btn-sm" onClick={applyDefaultToInbox} disabled={!lessonId || inboxCount === 0}>
+          Áp mặc định cho hàng chưa gắn
+        </button>
       </div>
       <p className="muted">
-        Trong kho chưa gán: <strong>{inboxCount}</strong>
+        Trong kho chưa gắn: <strong>{inboxCount}</strong>
         {assignedItems.length > 0 && (
           <>
             {" "}
-            · đã gán {assignedItems.length}{" "}
-            <button type="button" className="secondary" onClick={() => setShowAssigned((current) => !current)}>
-              {showAssigned ? "Ẩn video đã gán" : "Hiện video đã gán"}
+            · đã gắn {assignedItems.length}{" "}
+            <button type="button" className="secondary btn-sm" onClick={() => setShowAssigned((current) => !current)}>
+              {showAssigned ? "Ẩn video đã gắn" : "Hiện video đã gắn"}
             </button>
           </>
         )}
       </p>
-      {items.length === 0 && <p className="muted">Chưa có video trong kho. Chọn file phía trên.</p>}
-      {items.length > 0 && visibleItems.length === 0 && (
-        <p className="muted">Không còn video chưa gán. Bấm Hiện video đã gán nếu muốn chỉnh lại.</p>
-      )}
-      <ul className="video-inbox-list">
-        {visibleItems.map((item) => {
-          const editReady = item.edit?.status === "READY";
-          const processing = item.edit?.status === "QUEUED" || item.edit?.status === "PROCESSING";
-          return (
-            <li key={item.id} className={item.inbox ? "is-inbox" : "is-assigned"}>
-              <div className="video-inbox-meta">
-                {item.thumbnailUrl && <img src={item.thumbnailUrl} alt="" loading="lazy" />}
-                <div>
-                  <strong>{item.title}</strong>
-                  <div className="muted">
-                    {item.inbox ? "Chưa gán bài" : `Đã gán: ${item.assigned?.courseTitle} — ${item.assigned?.lessonTitle}`}
-                    {processing ? ` · ${item.edit?.stepLabel || "Đang chỉnh"}` : ""}
-                    {item.edit?.status === "FAILED" ? ` · Lỗi: ${item.edit.error}` : ""}
-                  </div>
-                </div>
+      {visibleQueue.length > 0 && (
+        <ul className="video-inbox-queue">
+          {visibleQueue.map((row) => (
+            <li key={row.localId}>
+              <div className="video-inbox-identity">
+                <strong title={row.name}>{row.name}</strong>
+                <span className="muted">{row.phase === "failed" ? "Lỗi" : "Đang phân tích đủ như tải 1 video"}</span>
+                {row.error && <small className="error">{row.error}</small>}
               </div>
-              <div className="video-inbox-row-actions">
-                <button
-                  type="button"
-                  disabled={!lessonId || busyId === item.id || processing}
-                  onClick={() => void assign(item.id)}
-                >
-                  {busyId === item.id ? "Đang gắn…" : item.inbox ? "Gắn vào bài đã chọn" : "Gắn lại vào bài đã chọn"}
-                </button>
-                {editReady && (
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() => setOpenAdjust((current) => (current === item.id ? null : item.id))}
-                  >
-                    {openAdjust === item.id ? "Đóng chỉnh nhanh" : "Chỉnh nhanh"}
-                  </button>
-                )}
-              </div>
-              {openAdjust === item.id && editReady && (
-                <VideoQuickAdjust
-                  token={props.token}
-                  videoId={item.id}
-                  durationMs={item.edit?.output?.durationMs ?? item.durationMs ?? undefined}
-                  previewUrl={item.edit?.previewUrl}
-                  onUpdated={() => void refreshLibrary()}
+              {row.phase !== "failed" && (
+                <LectureRecipeProgress
+                  compact
+                  hideApply
+                  currentStep={row.stepId}
+                  progress={row.progress}
+                  stepLabel={row.label}
+                  techniques={row.techniques}
                 />
               )}
             </li>
-          );
-        })}
-      </ul>
+          ))}
+        </ul>
+      )}
+      {items.length === 0 && visibleQueue.length === 0 && <p className="muted">Chưa có video trong kho. Chọn file phía trên.</p>}
+      {items.length > 0 && visibleItems.length === 0 && visibleQueue.length === 0 && (
+        <p className="muted">Không còn video chưa gắn. Bấm Hiện video đã gắn nếu muốn chỉnh lại.</p>
+      )}
+      {visibleItems.length > 0 && (
+        <div className="video-inbox-table">
+          <div className="video-inbox-head" aria-hidden="true">
+            <span>Video</span>
+            <span>Xem lại và thông số sau AI</span>
+            <span>Gắn vào bài</span>
+            <span>Lưu</span>
+          </div>
+          <ul className="video-inbox-list">
+            {visibleItems.map((item) => {
+              const editReady = item.edit?.status === "READY";
+              const processing = item.edit?.status === "QUEUED" || item.edit?.status === "PROCESSING";
+              const target = rowTarget[item.id] ?? { courseId, lessonId };
+              const rowLessons = lessonsByCourse[target.courseId] ?? (target.courseId === courseId ? lessons : []);
+              return (
+                <li key={item.id} className={item.inbox ? "is-inbox" : "is-assigned"}>
+                  <div className="video-inbox-identity">
+                    {item.thumbnailUrl && !brokenThumbs[item.id] && (
+                      <img
+                        src={item.thumbnailUrl}
+                        alt=""
+                        loading="lazy"
+                        onError={() => setBrokenThumbs((current) => ({ ...current, [item.id]: true }))}
+                      />
+                    )}
+                    <strong title={item.title}>{item.title}</strong>
+                    <span className="muted">
+                      {item.inbox ? "Chưa gắn bài" : `Đã gắn: ${item.assigned?.courseTitle} — ${item.assigned?.lessonTitle}`}
+                    </span>
+                    {item.edit?.status === "FAILED" && <small className="error">{item.edit.error || "Lỗi AI"}</small>}
+                  </div>
+                  <div className="video-inbox-preview">
+                    {processing && (
+                      <LectureRecipeProgress
+                        compact
+                        hideApply
+                        currentStep={item.edit?.step}
+                        progress={item.edit?.progress}
+                        stepLabel={item.edit?.stepLabel}
+                        techniques={item.edit?.output?.techniques}
+                      />
+                    )}
+                    {editReady && (
+                      <VideoQuickAdjust
+                        variant="row"
+                        token={props.token}
+                        videoId={item.id}
+                        durationMs={item.edit?.output?.durationMs ?? item.durationMs ?? undefined}
+                        previewUrl={item.edit?.previewUrl}
+                        onPreviewError={() => void refreshLibrary().catch(() => undefined)}
+                        onUpdated={() => void refreshLibrary()}
+                      />
+                    )}
+                    {!processing && !editReady && item.edit?.status !== "FAILED" && (
+                      <p className="muted">Chưa có bản AI. Đợi hàng tải xong.</p>
+                    )}
+                  </div>
+                  <div className="video-inbox-assign-cell">
+                    <label>
+                      Khóa
+                      <select
+                        value={target.courseId}
+                        disabled={processing || busyId === item.id}
+                        onChange={(event) => setRowCourse(item.id, event.target.value)}
+                      >
+                        {props.courses.length === 0 && <option value="">Chưa có khóa</option>}
+                        {props.courses.map((course) => (
+                          <option key={course.id} value={course.id}>
+                            {course.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Bài học
+                      <select
+                        value={target.lessonId}
+                        disabled={processing || busyId === item.id || rowLessons.length === 0}
+                        onChange={(event) => setRowLesson(item.id, event.target.value)}
+                      >
+                        {rowLessons.length === 0 && <option value="">Khóa này chưa có bài</option>}
+                        {rowLessons.map((lesson) => (
+                          <option key={lesson.id} value={lesson.id}>
+                            {lesson.sectionTitle} — {lesson.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="video-inbox-save">
+                    <button
+                      type="button"
+                      className="btn-sm"
+                      disabled={!target.lessonId || busyId === item.id || processing}
+                      onClick={() => void saveRow(item.id)}
+                    >
+                      {busyId === item.id ? "Đang lưu…" : "Lưu"}
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
       {msg && <p className="ok">{msg}</p>}
       {error && <p className="toast error">{error}</p>}
     </div>
