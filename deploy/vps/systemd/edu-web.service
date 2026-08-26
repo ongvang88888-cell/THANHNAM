@@ -9,7 +9,7 @@ WorkingDirectory=/opt/edu-commerce/apps/web
 EnvironmentFile=/opt/edu-commerce/.env
 Environment=NODE_ENV=production
 Environment=NEXT_TELEMETRY_DISABLED=1
-ExecStart=/opt/edu-commerce/node_modules/.bin/next start -p 3000 -H 127.0.0.1
+ExecStart=/opt/edu-commerce/apps/web/node_modules/.bin/next start -p 3000 -H 127.0.0.1
 Restart=on-failure
 RestartSec=5
 LimitNOFILE=65535
