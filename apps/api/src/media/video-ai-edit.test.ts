@@ -35,6 +35,17 @@ describe("video AI edit contract", () => {
       confirmOwned: true,
       style: "flat",
     });
+    expect(
+      parseAiEditOptions({
+        autoApply: true,
+        lessonId: "clxxxxxxxxxxxxxxxxxxx1",
+        courseId: "clxxxxxxxxxxxxxxxxxxx2",
+      }),
+    ).toEqual({
+      autoApply: true,
+      lessonId: "clxxxxxxxxxxxxxxxxxxx1",
+      courseId: "clxxxxxxxxxxxxxxxxxxx2",
+    });
     expect(() => parseAiEditOptions({ seekSeconds: 90_000 })).toThrow(/seekSeconds/);
     expect(() => assertOwnedAbcReady("owned_abc", { region: "pip_br" })).toThrow(/confirmOwned/);
   });

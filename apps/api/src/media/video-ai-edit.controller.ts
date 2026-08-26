@@ -23,6 +23,15 @@ class ApplyAiEditDto {
   courseId?: string;
 }
 
+class AutoPublishDto {
+  @IsString()
+  lessonId!: string;
+
+  @IsOptional()
+  @IsString()
+  courseId?: string;
+}
+
 @Controller()
 @UseGuards(AuthGuard)
 export class VideoAiEditController {
@@ -42,6 +51,12 @@ export class VideoAiEditController {
   @Throttle({ default: { limit: 12, ttl: 60_000 } })
   start(@CurrentUser() user: RequestUser, @Param("id") id: string, @Body() dto: StartAiEditDto) {
     return this.edits.startEdit(user, id, dto.tool, dto.options);
+  }
+
+  @Post("videos/:id/ai/auto-publish")
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
+  autoPublish(@CurrentUser() user: RequestUser, @Param("id") id: string, @Body() dto: AutoPublishDto) {
+    return this.edits.startAutoPublish(user, id, dto);
   }
 
   @Get("videos/:id/ai/edits/:editId")

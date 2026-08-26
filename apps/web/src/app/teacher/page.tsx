@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AutoVideoPublish } from "@/components/AutoVideoPublish";
 import { FileDrop } from "@/components/FileDrop";
 import { VideoAiEditPanel } from "@/components/VideoAiEditPanel";
 import { apiGet, apiPost, apiPutBinary, formatVnd } from "@/lib/api";
@@ -29,6 +30,16 @@ type BundleRow = {
   status: string;
   slug: string;
   prices?: Array<{ amountMinor: number }>;
+};
+
+type CourseDetail = {
+  id: string;
+  title: string;
+  sections: Array<{
+    id: string;
+    title: string;
+    lessons: Array<{ id: string; title: string }>;
+  }>;
 };
 
 type Tab = "courses" | "documents" | "bundles" | "upload" | "affiliate";
@@ -66,6 +77,8 @@ export default function TeacherPage() {
   const [videoTitle, setVideoTitle] = useState("Video bài học");
   const [lastVideoId, setLastVideoId] = useState<string | null>(null);
   const [attachCourseId, setAttachCourseId] = useState("");
+  const [attachLessonId, setAttachLessonId] = useState("");
+  const [courseLessons, setCourseLessons] = useState<Array<{ id: string; title: string; sectionTitle: string }>>([]);
   const [docUploadId, setDocUploadId] = useState("");
 
   async function refresh() {
@@ -91,6 +104,34 @@ export default function TeacherPage() {
     refresh().catch((e) => setError(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, token]);
+
+  useEffect(() => {
+    if (!ready || !token || !attachCourseId) {
+      setCourseLessons([]);
+      setAttachLessonId("");
+      return;
+    }
+    let cancelled = false;
+    apiGet<CourseDetail>(`/teacher/courses/${attachCourseId}`, token)
+      .then((course) => {
+        if (cancelled) return;
+        const rows = course.sections.flatMap((section) =>
+          section.lessons.map((lesson) => ({
+            id: lesson.id,
+            title: lesson.title,
+            sectionTitle: section.title,
+          })),
+        );
+        setCourseLessons(rows);
+        setAttachLessonId((current) => (rows.some((row) => row.id === current) ? current : rows[0]?.id ?? ""));
+      })
+      .catch((err: Error) => {
+        if (!cancelled) setError(err.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, token, attachCourseId]);
 
   function openTab(next: Tab) {
     setTab(next);
@@ -163,27 +204,6 @@ export default function TeacherPage() {
     await refresh();
   }
 
-  async function uploadVideo(file: File) {
-    if (!token) return;
-    setError(null);
-    const session = await apiPost<{
-      videoId: string;
-      upload: { url: string };
-    }>(
-      "/videos/upload-sessions",
-      {
-        filename: file.name,
-        contentType: file.type || "video/mp4",
-        title: videoTitle,
-      },
-      token,
-    );
-    await apiPutBinary(session.upload.url, file, file.type || "video/mp4").catch(() => undefined);
-    await apiPost(`/videos/${session.videoId}/complete`, { sizeBytes: file.size }, token);
-    setLastVideoId(session.videoId);
-    setMsg("Video đã sẵn sàng. Mở studio để gắn vào bài.");
-  }
-
   async function uploadDocumentFile(file: File) {
     if (!token || !docUploadId) return;
     setError(null);
@@ -215,7 +235,7 @@ export default function TeacherPage() {
       <div className="page-head">
         <h1>Studio giảng viên</h1>
         <p className="muted">
-          Tạo khóa, soạn chương–bài, tải video rồi chỉnh AI ngay dưới ô tải. Admin duyệt trước khi lên cửa hàng.
+          Tạo khóa, soạn chương–bài, chọn video để hệ thống tự chỉnh và gắn vào bài. Admin duyệt trước khi lên cửa hàng.
         </p>
       </div>
 
@@ -371,38 +391,64 @@ export default function TeacherPage() {
 
       {tab === "upload" && (
         <div className="panel" style={{ maxWidth: 640 }}>
-          <h2>Tải video khóa học</h2>
+          <h2>Tải video vào bài</h2>
           <p className="muted">
-            Kéo video bài học vào đây. Studio chỉnh AI (nâng chất, giọng nói, PIP, bản minh họa) hiện ngay bên dưới sau khi tải xong.
+            Chọn khóa, chọn bài, rồi chọn video. Hệ thống tự chỉnh hình + tiếng và gắn vào bài đó.
           </p>
-          <label>Tiêu đề video</label>
-          <input value={videoTitle} onChange={(e) => setVideoTitle(e.target.value)} />
-          <FileDrop
-            accept="video/*,application/octet-stream"
-            label="Chọn video bài học"
-            hint="Sau khi tải, mở studio để gắn vào đúng bài"
-            onFile={(file) => void uploadVideo(file).catch((err) => setError(err.message))}
-          />
-          {lastVideoId && <p className="ok">Mã video: {lastVideoId}</p>}
-          {lastVideoId && token && (
-            <VideoAiEditPanel
-              videoId={lastVideoId}
-              token={token}
-              courseId={attachCourseId || undefined}
-              onNewVideoId={setLastVideoId}
-            />
-          )}
-          <label>Gắn vào khóa</label>
+          <label>Khóa học</label>
           <select value={attachCourseId} onChange={(e) => setAttachCourseId(e.target.value)}>
+            {courses.length === 0 && <option value="">Chưa có khóa</option>}
             {courses.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.title}
               </option>
             ))}
           </select>
+          <label>Bài học</label>
+          <select value={attachLessonId} onChange={(e) => setAttachLessonId(e.target.value)}>
+            {courseLessons.length === 0 && <option value="">Khóa này chưa có bài</option>}
+            {courseLessons.map((lesson) => (
+              <option key={lesson.id} value={lesson.id}>
+                {lesson.sectionTitle} — {lesson.title}
+              </option>
+            ))}
+          </select>
+          {attachCourseId && courseLessons.length === 0 && (
+            <a className="btn secondary" href={`/teacher/courses/${attachCourseId}#video`}>
+              Mở studio để tạo bài trước
+            </a>
+          )}
+          <label>Tiêu đề video (tuỳ chọn)</label>
+          <input value={videoTitle} onChange={(e) => setVideoTitle(e.target.value)} />
+          {token && (
+            <AutoVideoPublish
+              token={token}
+              courseId={attachCourseId || undefined}
+              lessonId={attachLessonId || undefined}
+              lessonTitle={courseLessons.find((lesson) => lesson.id === attachLessonId)?.title}
+              videoTitle={videoTitle}
+              onDone={(next) => {
+                setLastVideoId(next.newVideoId);
+                setMsg("Video đã chỉnh và gắn vào bài.");
+              }}
+            />
+          )}
+          {lastVideoId && token && (
+            <details className="auto-publish-advanced">
+              <summary>Tùy chỉnh thủ công</summary>
+              <VideoAiEditPanel
+                videoId={lastVideoId}
+                token={token}
+                lessonId={attachLessonId || undefined}
+                courseId={attachCourseId || undefined}
+                variant="advanced"
+                onNewVideoId={setLastVideoId}
+              />
+            </details>
+          )}
           {attachCourseId && (
-            <a className="btn secondary" href={`/teacher/courses/${attachCourseId}`}>
-              Mở studio để gắn video
+            <a className="btn secondary" href={`/teacher/courses/${attachCourseId}#video`}>
+              Mở studio bài học
             </a>
           )}
 

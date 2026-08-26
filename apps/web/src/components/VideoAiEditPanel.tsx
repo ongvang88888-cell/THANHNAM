@@ -75,6 +75,7 @@ export function VideoAiEditPanel(props: {
   token: string;
   lessonId?: string;
   courseId?: string;
+  variant?: "full" | "advanced";
   onNewVideoId?: (videoId: string) => void;
   onCopy?: (copy: { title: string; description: string }) => void;
 }) {
@@ -200,10 +201,15 @@ export function VideoAiEditPanel(props: {
 
   return (
     <div className="ai-edit-panel">
-      <h3>4. Chỉnh sửa AI (hình + tiếng)</h3>
+      {props.variant === "advanced" ? (
+        <h3>Tùy chỉnh thủ công</h3>
+      ) : (
+        <h3>4. Chỉnh sửa AI (hình + tiếng)</h3>
+      )}
       <p className="muted">
-        Gói A+B+C chạy một lần trên video bạn sở hữu: bài học đã làm nét + giảm nhạc + PIP mặt, kèm bản minh họa trên tiếng gốc.
-        Công cụ lẻ vẫn dùng được. Phụ đề, ảnh bìa và edition cần bạn duyệt trước khi công khai.
+        {props.variant === "advanced"
+          ? "Chỉ dùng khi muốn chạy từng công cụ riêng. Luồng tải video đã tự chỉnh và gắn vào bài."
+          : "Gói A+B+C chạy một lần trên video bạn sở hữu: bài học đã làm nét + giảm nhạc + PIP mặt, kèm bản minh họa trên tiếng gốc."}
       </p>
       <p className="ai-edit-legal muted">
         {catalog.ownershipDisclaimer ??

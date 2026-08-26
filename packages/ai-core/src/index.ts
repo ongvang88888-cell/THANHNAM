@@ -53,6 +53,7 @@ export {
   assertOwnedAbcReady,
   FACE_REGIONS,
   isFaceRegion,
+  isPlaceholderLessonTitle,
   isVisualStyle,
   parseAiEditOptions,
   VISUAL_STYLES,

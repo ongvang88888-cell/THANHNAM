@@ -30,6 +30,7 @@ import {
   heuristicCuesFromTitle,
   illustratedConcatArgs,
   isAiEditToolId,
+  isPlaceholderLessonTitle,
   parseAiEditOptions,
   pictureEnhanceArgs,
   sceneImagePrompt,
@@ -77,6 +78,10 @@ export interface VideoAiEditOutput {
   appliedToLessonId?: string;
   appliedToProductId?: string;
   providerNote?: string;
+  thumbnailStorageKey?: string;
+  captionStorageKey?: string;
+  captionSizeBytes?: number;
+  autoApplyError?: string;
 }
 
 @Injectable()
@@ -239,6 +244,26 @@ export class VideoAiEditService {
     return this.presentEdit(edit);
   }
 
+  async startAutoPublish(user: RequestUser, videoId: string, body: { lessonId?: string; courseId?: string }) {
+    const lessonId = String(body.lessonId || "").trim();
+    if (!lessonId) {
+      throw new AppError(ErrorCodes.VALIDATION, "Chọn bài học để gắn video", 400);
+    }
+    const lesson = await this.assertCanAttachLesson(user, lessonId);
+    const courseId = String(body.courseId || "").trim() || lesson.section.course.id;
+    if (courseId !== lesson.section.course.id) {
+      throw new AppError(ErrorCodes.VALIDATION, "Bài học không thuộc khóa đã chọn", 400);
+    }
+    return this.startEdit(user, videoId, "owned_abc", {
+      confirmOwned: true,
+      autoApply: true,
+      lessonId: lesson.id,
+      courseId,
+      region: "pip_br",
+      style: "anime",
+    });
+  }
+
   private providerFor(tool: AiEditToolId, ai: AiPort, caps: AiCapabilities): string {
     if (tool === "captions") return caps.speech ? ai.id : "heuristic";
     if (tool === "ai_cover") return caps.imageGen ? ai.id : "poster";
@@ -286,6 +311,23 @@ export class VideoAiEditService {
         output.appliedToLessonId = body.lessonId;
         applied.push("lesson");
       }
+      if (output.thumbnailStorageKey) {
+        await this.applyThumbnailAssets(video.id, newVideoId, output.thumbnailStorageKey);
+        applied.push("thumbnail");
+        if (body.courseId) {
+          await this.applyCourseCover(user, body.courseId, output.thumbnailStorageKey);
+          output.appliedToProductId = body.courseId;
+          applied.push("course_cover");
+        }
+      }
+      if (output.captionStorageKey) {
+        await this.attachCaptions(newVideoId, output.captionStorageKey, output.captionSizeBytes);
+        applied.push("captions");
+      }
+      if (body.lessonId && (output.title || output.description || output.durationMs)) {
+        await this.applyLessonMeta(user, body.lessonId, output);
+        applied.push("copy");
+      }
     }
 
     if (output.kind === "image" && output.storageKey) {
@@ -319,9 +361,13 @@ export class VideoAiEditService {
 
     if (output.kind === "copy") {
       applied.push("copy");
+      if (body.lessonId) {
+        await this.applyLessonMeta(user, body.lessonId, output);
+      }
     }
 
     output.appliedAt = new Date().toISOString();
+    output.autoApplyError = undefined;
     await this.prisma.videoAiEdit.update({
       where: { id: edit.id },
       data: { outputJson: output as unknown as Prisma.InputJsonValue },
@@ -398,7 +444,7 @@ export class VideoAiEditService {
     return created.id;
   }
 
-  private async swapLessonVideo(user: RequestUser, lessonId: string, videoId: string) {
+  private async assertCanAttachLesson(user: RequestUser, lessonId: string) {
     const lesson = await this.prisma.lesson.findFirst({
       where: { id: String(lessonId) },
       include: { section: { include: { course: true } }, contents: true },
@@ -409,6 +455,108 @@ export class VideoAiEditService {
     if (!this.isAdmin(user) && lesson.section.course.creatorUserId !== user.userId) {
       throw new AppError(ErrorCodes.FORBIDDEN, "Bạn không sở hữu khóa học này", 403);
     }
+    return lesson;
+  }
+
+  private async applyThumbnailAssets(sourceVideoId: string, newVideoId: string, storageKey: string) {
+    await this.prisma.video.update({
+      where: { id: sourceVideoId },
+      data: { thumbnailKey: storageKey },
+    });
+    if (newVideoId !== sourceVideoId) {
+      await this.prisma.video.update({
+        where: { id: newVideoId },
+        data: { thumbnailKey: storageKey },
+      });
+    }
+  }
+
+  private async attachCaptions(videoId: string, storageKey: string, sizeBytes?: number) {
+    await this.prisma.videoAsset.deleteMany({
+      where: { videoId, format: "vtt" },
+    });
+    await this.prisma.videoAsset.create({
+      data: {
+        videoId,
+        quality: "captions",
+        format: "vtt",
+        storageKey,
+        sizeBytes: BigInt(sizeBytes ?? 0),
+      },
+    });
+  }
+
+  private async applyLessonMeta(user: RequestUser, lessonId: string, output: VideoAiEditOutput) {
+    const lesson = await this.assertCanAttachLesson(user, lessonId);
+    const data: Prisma.LessonUpdateInput = {};
+    if (output.title && isPlaceholderLessonTitle(lesson.title)) {
+      data.title = output.title.slice(0, 180);
+    }
+    if (output.durationMs && output.durationMs > 0) {
+      data.durationSec = Math.max(1, Math.round(output.durationMs / 1000));
+    }
+    if (Object.keys(data).length > 0) {
+      await this.prisma.lesson.update({ where: { id: lesson.id }, data });
+    }
+    const text = output.description?.trim();
+    if (!text) return;
+    const existing = lesson.contents.find((row) => row.contentType === "TEXT");
+    if (!existing) {
+      await this.prisma.lessonContent.create({
+        data: {
+          lessonId: lesson.id,
+          contentType: "TEXT",
+          body: text,
+          position: 0,
+        },
+      });
+      return;
+    }
+    if (!existing.body?.trim()) {
+      await this.prisma.lessonContent.update({
+        where: { id: existing.id },
+        data: { body: text },
+      });
+    }
+  }
+
+  private async actorFromVideo(video: Video): Promise<RequestUser> {
+    const rows = await this.prisma.userRole.findMany({
+      where: { userId: video.ownerUserId },
+      include: { role: { select: { code: true } } },
+    });
+    const roles = rows.map((row) => row.role.code as RequestUser["roles"][number]);
+    return {
+      userId: video.ownerUserId,
+      appId: video.appId,
+      sessionId: "ai-auto-apply",
+      roles: roles.length > 0 ? roles : (["teacher"] as RequestUser["roles"]),
+    };
+  }
+
+  private async autoApplyReadyEdit(video: Video, editId: string, options: AiEditOptions) {
+    try {
+      const actor = await this.actorFromVideo(video);
+      await this.applyEdit(actor, video.id, editId, {
+        lessonId: options.lessonId,
+        courseId: options.courseId,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message.slice(0, 400) : "Không gắn được vào bài";
+      this.log.warn(`AI edit ${editId} auto-apply failed: ${message}`);
+      const current = await this.prisma.videoAiEdit.findUnique({ where: { id: editId } });
+      const output = asOutput(current?.outputJson ?? null);
+      if (!output) return;
+      output.autoApplyError = message;
+      await this.prisma.videoAiEdit.update({
+        where: { id: editId },
+        data: { outputJson: output as unknown as Prisma.InputJsonValue },
+      });
+    }
+  }
+
+  private async swapLessonVideo(user: RequestUser, lessonId: string, videoId: string) {
+    const lesson = await this.assertCanAttachLesson(user, lessonId);
     const existing = lesson.contents.find((row) => row.contentType === "VIDEO");
     if (existing) {
       await this.prisma.lessonContent.update({
@@ -470,6 +618,9 @@ export class VideoAiEditService {
           error: null,
         },
       });
+      if (options.autoApply && options.lessonId) {
+        await this.autoApplyReadyEdit(edit.video, edit.id, options);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message.slice(0, 400) : "Chỉnh sửa AI thất bại";
       this.log.warn(`AI edit ${edit.id} failed: ${message}`);
@@ -756,8 +907,17 @@ export class VideoAiEditService {
       await this.execFfmpeg(enhanceAndSpeechArgs(inputPath, enhancedPath));
       const region = options.region ?? "pip_br";
       const style = options.style ?? "anime";
-      const lessonPath = path.join(dir, "owned-abc-lesson.mp4");
+      let lessonPath = path.join(dir, "owned-abc-lesson.mp4");
       await this.execFfmpeg(toonTalkingHeadArgs(enhancedPath, lessonPath, region, style));
+      if (options.autoApply) {
+        const trimmedPath = path.join(dir, "owned-abc-trim.mp4");
+        try {
+          await this.execFfmpeg(silenceTrimArgs(lessonPath, trimmedPath));
+          lessonPath = trimmedPath;
+        } catch (err) {
+          this.log.warn(`silence trim skipped: ${err instanceof Error ? err.message : "error"}`);
+        }
+      }
       const lessonBytes = await readFile(lessonPath);
       const lessonKey = buildObjectKey({
         appId: video.appId,
@@ -772,7 +932,7 @@ export class VideoAiEditService {
         region === "full"
           ? "C stylize cả khung — chữ slide có thể khó đọc."
           : "C stylize PIP/mặt, giữ slide.";
-      return {
+      const output: VideoAiEditOutput = {
         kind: "video",
         storageKey: lessonKey,
         contentType: "video/mp4",
@@ -784,8 +944,86 @@ export class VideoAiEditService {
         editionDurationMs: edition.durationMs,
         providerNote: `${OWNERSHIP_DISCLAIMER} A làm nét + giảm nhạc nền. ${pipNote} B là bản minh họa riêng trên 100% tiếng gốc. ${edition.note}`,
       };
+      if (options.autoApply) {
+        await this.enrichOwnedAbcOutput(video, editId, ai, dir, inputPath, lessonPath, output);
+      }
+      return output;
     } finally {
       await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  private async enrichOwnedAbcOutput(
+    video: Video,
+    editId: string,
+    ai: AiPort,
+    dir: string,
+    inputPath: string,
+    lessonPath: string,
+    output: VideoAiEditOutput,
+  ): Promise<void> {
+    try {
+      const thumbPath = path.join(dir, "auto-thumb.jpg");
+      const durationMs = (await this.probeDurationMs(lessonPath)) ?? output.durationMs ?? 0;
+      const seek = durationMs > 2000 ? Math.min(durationMs / 1000 / 2, 8) : 0.2;
+      await this.execFfmpeg(thumbnailArgs(lessonPath, thumbPath, seek));
+      const thumbBytes = await readFile(thumbPath);
+      const thumbKey = buildObjectKey({
+        appId: video.appId,
+        type: "video-ai",
+        id: editId,
+        filename: "auto-thumbnail.jpg",
+      });
+      await this.storage.putObject(thumbKey, thumbBytes, "image/jpeg");
+      output.thumbnailStorageKey = thumbKey;
+    } catch (err) {
+      this.log.warn(`auto thumbnail skipped: ${err instanceof Error ? err.message : "error"}`);
+    }
+
+    let transcript = "";
+    try {
+      const speechPath = path.join(dir, "auto-speech.mp3");
+      await this.execFfmpeg(extractSpeechAudioArgs(inputPath, speechPath));
+      const audio = await readFile(speechPath);
+      let cues = heuristicCuesFromTitle(video.title, video.durationMs ?? undefined);
+      try {
+        const speech = await ai.transcribe({ bytes: audio, filename: "speech.mp3", mime: "audio/mpeg" });
+        if (speech.text.trim() || speech.segments.length > 0) {
+          transcript = speech.text.trim();
+          cues =
+            speech.segments.length > 0
+              ? cuesFromWhisperSegments(speech.segments)
+              : [{ startMs: 0, endMs: video.durationMs ?? 8000, text: transcript }];
+        }
+      } catch {
+        // fallback heuristic cues
+      }
+      const vtt = toVtt(cues);
+      const captionKey = buildObjectKey({
+        appId: video.appId,
+        type: "video-ai",
+        id: editId,
+        filename: "auto-captions.vtt",
+      });
+      const bytes = Buffer.from(vtt, "utf8");
+      await this.storage.putObject(captionKey, bytes, "text/vtt");
+      output.captionStorageKey = captionKey;
+      output.captionSizeBytes = bytes.length;
+      output.text = transcript || cues.map((cue) => cue.text).join("\n");
+    } catch (err) {
+      this.log.warn(`auto captions skipped: ${err instanceof Error ? err.message : "error"}`);
+    }
+
+    try {
+      const copy = await ai.suggestLessonCopy({
+        title: video.title,
+        transcript: transcript || undefined,
+      });
+      output.title = copy.title;
+      output.description = copy.description;
+      output.tags = copy.tags;
+    } catch (err) {
+      this.log.warn(`auto copy skipped: ${err instanceof Error ? err.message : "error"}`);
     }
   }
 
@@ -1022,5 +1260,9 @@ function asOutput(value: Prisma.JsonValue | null): VideoAiEditOutput | null {
     appliedToLessonId: typeof rec.appliedToLessonId === "string" ? rec.appliedToLessonId : undefined,
     appliedToProductId: typeof rec.appliedToProductId === "string" ? rec.appliedToProductId : undefined,
     providerNote: typeof rec.providerNote === "string" ? rec.providerNote : undefined,
+    thumbnailStorageKey: typeof rec.thumbnailStorageKey === "string" ? rec.thumbnailStorageKey : undefined,
+    captionStorageKey: typeof rec.captionStorageKey === "string" ? rec.captionStorageKey : undefined,
+    captionSizeBytes: typeof rec.captionSizeBytes === "number" ? rec.captionSizeBytes : undefined,
+    autoApplyError: typeof rec.autoApplyError === "string" ? rec.autoApplyError : undefined,
   };
 }

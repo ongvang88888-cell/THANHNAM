@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { FileDrop } from "@/components/FileDrop";
+import { AutoVideoPublish } from "@/components/AutoVideoPublish";
 import { VideoAiEditPanel } from "@/components/VideoAiEditPanel";
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut, apiPutBinary, formatVnd } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
@@ -179,7 +180,7 @@ export default function TeacherCourseStudioPage() {
       seededVideoLesson.current = true;
       void run(async () => {
         await addLessonTo(firstSection.id);
-      }, "Đã tạo bài đầu tiên — kéo video vào mục 2");
+      }, "Đã tạo bài đầu tiên — chọn video ở mục 2");
       return;
     }
     document.getElementById("video-studio")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -454,56 +455,49 @@ export default function TeacherCourseStudioPage() {
                   </div>
 
                   <div className="block" id="video-studio">
-                    <h3>2. Tải video khóa học &amp; chỉnh sửa AI</h3>
+                    <h3>2. Video bài học</h3>
                     <p className="muted">
-                      Kéo video vào ô dưới. Studio AI hiện ngay sau khi tải xong. Nhớ bấm Lưu bài để gắn video vào bài học.
+                      Chọn video. Hệ thống tự chỉnh hình + tiếng, tạo phụ đề, ảnh bìa và gắn vào bài đang chọn. Không cần
+                      bấm Áp dụng hay Lưu bài cho video.
                     </p>
-                    <input
-                      value={editVideoId}
-                      onChange={(e) => setEditVideoId(e.target.value)}
-                      placeholder="Mã video (tự điền sau khi tải)"
-                    />
-                    <FileDrop
-                      accept="video/mp4,video/*,application/octet-stream"
-                      disabled={busy}
-                      label="Kéo thả hoặc chọn video"
-                      hint="MP4 khuyến nghị"
-                      onFile={(file) => {
-                        if (!token) return;
-                        void run(async () => {
-                          const session = await apiPost<{ videoId: string; upload: { url: string } }>(
-                            "/videos/upload-sessions",
-                            {
-                              filename: file.name,
-                              contentType: file.type || "video/mp4",
-                              title: editTitle || file.name,
-                            },
-                            token,
-                          );
-                          await apiPutBinary(session.upload.url, file, file.type || "video/mp4").catch(() => undefined);
-                          await apiPost(`/videos/${session.videoId}/complete`, { sizeBytes: file.size }, token);
-                          setEditVideoId(session.videoId);
-                        }, "Đã tải video — mở chỉnh AI bên dưới rồi nhớ Lưu bài");
-                      }}
-                    />
-                    {!editVideoId && (
-                      <p className="note-box">
-                        Chưa có video trên bài này. Tải file MP4 ở trên — bảng công cụ AI (nâng chất, giọng nói, PIP
-                        toon, bản minh họa) sẽ mở ngay bên dưới.
-                      </p>
-                    )}
-                    {editVideoId && token && (
-                      <VideoAiEditPanel
-                        videoId={editVideoId}
+                    {token && (
+                      <AutoVideoPublish
                         token={token}
                         lessonId={selectedLesson.id}
                         courseId={course.id}
-                        onNewVideoId={(id) => setEditVideoId(id)}
-                        onCopy={(copy) => {
-                          setEditTitle(copy.title);
-                          setEditBody((current) => current.trim() || copy.description);
+                        lessonTitle={editTitle || selectedLesson.title}
+                        videoTitle={editTitle || selectedLesson.title}
+                        disabled={busy}
+                        onDone={(next) => {
+                          setEditVideoId(next.newVideoId);
+                          if (next.title) setEditTitle(next.title);
+                          if (next.description) {
+                            setEditBody((current) => current.trim() || next.description || "");
+                          }
+                          void load(selectedLesson.id).catch((err: Error) => setError(err.message));
+                          setMsg("Video đã chỉnh và gắn vào bài.");
                         }}
                       />
+                    )}
+                    {editVideoId && (
+                      <p className="muted">Mã video hiện tại: {editVideoId}</p>
+                    )}
+                    {editVideoId && token && (
+                      <details className="auto-publish-advanced">
+                        <summary>Tùy chỉnh thủ công</summary>
+                        <VideoAiEditPanel
+                          videoId={editVideoId}
+                          token={token}
+                          lessonId={selectedLesson.id}
+                          courseId={course.id}
+                          variant="advanced"
+                          onNewVideoId={(id) => setEditVideoId(id)}
+                          onCopy={(copy) => {
+                            setEditTitle(copy.title);
+                            setEditBody((current) => current.trim() || copy.description);
+                          }}
+                        />
+                      </details>
                     )}
                   </div>
 

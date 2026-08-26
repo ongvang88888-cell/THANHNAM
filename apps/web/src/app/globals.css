@@ -911,6 +911,23 @@ label { display: block; font-size: 13px; color: #6b7280; margin-bottom: 6px; }
 .file-drop input { display: none; }
 .file-drop:hover { border-color: var(--orange); }
 .file-drop.is-disabled { opacity: .55; cursor: not-allowed; }
+.auto-publish { margin: 0 0 12px; }
+.auto-publish-target { margin: 0 0 10px; }
+.auto-publish-legal { font-size: 13px; line-height: 1.45; margin: 0 0 10px; }
+.auto-publish-status {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+.auto-publish-done { margin: 0 0 12px; }
+.auto-publish-advanced { margin: 12px 0 0; }
+.auto-publish-advanced summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--navy);
+}
 
 .studio-app { display: grid; grid-template-rows: auto 1fr; min-height: calc(100vh - 58px); }
 .studio-topbar, .player-topbar {

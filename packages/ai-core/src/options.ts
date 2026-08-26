@@ -11,9 +11,41 @@ export interface AiEditOptions {
   style?: VisualStyle;
   maxScenes?: number;
   confirmOwned?: boolean;
+  autoApply?: boolean;
+  lessonId?: string;
+  courseId?: string;
 }
 
-const ALLOWED = new Set(["seekSeconds", "prompt", "region", "style", "maxScenes", "confirmOwned"]);
+const ALLOWED = new Set([
+  "seekSeconds",
+  "prompt",
+  "region",
+  "style",
+  "maxScenes",
+  "confirmOwned",
+  "autoApply",
+  "lessonId",
+  "courseId",
+]);
+
+const SCOPED_ID = /^[a-zA-Z0-9_-]{8,80}$/;
+
+export function isPlaceholderLessonTitle(title: string): boolean {
+  const trimmed = title.trim();
+  if (!trimmed) return true;
+  return /^(bài(\s*học)?(\s*mới)?(\s*\d+)?|lesson(\s+\d+)?|new lesson)$/i.test(trimmed);
+}
+
+function parseScopedId(value: unknown, field: string): string {
+  if (typeof value !== "string") {
+    throw new Error(`${field} phải là chuỗi`);
+  }
+  const trimmed = value.trim();
+  if (!SCOPED_ID.test(trimmed)) {
+    throw new Error(`${field} không hợp lệ`);
+  }
+  return trimmed;
+}
 
 export function isFaceRegion(value: string): value is FaceRegion {
   return (FACE_REGIONS as readonly string[]).includes(value);
@@ -71,6 +103,18 @@ export function parseAiEditOptions(input: unknown): AiEditOptions {
       throw new Error("confirmOwned phải là true hoặc false");
     }
     out.confirmOwned = rec.confirmOwned;
+  }
+  if (rec.autoApply !== undefined) {
+    if (typeof rec.autoApply !== "boolean") {
+      throw new Error("autoApply phải là true hoặc false");
+    }
+    out.autoApply = rec.autoApply;
+  }
+  if (rec.lessonId !== undefined) {
+    out.lessonId = parseScopedId(rec.lessonId, "lessonId");
+  }
+  if (rec.courseId !== undefined) {
+    out.courseId = parseScopedId(rec.courseId, "courseId");
   }
   return out;
 }

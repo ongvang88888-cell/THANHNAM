@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertOwnedAbcReady, parseAiEditOptions } from "./options";
+import { assertOwnedAbcReady, isPlaceholderLessonTitle, parseAiEditOptions } from "./options";
 
 describe("parseAiEditOptions", () => {
   it("accepts empty and known fields", () => {
@@ -14,6 +14,17 @@ describe("parseAiEditOptions", () => {
       maxScenes: 6,
     });
     expect(parseAiEditOptions({ confirmOwned: true })).toEqual({ confirmOwned: true });
+    expect(
+      parseAiEditOptions({
+        autoApply: true,
+        lessonId: "lesson_abc12345",
+        courseId: "course_xyz98765",
+      }),
+    ).toEqual({
+      autoApply: true,
+      lessonId: "lesson_abc12345",
+      courseId: "course_xyz98765",
+    });
   });
 
   it("rejects unknown or invalid fields", () => {
@@ -22,7 +33,16 @@ describe("parseAiEditOptions", () => {
     expect(() => parseAiEditOptions({ region: "center" })).toThrow(/region/);
     expect(() => parseAiEditOptions({ style: "oil" })).toThrow(/style/);
     expect(() => parseAiEditOptions({ confirmOwned: "yes" })).toThrow(/confirmOwned/);
+    expect(() => parseAiEditOptions({ autoApply: "yes" })).toThrow(/autoApply/);
+    expect(() => parseAiEditOptions({ lessonId: "short" })).toThrow(/lessonId/);
     expect(() => parseAiEditOptions("x")).toThrow(/object/);
+  });
+
+  it("treats empty and default lesson titles as placeholders", () => {
+    expect(isPlaceholderLessonTitle("")).toBe(true);
+    expect(isPlaceholderLessonTitle("Bài mới")).toBe(true);
+    expect(isPlaceholderLessonTitle("Bài 1")).toBe(true);
+    expect(isPlaceholderLessonTitle("Giới thiệu khóa học")).toBe(false);
   });
 
   it("requires an ownership commitment for the A+B+C pack", () => {
