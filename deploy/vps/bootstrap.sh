@@ -227,6 +227,7 @@ build_app() {
   # Prisma CLI and tsc live in devDependencies — do not set NODE_ENV=production
   # before install/generate, or pnpm skips them.
   unset NODE_ENV || true
+  export CI=true
   pnpm install --frozen-lockfile
   pnpm db:generate
   pnpm --filter @edu/database push
