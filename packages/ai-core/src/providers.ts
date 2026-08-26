@@ -1,4 +1,6 @@
 import { FFMPEG_FONT_CANDIDATES } from "./ffmpeg";
+import { getTargetLanguage, openaiVoiceForLanguage } from "./languages";
+import { chunkTextForTts } from "./voice";
 
 export interface SpeechResult {
   text: string;
@@ -20,11 +22,24 @@ export interface LessonCopyResult {
   provider: string;
 }
 
+export interface SpeechSynthResult {
+  bytes: Buffer;
+  contentType: string;
+  provider: string;
+}
+
+export interface TranslateResult {
+  text: string;
+  provider: string;
+}
+
 export interface AiPort {
   id: string;
   transcribe(input: { bytes: Buffer; filename: string; mime: string }): Promise<SpeechResult>;
   generateCover(input: { title: string; prompt?: string }): Promise<ImageGenResult>;
   suggestLessonCopy(input: { title: string; transcript?: string }): Promise<LessonCopyResult>;
+  speak(input: { text: string; language?: string }): Promise<SpeechSynthResult>;
+  translateText(input: { text: string; targetLanguage: string }): Promise<TranslateResult>;
 }
 
 export function escapeXml(value: string): string {
@@ -90,6 +105,14 @@ export class NullAiAdapter implements AiPort {
 
   async suggestLessonCopy(input: { title: string; transcript?: string }): Promise<LessonCopyResult> {
     return heuristicLessonCopy(input.title, input.transcript);
+  }
+
+  async speak(): Promise<SpeechSynthResult> {
+    throw new Error("Chưa có khóa TTS (OPENAI_API_KEY hoặc ELEVENLABS_API_KEY).");
+  }
+
+  async translateText(): Promise<TranslateResult> {
+    throw new Error("Chưa có khóa LLM để dịch lời.");
   }
 }
 
@@ -231,6 +254,61 @@ class OpenAiAdapter implements AiPort {
     );
     return copyFromUnknown(parseJsonObject(json.choices?.[0]?.message?.content ?? ""), input.title, "openai");
   }
+
+  async speak(input: { text: string; language?: string }): Promise<SpeechSynthResult> {
+    const chunks = chunkTextForTts(input.text);
+    if (chunks.length === 0) throw new Error("Không có lời để đọc");
+    const voice = openaiVoiceForLanguage(input.language || "vi");
+    const parts: Buffer[] = [];
+    for (const chunk of chunks) {
+      const res = await fetch("https://api.openai.com/v1/audio/speech", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "tts-1",
+          voice,
+          input: chunk,
+          response_format: "mp3",
+        }),
+        signal: AbortSignal.timeout(90_000),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`OpenAI TTS thất bại (${res.status}): ${text.slice(0, 180)}`);
+      }
+      parts.push(Buffer.from(await res.arrayBuffer()));
+    }
+    return { bytes: Buffer.concat(parts), contentType: "audio/mpeg", provider: "openai" };
+  }
+
+  async translateText(input: { text: string; targetLanguage: string }): Promise<TranslateResult> {
+    const lang = getTargetLanguage(input.targetLanguage);
+    if (!lang) throw new Error("Ngôn ngữ dịch không hỗ trợ");
+    const source = input.text.replace(/\s+/g, " ").trim();
+    if (!source) throw new Error("Không có lời để dịch");
+    const json = await postJson<{ choices?: Array<{ message?: { content?: string } }> }>(
+      "https://api.openai.com/v1/chat/completions",
+      { Authorization: `Bearer ${this.apiKey}` },
+      {
+        model: "gpt-4o-mini",
+        temperature: 0.2,
+        messages: [
+          {
+            role: "system",
+            content: `Dịch transcript bài giảng sang ${lang.label} (${lang.id}). Chỉ trả về bản dịch, giữ đoạn/ngắt câu. Không thêm chú thích.`,
+          },
+          { role: "user", content: source.slice(0, 12_000) },
+        ],
+      },
+      90_000,
+    );
+    const text = json.choices?.[0]?.message?.content?.trim() ?? "";
+    if (!text) throw new Error("LLM không trả bản dịch");
+    return { text, provider: "openai" };
+  }
 }
 
 class GroqSpeechAdapter {
@@ -298,6 +376,36 @@ class GeminiCopyAdapter {
     const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     return copyFromUnknown(parseJsonObject(text), input.title, "gemini");
   }
+
+  async translateText(input: { text: string; targetLanguage: string }): Promise<TranslateResult> {
+    const lang = getTargetLanguage(input.targetLanguage);
+    if (!lang) throw new Error("Ngôn ngữ dịch không hỗ trợ");
+    const source = input.text.replace(/\s+/g, " ").trim();
+    if (!source) throw new Error("Không có lời để dịch");
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(this.apiKey)}`;
+    const json = await postJson<{
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    }>(
+      url,
+      {},
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: `Dịch sang ${lang.label}. Chỉ trả bản dịch:\n${source.slice(0, 12_000)}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: { temperature: 0.2 },
+      },
+      90_000,
+    );
+    const text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+    if (!text) throw new Error("Gemini không trả bản dịch");
+    return { text, provider: "gemini" };
+  }
 }
 
 export function createAiPortFromEnv(): AiPort {
@@ -314,6 +422,8 @@ export function createAiPortFromEnv(): AiPort {
     transcribe: (input) => (openai ?? groq ?? fallback).transcribe(input),
     generateCover: (input) => (openai ?? fallback).generateCover(input),
     suggestLessonCopy: (input) => (openai ?? gemini ?? fallback).suggestLessonCopy(input),
+    speak: (input) => (openai ?? fallback).speak(input),
+    translateText: (input) => (openai ?? gemini ?? fallback).translateText(input),
   };
 }
 

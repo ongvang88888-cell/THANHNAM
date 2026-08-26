@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertOwnedAbcReady, isPlaceholderLessonTitle, parseAiEditOptions } from "./options";
+import { assertOwnedAbcReady, assertStudioConsent, isPlaceholderLessonTitle, parseAiEditOptions } from "./options";
 
 describe("parseAiEditOptions", () => {
   it("accepts empty and known fields", () => {
@@ -52,5 +52,38 @@ describe("parseAiEditOptions", () => {
     expect(() => assertOwnedAbcReady("owned_abc", { confirmOwned: false })).toThrow(/confirmOwned/);
     expect(() => assertOwnedAbcReady("owned_abc", { confirmOwned: true })).not.toThrow();
     expect(() => assertOwnedAbcReady("course_enhance", {})).not.toThrow();
+  });
+
+  it("parses presenter options and requires studio consent", () => {
+    expect(
+      parseAiEditOptions({
+        script: "Xin chào lớp",
+        targetLanguage: "en",
+        startMs: 1000,
+        endMs: 4000,
+        confirmLikeness: true,
+        confirmFaceEdit: true,
+        confirmVoiceClone: true,
+        confirmOwned: true,
+      }),
+    ).toEqual({
+      script: "Xin chào lớp",
+      targetLanguage: "en",
+      startMs: 1000,
+      endMs: 4000,
+      confirmLikeness: true,
+      confirmFaceEdit: true,
+      confirmVoiceClone: true,
+      confirmOwned: true,
+    });
+    expect(() => parseAiEditOptions({ targetLanguage: "xx" })).toThrow(/targetLanguage/);
+    expect(() => parseAiEditOptions({ script: "x".repeat(4001) })).toThrow(/script/);
+    expect(() => assertStudioConsent("avatar_presenter", { confirmOwned: true })).toThrow(/confirmLikeness/);
+    expect(() =>
+      assertStudioConsent("avatar_presenter", { confirmOwned: true, confirmLikeness: true }),
+    ).not.toThrow();
+    expect(() => assertStudioConsent("video_translate", { confirmOwned: true })).toThrow(/targetLanguage/);
+    expect(() => assertStudioConsent("eye_contact", { confirmOwned: true })).toThrow(/confirmFaceEdit/);
+    expect(() => assertStudioConsent("overdub", { confirmOwned: true, confirmVoiceClone: true })).toThrow(/script/);
   });
 });

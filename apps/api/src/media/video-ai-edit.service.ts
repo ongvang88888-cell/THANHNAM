@@ -1,9 +1,11 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
+import { createWriteStream, existsSync } from "node:fs";
 import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { promisify } from "node:util";
 import {
   assertFreeMediaDisk,
@@ -15,36 +17,55 @@ import {
 } from "@edu/media-core";
 import {
   AI_EDIT_TOOLS,
+  HEYGEN_GENERATE_URL,
+  HEYGEN_STATUS_URL,
+  HEYGEN_TRANSLATE_URL,
   LECTURE_EXPERT_RECIPE_ID,
   OWNERSHIP_DISCLAIMER,
-  assertOwnedAbcReady,
+  assertStudioConsent,
+  atempoForFit,
   buildConcatDemuxerList,
+  buildHeygenAvatarBody,
+  buildHeygenTranslateBody,
   captionStillArgs,
   clampSceneCount,
+  concatAudioArgs,
   courseEnhanceArgs,
   createAiPortFromEnv,
   cuesFromWhisperSegments,
   clampQuickTrim,
   describeRecipe,
+  elevenLabsApiKey,
+  elevenLabsCloneVoice,
+  elevenLabsDeleteVoice,
+  elevenLabsSpeak,
   enhanceAndSpeechArgs,
   enhanceSpeechTrimArgs,
   envAiCapabilities,
+  extractAudioSegmentArgs,
   extractLessonAudioArgs,
   extractSpeechAudioArgs,
+  eyeContactReframeArgs,
   firstExistingFont,
+  fitAudioDurationArgs,
   getAiEditTool,
   groupScenesForEdition,
   heuristicCuesFromTitle,
+  heygenApiKey,
+  heygenHeaders,
   illustratedConcatArgs,
   isAiEditToolId,
   isPlaceholderLessonTitle,
   kenBurnsStillArgs,
   parseAiEditOptions,
+  parseHeygenStatus,
+  parseHeygenVideoId,
   pictureEnhanceArgs,
   quickTrimCopyArgs,
   quickTrimEncodeArgs,
   progressFields,
   progressForStatus,
+  replaceAudioArgs,
   sceneImagePrompt,
   silenceTrimArgs,
   speechFocusArgs,
@@ -62,6 +83,7 @@ import {
   type AiEditToolId,
   type AiPort,
   type RecipeTechnique,
+  type SpeechResult,
 } from "@edu/ai-core";
 import { AppError, ErrorCodes, assertNever, hasAnyRole } from "@edu/shared-core";
 import type { Prisma, Video, VideoAiEdit } from "@edu/database";
@@ -323,7 +345,7 @@ export class VideoAiEditService implements OnModuleInit {
     let options: AiEditOptions;
     try {
       options = parseAiEditOptions(rawOptions);
-      assertOwnedAbcReady(rawTool, options);
+      assertStudioConsent(rawTool, options);
     } catch (e) {
       throw new AppError(ErrorCodes.VALIDATION, e instanceof Error ? e.message : "Tùy chọn không hợp lệ", 400);
     }
@@ -640,6 +662,10 @@ export class VideoAiEditService implements OnModuleInit {
       if (caps.speech) return `${ai.id}+poster`;
       return "ffmpeg+poster";
     }
+    if (tool === "avatar_presenter") return caps.heygen ? "heygen" : caps.tts ? `${ai.id}+tts` : "ffmpeg";
+    if (tool === "video_translate") return caps.heygen ? "heygen" : `${ai.id}+tts`;
+    if (tool === "eye_contact") return "ffmpeg";
+    if (tool === "overdub") return caps.elevenlabs ? "elevenlabs" : caps.tts ? `${ai.id}+tts` : "ffmpeg";
     return "ffmpeg";
   }
 
@@ -1082,6 +1108,18 @@ export class VideoAiEditService implements OnModuleInit {
         return this.runCaptions(video, editId, ai);
       case "lesson_copy":
         return this.runCopy(video, ai);
+      case "avatar_presenter":
+        return this.runAvatarPresenter(video, editId, options, ai);
+      case "video_translate":
+        return this.runVideoTranslate(video, editId, options, ai);
+      case "eye_contact": {
+        const output = await this.runFfmpegVideo(video, editId, tool, eyeContactReframeArgs, "video/mp4");
+        output.providerNote =
+          "Bản trên máy: canh mặt/mắt vào giữa khung (crop/zoom). Không warp từng con ngươi như Descript đám mây.";
+        return output;
+      }
+      case "overdub":
+        return this.runOverdub(video, editId, options, ai);
       default:
         return assertNever(tool);
     }
@@ -1584,6 +1622,443 @@ export class VideoAiEditService implements OnModuleInit {
       durationMs: (await this.probeDurationMs(outputPath)) ?? durationMs,
       note,
     };
+  }
+
+  private async runAvatarPresenter(
+    video: Video,
+    editId: string,
+    options: AiEditOptions,
+    ai: AiPort,
+  ): Promise<VideoAiEditOutput> {
+    const script = await this.resolvePresenterScript(video, options, ai);
+    await this.markStep(editId, "enhance");
+    const heygenKey = heygenApiKey();
+    if (heygenKey) {
+      try {
+        return await this.renderHeygenAvatar(video, editId, script, heygenKey);
+      } catch (err) {
+        this.log.warn(`HeyGen avatar fallback: ${err instanceof Error ? err.message : "error"}`);
+      }
+    }
+    return this.renderPosterTtsAvatar(video, editId, script, options, ai);
+  }
+
+  private async resolvePresenterScript(video: Video, options: AiEditOptions, ai: AiPort): Promise<string> {
+    const typed = (options.script || options.prompt || "").trim();
+    if (typed) return typed.slice(0, 4000);
+    if (!video.storageKey) {
+      throw new Error("Nhập kịch bản (script) để dựng người dẫn.");
+    }
+    try {
+      const source = await this.openSourceFile(video);
+      try {
+        const speech = await this.transcribeFromPath(source.path, ai);
+        const text = speech.text.replace(/\s+/g, " ").trim();
+        if (text) return text.slice(0, 4000);
+      } finally {
+        await source.cleanup();
+      }
+    } catch {
+      // fall through
+    }
+    throw new Error("Nhập kịch bản (script) để dựng người dẫn.");
+  }
+
+  private async renderHeygenAvatar(
+    video: Video,
+    editId: string,
+    script: string,
+    apiKey: string,
+  ): Promise<VideoAiEditOutput> {
+    const remoteId = await this.startHeygenJob(HEYGEN_GENERATE_URL, buildHeygenAvatarBody({ script, title: video.title }), apiKey);
+    const remoteUrl = await this.pollHeygenVideoUrl(remoteId, apiKey);
+    return this.persistRemoteMp4(video, editId, remoteUrl, "avatar_presenter.mp4", "HeyGen avatar — người dẫn ảo từ kịch bản.");
+  }
+
+  private async renderPosterTtsAvatar(
+    video: Video,
+    editId: string,
+    script: string,
+    options: AiEditOptions,
+    ai: AiPort,
+  ): Promise<VideoAiEditOutput> {
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-avatar-"));
+    let sourceCleanup: (() => Promise<void>) | null = null;
+    try {
+      const speechPath = path.join(dir, "voice.mp3");
+      const spoken = await this.speakToFile(ai, script, options.targetLanguage, speechPath);
+      const audioDur = (await this.probeDurationMs(speechPath)) ?? Math.max(4000, script.length * 60);
+      const still = path.join(dir, "still.jpg");
+      let usedThumb = false;
+      if (video.storageKey) {
+        try {
+          const source = await this.openSourceFile(video);
+          sourceCleanup = source.cleanup;
+          const seek = thumbnailSeekSeconds((await this.probeDurationMs(source.path)) ?? video.durationMs ?? 0);
+          await this.execFfmpeg(thumbnailArgs(source.path, still, seek));
+          usedThumb = true;
+        } catch {
+          usedThumb = false;
+        }
+      }
+      if (!usedThumb) {
+        const font = firstExistingFont(existsSync);
+        if (!font) throw new Error("Máy chủ thiếu font để dựng ảnh người dẫn nháp.");
+        await this.execFfmpeg(titlePosterArgs(still, options.prompt || video.title || "Bài học", font));
+      }
+      const clip = path.join(dir, "still.mp4");
+      await this.execFfmpeg(kenBurnsStillArgs(still, clip, Math.max(2, audioDur / 1000)));
+      const listPath = path.join(dir, "scenes.txt");
+      await writeFile(
+        listPath,
+        buildConcatDemuxerList([{ file: clip, durationSec: Math.max(2, audioDur / 1000) }]),
+        "utf8",
+      );
+      const outputPath = path.join(dir, "avatar-out.mp4");
+      await this.execFfmpeg(illustratedConcatArgs(listPath, speechPath, outputPath));
+      const key = buildObjectKey({
+        appId: video.appId,
+        type: "video-ai",
+        id: editId,
+        filename: "avatar_presenter.mp4",
+      });
+      const sizeBytes = await this.persistFile(key, outputPath, "video/mp4");
+      return {
+        kind: "video",
+        storageKey: key,
+        contentType: "video/mp4",
+        sizeBytes,
+        durationMs: (await this.probeDurationMs(outputPath)) ?? audioDur,
+        providerNote: `Chưa có HeyGen — ảnh + TTS (${spoken.provider}), không phải người ảo HeyGen/Synthesia.`,
+      };
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+      if (sourceCleanup) await sourceCleanup();
+    }
+  }
+
+  private async runVideoTranslate(
+    video: Video,
+    editId: string,
+    options: AiEditOptions,
+    ai: AiPort,
+  ): Promise<VideoAiEditOutput> {
+    const target = options.targetLanguage;
+    if (!target) throw new Error("Chọn ngôn ngữ đích (targetLanguage).");
+    await this.markStep(editId, "enhance");
+    const heygenKey = heygenApiKey();
+    if (heygenKey && video.storageKey) {
+      try {
+        const signed = await this.storage.createDownloadUrl({ key: video.storageKey, ttlSeconds: 3600 });
+        if (signed.url.startsWith("https://")) {
+          const remoteId = await this.startHeygenJob(
+            HEYGEN_TRANSLATE_URL,
+            buildHeygenTranslateBody({ videoUrl: signed.url, title: video.title, targetLanguage: target }),
+            heygenKey,
+          );
+          const remoteUrl = await this.pollHeygenVideoUrl(remoteId, heygenKey);
+          return this.persistRemoteMp4(
+            video,
+            editId,
+            remoteUrl,
+            "video_translate.mp4",
+            `HeyGen Video Translate sang ${target} (lip-sync trên máy họ).`,
+          );
+        }
+      } catch (err) {
+        this.log.warn(`HeyGen translate fallback: ${err instanceof Error ? err.message : "error"}`);
+      }
+    }
+    return this.renderLocalDub(video, editId, target, ai);
+  }
+
+  private async renderLocalDub(
+    video: Video,
+    editId: string,
+    targetLanguage: string,
+    ai: AiPort,
+  ): Promise<VideoAiEditOutput> {
+    const source = await this.openSourceFile(video);
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-dub-"));
+    try {
+      if (!(await this.probeHasAudio(source.path))) {
+        throw new Error("Video không có tiếng giảng để dịch.");
+      }
+      const speech = await this.transcribeFromPath(source.path, ai);
+      const sourceText = speech.text.replace(/\s+/g, " ").trim();
+      if (!sourceText) throw new Error("Không nhận được lời nói. Thêm khóa Whisper hoặc nhập lại video rõ tiếng.");
+      const translated = await ai.translateText({ text: sourceText, targetLanguage });
+      const voicePath = path.join(dir, "dub.mp3");
+      const spoken = await this.speakToFile(ai, translated.text, targetLanguage, voicePath);
+      const outputPath = path.join(dir, "dub-out.mp4");
+      await this.execFfmpeg(replaceAudioArgs(source.path, voicePath, outputPath));
+      const key = buildObjectKey({
+        appId: video.appId,
+        type: "video-ai",
+        id: editId,
+        filename: "video_translate.mp4",
+      });
+      const sizeBytes = await this.persistFile(key, outputPath, "video/mp4");
+      return {
+        kind: "video",
+        storageKey: key,
+        contentType: "video/mp4",
+        sizeBytes,
+        durationMs: (await this.probeDurationMs(outputPath)) ?? video.durationMs ?? undefined,
+        text: translated.text,
+        providerNote: `Lồng tiếng mới (${spoken.provider} + ${translated.provider}), giữ hình gốc — miệng không khớp.`,
+      };
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+      await source.cleanup();
+    }
+  }
+
+  private async runOverdub(
+    video: Video,
+    editId: string,
+    options: AiEditOptions,
+    ai: AiPort,
+  ): Promise<VideoAiEditOutput> {
+    const script = (options.script || "").trim();
+    if (!script) throw new Error("Overdub cần câu thay thế (script).");
+    const source = await this.openSourceFile(video);
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-overdub-"));
+    let clonedVoiceId: string | null = null;
+    const elevenKey = elevenLabsApiKey();
+    try {
+      if (!(await this.probeHasAudio(source.path))) {
+        throw new Error("Video không có tiếng để overdub.");
+      }
+      const durationMs = (await this.probeDurationMs(source.path)) ?? video.durationMs ?? 8_000;
+      const defaultStart = Math.max(0, durationMs - 8_000);
+      const range = clampQuickTrim(options.startMs ?? defaultStart, options.endMs ?? durationMs, durationMs);
+      const startSec = range.startMs / 1000;
+      const slotSec = Math.max(0.4, (range.endMs - range.startMs) / 1000);
+      const afterSec = Math.max(0, durationMs / 1000 - range.endMs / 1000);
+      await this.markStep(editId, "enhance");
+
+      const samplePath = path.join(dir, "sample.m4a");
+      const sampleStart = Math.max(0, startSec);
+      const sampleDur = Math.min(20, Math.max(3, slotSec));
+      await this.execFfmpeg(extractAudioSegmentArgs(source.path, samplePath, sampleStart, sampleDur));
+      const sample = await readFile(samplePath);
+
+      const spokenPath = path.join(dir, "spoken.mp3");
+      let provider = "tts";
+      let cloned = false;
+      if (elevenKey) {
+        try {
+          clonedVoiceId = await elevenLabsCloneVoice({
+            apiKey: elevenKey,
+            name: `edu-overdub-${editId.slice(0, 8)}`,
+            sample,
+          });
+          const bytes = await elevenLabsSpeak({ apiKey: elevenKey, text: script, voiceId: clonedVoiceId });
+          await writeFile(spokenPath, bytes);
+          provider = "elevenlabs";
+          cloned = true;
+        } catch (err) {
+          this.log.warn(`ElevenLabs clone fallback: ${err instanceof Error ? err.message : "error"}`);
+          try {
+            const spoken = await this.speakToFile(ai, script, options.targetLanguage, spokenPath, {
+              skipElevenLabs: true,
+            });
+            provider = spoken.provider;
+          } catch {
+            const spoken = await this.speakToFile(ai, script, options.targetLanguage, spokenPath);
+            provider = spoken.provider;
+          }
+        }
+      } else {
+        const spoken = await this.speakToFile(ai, script, options.targetLanguage, spokenPath);
+        provider = spoken.provider;
+      }
+
+      const spokenDur = (await this.probeDurationMs(spokenPath)) ?? slotSec * 1000;
+      const tempo = atempoForFit(spokenDur / 1000, slotSec);
+      const fittedPath = path.join(dir, "fitted.m4a");
+      await this.execFfmpeg(fitAudioDurationArgs(spokenPath, fittedPath, slotSec, tempo));
+
+      const parts: string[] = [];
+      if (startSec >= 0.25) {
+        const beforePath = path.join(dir, "before.m4a");
+        await this.execFfmpeg(extractAudioSegmentArgs(source.path, beforePath, 0, startSec));
+        parts.push(beforePath);
+      }
+      parts.push(fittedPath);
+      if (afterSec >= 0.25) {
+        const afterPath = path.join(dir, "after.m4a");
+        await this.execFfmpeg(extractAudioSegmentArgs(source.path, afterPath, range.endMs / 1000, afterSec));
+        parts.push(afterPath);
+      }
+      const mixedPath = path.join(dir, "mixed.m4a");
+      if (parts.length === 1) {
+        await writeFile(mixedPath, await readFile(fittedPath));
+      } else {
+        const listPath = path.join(dir, "audio.txt");
+        await writeFile(listPath, this.audioConcatList(parts), "utf8");
+        await this.execFfmpeg(concatAudioArgs(listPath, mixedPath));
+      }
+      const outputPath = path.join(dir, "overdub-out.mp4");
+      await this.execFfmpeg(replaceAudioArgs(source.path, mixedPath, outputPath));
+      const key = buildObjectKey({
+        appId: video.appId,
+        type: "video-ai",
+        id: editId,
+        filename: "overdub.mp4",
+      });
+      const sizeBytes = await this.persistFile(key, outputPath, "video/mp4");
+      return {
+        kind: "video",
+        storageKey: key,
+        contentType: "video/mp4",
+        sizeBytes,
+        durationMs: (await this.probeDurationMs(outputPath)) ?? durationMs,
+        providerNote: cloned
+          ? "Overdub bằng giọng clone tạm từ chính video (ElevenLabs). Voice clone đã xóa sau khi đọc."
+          : `Overdub TTS giọng khác (${provider}) — chưa phải giọng giáo viên. Thêm ELEVENLABS_API_KEY để clone.`,
+      };
+    } finally {
+      if (elevenKey && clonedVoiceId) {
+        await elevenLabsDeleteVoice(elevenKey, clonedVoiceId);
+      }
+      await rm(dir, { recursive: true, force: true });
+      await source.cleanup();
+    }
+  }
+
+  private async transcribeFromPath(filePath: string, ai: AiPort): Promise<SpeechResult> {
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-speech-"));
+    try {
+      const speechPath = path.join(dir, "speech.mp3");
+      await this.execFfmpeg(extractSpeechAudioArgs(filePath, speechPath));
+      const audio = await readFile(speechPath);
+      if (audio.length > 20 * 1024 * 1024) {
+        throw new Error("Audio quá dài để nhận lời.");
+      }
+      return ai.transcribe({ bytes: audio, filename: "speech.mp3", mime: "audio/mpeg" });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  private async speakToFile(
+    ai: AiPort,
+    text: string,
+    language: string | undefined,
+    dest: string,
+    opts?: { skipElevenLabs?: boolean },
+  ): Promise<{ provider: string }> {
+    const elevenKey = opts?.skipElevenLabs ? null : elevenLabsApiKey();
+    if (elevenKey) {
+      const bytes = await elevenLabsSpeak({ apiKey: elevenKey, text });
+      await writeFile(dest, bytes);
+      return { provider: "elevenlabs" };
+    }
+    const spoken = await ai.speak({ text, language });
+    await writeFile(dest, spoken.bytes);
+    return { provider: spoken.provider };
+  }
+
+  private async startHeygenJob(url: string, body: unknown, apiKey: string): Promise<string> {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: heygenHeaders(apiKey),
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`HeyGen thất bại (${res.status}): ${text.slice(0, 180)}`);
+    }
+    return parseHeygenVideoId(await res.json());
+  }
+
+  private async pollHeygenVideoUrl(videoId: string, apiKey: string): Promise<string> {
+    const deadline = Date.now() + 8 * 60 * 1000;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 5_000));
+      const res = await fetch(`${HEYGEN_STATUS_URL}?video_id=${encodeURIComponent(videoId)}`, {
+        headers: heygenHeaders(apiKey),
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`HeyGen status thất bại (${res.status}): ${text.slice(0, 180)}`);
+      }
+      const status = parseHeygenStatus(await res.json());
+      if (status.status === "failed") {
+        throw new Error(status.error || "HeyGen xử lý thất bại");
+      }
+      if (status.status === "completed" && status.videoUrl) {
+        return status.videoUrl;
+      }
+    }
+    throw new Error("HeyGen quá hạn (hơn 8 phút). Thử lại sau.");
+  }
+
+  private async persistRemoteMp4(
+    video: Video,
+    editId: string,
+    remoteUrl: string,
+    filename: string,
+    providerNote: string,
+  ): Promise<VideoAiEditOutput> {
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-remote-"));
+    try {
+      const outputPath = path.join(dir, "remote.mp4");
+      await this.downloadRemoteFile(remoteUrl, outputPath);
+      const key = buildObjectKey({
+        appId: video.appId,
+        type: "video-ai",
+        id: editId,
+        filename,
+      });
+      const sizeBytes = await this.persistFile(key, outputPath, "video/mp4");
+      return {
+        kind: "video",
+        storageKey: key,
+        contentType: "video/mp4",
+        sizeBytes,
+        durationMs: (await this.probeDurationMs(outputPath)) ?? video.durationMs ?? undefined,
+        providerNote,
+      };
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  private async downloadRemoteFile(url: string, dest: string): Promise<void> {
+    if (!url.startsWith("https://")) {
+      throw new Error("Chỉ tải video từ URL https");
+    }
+    const res = await fetch(url, { signal: AbortSignal.timeout(180_000), redirect: "follow" });
+    if (!res.ok || !res.body) {
+      throw new Error(`Tải video remote thất bại (${res.status})`);
+    }
+    const declared = Number(res.headers.get("content-length") || 0);
+    if (declared > MAX_SOURCE_BYTES) {
+      throw new Error("File remote quá lớn (tối đa 400MB)");
+    }
+    const nodeStream = Readable.fromWeb(res.body as import("node:stream/web").ReadableStream);
+    let seen = 0;
+    nodeStream.on("data", (chunk: Buffer | string) => {
+      seen += typeof chunk === "string" ? Buffer.byteLength(chunk) : chunk.length;
+      if (seen > MAX_SOURCE_BYTES) {
+        nodeStream.destroy(new Error("File remote quá lớn (tối đa 400MB)"));
+      }
+    });
+    await pipeline(nodeStream, createWriteStream(dest));
+  }
+
+  private audioConcatList(files: string[]): string {
+    return `${files
+      .map((file) => {
+        const safe = file.replace(/\\/g, "/").replace(/'/g, "'\\''");
+        return `file '${safe}'`;
+      })
+      .join("\n")}\n`;
   }
 
   private async probeHasAudio(filePath: string): Promise<boolean> {

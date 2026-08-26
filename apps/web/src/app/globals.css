@@ -1079,6 +1079,9 @@ label { display: block; font-size: 13px; color: #6b7280; margin-bottom: 6px; }
   margin: 0 0 14px;
 }
 .ai-edit-options label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.ai-edit-options-wide { grid-column: 1 / -1; }
+.ai-edit-options textarea { min-height: 88px; width: 100%; }
+.ai-edit-consents { margin: 0 0 14px; }
 .ai-edit-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

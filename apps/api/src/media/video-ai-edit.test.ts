@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assertOwnedAbcReady,
+  assertStudioConsent,
   clampQuickTrim,
   describeRecipe,
   enhanceSpeechTrimArgs,
@@ -20,11 +21,24 @@ describe("video AI edit contract", () => {
     expect(isAiEditToolId("illustrated_edition")).toBe(true);
     expect(isAiEditToolId("speech_focus")).toBe(true);
     expect(isAiEditToolId("owned_abc")).toBe(true);
+    expect(isAiEditToolId("avatar_presenter")).toBe(true);
+    expect(isAiEditToolId("video_translate")).toBe(true);
+    expect(isAiEditToolId("eye_contact")).toBe(true);
+    expect(isAiEditToolId("overdub")).toBe(true);
     expect(isAiEditToolId("elevenlabs_overdub")).toBe(false);
   });
 
   it("requires a source file for picture/audio ffmpeg tools", () => {
-    const caps = { enabled: true, ffmpeg: true, speech: true, imageGen: true, llm: true };
+    const caps = {
+      enabled: true,
+      ffmpeg: true,
+      speech: true,
+      imageGen: true,
+      llm: true,
+      tts: true,
+      heygen: false,
+      elevenlabs: false,
+    };
     const enhance = getAiEditTool("picture_enhance")!;
     expect(toolAvailability(enhance, caps, false).available).toBe(false);
     expect(toolAvailability(enhance, caps, true).available).toBe(true);
@@ -62,6 +76,12 @@ describe("video AI edit contract", () => {
     const recipe = describeRecipe({ speech: false, imageGen: false, llm: false });
     expect(recipe.recipeId).toBe("lecture_expert_v1");
     expect(recipe.techniques.some((row) => row.id === "content_id_dodge" && row.status === "refused")).toBe(true);
+    expect(recipe.techniques.some((row) => row.id === "avatar_presenter" && row.status === "skipped")).toBe(true);
+    expect(recipe.techniques.some((row) => row.id === "overdub" && row.status === "skipped")).toBe(true);
+    expect(() => assertStudioConsent("avatar_presenter", { confirmOwned: true })).toThrow(/confirmLikeness/);
+    expect(() =>
+      assertStudioConsent("overdub", { confirmOwned: true, confirmVoiceClone: true, script: "Xin chào" }),
+    ).not.toThrow();
     const onePass = enhanceSpeechTrimArgs("in.mp4", "out.mp4").find((arg) => arg.includes("silenceremove="));
     expect(onePass).toContain("start_duration");
     expect(onePass).not.toContain("start_silence");

@@ -23,4 +23,11 @@ describe("Null AI adapter", () => {
     const copy = heuristicLessonCopy("Toán", "Hôm nay học phương trình bậc hai.");
     expect(copy.description).toContain("phương trình");
   });
+
+  it("refuses speak and translate without a paid key", async () => {
+    const port = new NullAiAdapter();
+    await expect(port.speak({ text: "hello" })).rejects.toThrow(/TTS|OPENAI_API_KEY|ELEVENLABS/i);
+    await expect(port.translateText({ text: "hello", targetLanguage: "en" })).rejects.toThrow(/LLM|dịch/i);
+  });
 });
+

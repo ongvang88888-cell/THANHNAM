@@ -14,13 +14,17 @@ export const AI_EDIT_TOOL_IDS = [
   "ai_cover",
   "captions",
   "lesson_copy",
+  "avatar_presenter",
+  "video_translate",
+  "eye_contact",
+  "overdub",
 ] as const;
 
 export type AiEditToolId = (typeof AI_EDIT_TOOL_IDS)[number];
 
 export type AiEditToolGroup = "audio" | "image" | "copy";
 export type AiEditOutputKind = "video" | "image" | "vtt" | "copy";
-export type AiCapabilityName = "ffmpeg" | "speech" | "imageGen" | "llm";
+export type AiCapabilityName = "ffmpeg" | "speech" | "imageGen" | "llm" | "tts" | "heygen" | "elevenlabs";
 
 export interface AiEditToolDef {
   id: AiEditToolId;
@@ -155,6 +159,50 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
     needs: [],
     prefers: ["llm"],
   },
+  {
+    id: "avatar_presenter",
+    group: "image",
+    label: "Người dẫn ảo (avatar)",
+    description:
+      "Dựng người dẫn từ kịch bản. Có HEYGEN_API_KEY thì gọi HeyGen; không có thì ảnh + giọng TTS. Không chạy trong tự động xuất bản. Cần xác nhận đây là người ảo / ảnh bạn có quyền.",
+    market: "HeyGen / Synthesia avatar",
+    outputKind: "video",
+    needs: ["ffmpeg"],
+    prefers: ["heygen", "tts"],
+  },
+  {
+    id: "video_translate",
+    group: "audio",
+    label: "Dịch / lồng tiếng bài giảng",
+    description:
+      "Dịch lời sang ngôn ngữ khác. Có HeyGen thì lip-sync trên máy họ; không có thì lồng tiếng mới, giữ hình gốc (miệng không khớp). Không chạy tự động.",
+    market: "HeyGen Video Translate",
+    outputKind: "video",
+    needs: ["ffmpeg"],
+    prefers: ["heygen", "speech", "tts", "llm"],
+  },
+  {
+    id: "eye_contact",
+    group: "image",
+    label: "Canh mắt nhìn camera",
+    description:
+      "Kéo mặt/mắt vào giữa khung (talking-head). Đây là bản trên máy — không warp từng con ngươi như Descript đám mây. Cần xác nhận sửa khuôn mặt. Không chạy tự động.",
+    market: "Descript Eye Contact",
+    outputKind: "video",
+    needs: ["ffmpeg"],
+    prefers: [],
+  },
+  {
+    id: "overdub",
+    group: "audio",
+    label: "Overdub — sửa câu bằng giọng",
+    description:
+      "Thay một đoạn lời bằng câu bạn gõ. Có ElevenLabs thì clone giọng từ chính video; không có thì TTS giọng khác. Chỉ giọng bạn sở hữu. Không chạy tự động.",
+    market: "Descript Overdub / ElevenLabs",
+    outputKind: "video",
+    needs: ["ffmpeg", "tts"],
+    prefers: ["elevenlabs", "speech"],
+  },
 ] as const;
 
 export interface AiCapabilities {
@@ -163,6 +211,9 @@ export interface AiCapabilities {
   speech: boolean;
   imageGen: boolean;
   llm: boolean;
+  tts: boolean;
+  heygen: boolean;
+  elevenlabs: boolean;
 }
 
 export function isAiEditToolId(value: string): value is AiEditToolId {
@@ -175,12 +226,17 @@ export function getAiEditTool(id: string): AiEditToolDef | null {
 
 export function envAiCapabilities(ffmpeg: boolean): AiCapabilities {
   const enabled = process.env.AI_EDIT_ENABLED !== "false";
+  const openai = Boolean(process.env.OPENAI_API_KEY?.trim());
+  const elevenlabs = Boolean(process.env.ELEVENLABS_API_KEY?.trim());
   return {
     enabled,
     ffmpeg,
-    speech: Boolean(process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY),
-    imageGen: Boolean(process.env.OPENAI_API_KEY),
-    llm: Boolean(process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY),
+    speech: Boolean(process.env.OPENAI_API_KEY?.trim() || process.env.GROQ_API_KEY?.trim()),
+    imageGen: openai,
+    llm: Boolean(process.env.OPENAI_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim()),
+    tts: openai || elevenlabs,
+    heygen: Boolean(process.env.HEYGEN_API_KEY?.trim()),
+    elevenlabs,
   };
 }
 
@@ -204,6 +260,63 @@ export function toolAvailability(
       };
     }
   }
+  if (tool.id === "avatar_presenter") {
+    if (!caps.heygen && !caps.tts) {
+      return {
+        available: false,
+        mode: "fallback",
+        note: "Cần HEYGEN_API_KEY hoặc OPENAI/ELEVENLABS (TTS) để dựng người dẫn.",
+      };
+    }
+    if (!hasSource && !caps.heygen && !caps.tts) {
+      return { available: false, mode: "fallback", note: "Nhập kịch bản hoặc tải video gốc." };
+    }
+    if (caps.heygen) return { available: true, mode: "full", note: null };
+    return {
+      available: true,
+      mode: "fallback",
+      note: "Chưa có HeyGen — sẽ dựng avatar nháp (ảnh + TTS), không phải người ảo HeyGen.",
+    };
+  }
+  if (tool.id === "video_translate") {
+    if (!hasSource) {
+      return { available: false, mode: "fallback", note: "Chưa có file video gốc. Hãy tải lại video." };
+    }
+    if (caps.heygen) return { available: true, mode: "full", note: null };
+    if (caps.speech && caps.tts && caps.llm) {
+      return {
+        available: true,
+        mode: "fallback",
+        note: "Chưa có HeyGen — lồng tiếng mới, giữ hình gốc, miệng không khớp.",
+      };
+    }
+    return {
+      available: false,
+      mode: "fallback",
+      note: "Cần HEYGEN_API_KEY, hoặc Whisper + TTS + LLM để lồng tiếng trên máy.",
+    };
+  }
+  if (tool.id === "eye_contact") {
+    if (!hasSource) {
+      return { available: false, mode: "fallback", note: "Chưa có file video gốc. Hãy tải lại video." };
+    }
+    return {
+      available: true,
+      mode: "fallback",
+      note: "Bản trên máy: canh mặt/mắt vào giữa khung. Không sửa hướng nhìn từng frame.",
+    };
+  }
+  if (tool.id === "overdub") {
+    if (!hasSource) {
+      return { available: false, mode: "fallback", note: "Chưa có file video gốc. Hãy tải lại video." };
+    }
+    if (caps.elevenlabs) return { available: true, mode: "full", note: null };
+    return {
+      available: true,
+      mode: "fallback",
+      note: "Chưa có ElevenLabs — TTS sẽ khác giọng giáo viên.",
+    };
+  }
   if (tool.outputKind === "video" || tool.id === "auto_thumbnail") {
     if (!hasSource) {
       return { available: false, mode: "fallback", note: "Chưa có file video gốc. Hãy tải lại video." };
@@ -216,6 +329,9 @@ export function toolAvailability(
       speech: "Chưa có khóa Whisper — sẽ tạo phụ đề nháp từ tiêu đề.",
       imageGen: "Chưa có khóa ảnh AI — sẽ tạo poster chữ.",
       llm: "Chưa có khóa LLM — sẽ gợi ý từ tiêu đề.",
+      tts: "Chưa có khóa TTS — không đọc được lời mới.",
+      heygen: "Chưa có HEYGEN_API_KEY — chạy bản trên máy.",
+      elevenlabs: "Chưa có ElevenLabs — TTS sẽ khác giọng giáo viên.",
     };
     return { available: true, mode: "fallback", note: notes[missingPrefer[0]!] };
   }

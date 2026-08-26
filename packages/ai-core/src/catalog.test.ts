@@ -22,6 +22,10 @@ describe("AI edit catalog", () => {
       "ai_cover",
       "captions",
       "lesson_copy",
+      "avatar_presenter",
+      "video_translate",
+      "eye_contact",
+      "overdub",
     ]);
   });
 
@@ -31,7 +35,16 @@ describe("AI edit catalog", () => {
   });
 
   it("marks ffmpeg tools unavailable without ffmpeg", () => {
-    const caps = { enabled: true, ffmpeg: false, speech: false, imageGen: false, llm: false };
+    const caps = {
+      enabled: true,
+      ffmpeg: false,
+      speech: false,
+      imageGen: false,
+      llm: false,
+      tts: false,
+      heygen: false,
+      elevenlabs: false,
+    };
     const sound = getAiEditTool("studio_sound");
     expect(sound).not.toBeNull();
     const avail = toolAvailability(sound!, caps, true);
@@ -40,7 +53,16 @@ describe("AI edit catalog", () => {
   });
 
   it("keeps the A+C pack available without Whisper or LLM", () => {
-    const caps = { enabled: true, ffmpeg: true, speech: false, imageGen: false, llm: false };
+    const caps = {
+      enabled: true,
+      ffmpeg: true,
+      speech: false,
+      imageGen: false,
+      llm: false,
+      tts: false,
+      heygen: false,
+      elevenlabs: false,
+    };
     const tool = getAiEditTool("owned_abc")!;
     const avail = toolAvailability(tool, caps, true);
     expect(avail.available).toBe(true);
@@ -50,7 +72,16 @@ describe("AI edit catalog", () => {
   });
 
   it("keeps illustrated edition available without Whisper or image gen", () => {
-    const caps = { enabled: true, ffmpeg: true, speech: false, imageGen: false, llm: false };
+    const caps = {
+      enabled: true,
+      ffmpeg: true,
+      speech: false,
+      imageGen: false,
+      llm: false,
+      tts: false,
+      heygen: false,
+      elevenlabs: false,
+    };
     const tool = getAiEditTool("illustrated_edition")!;
     const avail = toolAvailability(tool, caps, true);
     expect(avail.available).toBe(true);
@@ -58,7 +89,16 @@ describe("AI edit catalog", () => {
   });
 
   it("keeps captions available in fallback mode without Whisper", () => {
-    const caps = { enabled: true, ffmpeg: true, speech: false, imageGen: false, llm: false };
+    const caps = {
+      enabled: true,
+      ffmpeg: true,
+      speech: false,
+      imageGen: false,
+      llm: false,
+      tts: false,
+      heygen: false,
+      elevenlabs: false,
+    };
     const captions = getAiEditTool("captions")!;
     const avail = toolAvailability(captions, caps, true);
     expect(avail.available).toBe(true);
@@ -77,5 +117,29 @@ describe("AI edit catalog", () => {
       if (prev === undefined) delete process.env.AI_EDIT_ENABLED;
       else process.env.AI_EDIT_ENABLED = prev;
     }
+  });
+
+  it("gates presenter tools on keys and consent-related availability", () => {
+    const base = {
+      enabled: true,
+      ffmpeg: true,
+      speech: false,
+      imageGen: false,
+      llm: false,
+      tts: false,
+      heygen: false,
+      elevenlabs: false,
+    };
+    expect(toolAvailability(getAiEditTool("avatar_presenter")!, base, true).available).toBe(false);
+    expect(toolAvailability(getAiEditTool("avatar_presenter")!, { ...base, tts: true }, true).mode).toBe("fallback");
+    expect(toolAvailability(getAiEditTool("avatar_presenter")!, { ...base, heygen: true }, false).mode).toBe("full");
+    expect(toolAvailability(getAiEditTool("video_translate")!, base, true).available).toBe(false);
+    expect(
+      toolAvailability(getAiEditTool("video_translate")!, { ...base, speech: true, tts: true, llm: true }, true).note,
+    ).toMatch(/lồng tiếng/i);
+    expect(toolAvailability(getAiEditTool("eye_contact")!, base, true).available).toBe(true);
+    expect(toolAvailability(getAiEditTool("overdub")!, base, true).available).toBe(false);
+    expect(toolAvailability(getAiEditTool("overdub")!, { ...base, tts: true }, true).mode).toBe("fallback");
+    expect(toolAvailability(getAiEditTool("overdub")!, { ...base, tts: true, elevenlabs: true }, true).mode).toBe("full");
   });
 });

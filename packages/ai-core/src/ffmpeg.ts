@@ -472,6 +472,109 @@ export function illustratedConcatArgs(listPath: string, audioPath: string, outpu
   ];
 }
 
+export function replaceAudioArgs(videoPath: string, audioPath: string, outputPath: string): string[] {
+  return [
+    "-y",
+    "-i",
+    videoPath,
+    "-i",
+    audioPath,
+    "-map",
+    "0:v:0",
+    "-map",
+    "1:a:0",
+    "-c:v",
+    "copy",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "128k",
+    "-shortest",
+    "-movflags",
+    "+faststart",
+    outputPath,
+  ];
+}
+
+export function fitAudioDurationArgs(inputPath: string, outputPath: string, durationSec: number, tempo: number): string[] {
+  const seconds = Math.max(0.4, durationSec);
+  const safeTempo = Math.max(0.5, Math.min(2, tempo));
+  return [
+    "-y",
+    "-i",
+    inputPath,
+    "-af",
+    `atempo=${safeTempo},apad=pad_dur=3600`,
+    "-t",
+    seconds.toFixed(3),
+    "-c:a",
+    "aac",
+    "-b:a",
+    "128k",
+    outputPath,
+  ];
+}
+
+export function extractAudioSegmentArgs(inputPath: string, outputPath: string, startSec: number, durationSec: number): string[] {
+  return [
+    "-y",
+    "-ss",
+    Math.max(0, startSec).toFixed(3),
+    "-t",
+    Math.max(0.2, durationSec).toFixed(3),
+    "-i",
+    inputPath,
+    "-vn",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "128k",
+    outputPath,
+  ];
+}
+
+export function concatAudioArgs(listPath: string, outputPath: string): string[] {
+  return [
+    "-y",
+    "-f",
+    "concat",
+    "-safe",
+    "0",
+    "-i",
+    listPath,
+    "-c:a",
+    "aac",
+    "-b:a",
+    "128k",
+    outputPath,
+  ];
+}
+
+/** Talking-head reframe: pull eyes toward frame center. Not per-frame iris warp. */
+export function eyeContactReframeArgs(inputPath: string, outputPath: string): string[] {
+  return [
+    "-y",
+    "-i",
+    inputPath,
+    "-vf",
+    "scale=trunc(iw/2)*2:trunc(ih/2)*2,crop=iw*0.86:ih*0.86:(iw-ow)/2:(ih-oh)*0.22,scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p,setsar=1",
+    "-c:a",
+    "copy",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "23",
+    "-pix_fmt",
+    "yuv420p",
+    ...ffmpegThreadArgs(),
+    "-movflags",
+    "+faststart",
+    outputPath,
+  ];
+}
+
 export const FFMPEG_FONT_CANDIDATES = [
   "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
   "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",

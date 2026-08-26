@@ -40,7 +40,12 @@ describe("lecture_expert_v1 recipe", () => {
     expect(recipe.techniques.find((row) => row.id === "illustrated_edition")?.status).toBe("skipped");
     expect(recipe.techniques.find((row) => row.id === "v2v")?.status).toBe("refused");
     expect(recipe.techniques.find((row) => row.id === "content_id_dodge")?.status).toBe("refused");
+    expect(recipe.techniques.filter((row) => row.status === "skipped").map((row) => row.id)).toEqual(
+      expect.arrayContaining(["avatar_presenter", "video_translate", "eye_contact", "overdub"]),
+    );
+    expect(recipe.techniques.find((row) => row.id === "avatar_presenter")?.status).toBe("skipped");
   });
+
 
   it("promotes captions and copy when keys and outcomes exist", () => {
     const recipe = describeRecipe(

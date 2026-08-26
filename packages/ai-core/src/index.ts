@@ -14,6 +14,41 @@ export {
   type AiEditToolId,
 } from "./catalog";
 export {
+  TARGET_LANGUAGES,
+  TARGET_LANGUAGE_IDS,
+  getTargetLanguage,
+  isTargetLanguageId,
+  openaiVoiceForLanguage,
+  type TargetLanguageDef,
+  type TargetLanguageId,
+} from "./languages";
+export {
+  HEYGEN_GENERATE_URL,
+  HEYGEN_STATUS_URL,
+  HEYGEN_TRANSLATE_URL,
+  buildHeygenAvatarBody,
+  buildHeygenTranslateBody,
+  heygenApiKey,
+  heygenHeaders,
+  parseHeygenStatus,
+  parseHeygenVideoId,
+} from "./heygen";
+export {
+  TTS_CHUNK_MAX,
+  atempoForFit,
+  chunkTextForTts,
+  defaultElevenLabsVoiceId,
+  elevenlabsAddVoiceUrl,
+  elevenlabsDeleteVoiceUrl,
+  elevenlabsTtsUrl,
+} from "./voice";
+export {
+  elevenLabsApiKey,
+  elevenLabsCloneVoice,
+  elevenLabsDeleteVoice,
+  elevenLabsSpeak,
+} from "./elevenlabs";
+export {
   CAPTION_MAX_CHARS,
   CAPTION_MAX_LINES,
   CUE_MAX_MS,
@@ -51,6 +86,11 @@ export {
   captionStillArgs,
   cartoonPersonGraph,
   clampQuickTrim,
+  concatAudioArgs,
+  extractAudioSegmentArgs,
+  eyeContactReframeArgs,
+  fitAudioDurationArgs,
+  replaceAudioArgs,
   COURSE_ENHANCE_VF,
   courseEnhanceArgs,
   enhanceAndSpeechArgs,
@@ -79,6 +119,7 @@ export {
 } from "./ffmpeg";
 export {
   assertOwnedAbcReady,
+  assertStudioConsent,
   FACE_REGIONS,
   isFaceRegion,
   isPlaceholderLessonTitle,
@@ -109,4 +150,6 @@ export {
   type ImageGenResult,
   type LessonCopyResult,
   type SpeechResult,
+  type SpeechSynthResult,
+  type TranslateResult,
 } from "./providers";

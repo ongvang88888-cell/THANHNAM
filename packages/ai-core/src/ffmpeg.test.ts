@@ -18,6 +18,10 @@ import {
   thumbnailArgs,
   titlePosterArgs,
   toonTalkingHeadArgs,
+  concatAudioArgs,
+  eyeContactReframeArgs,
+  fitAudioDurationArgs,
+  replaceAudioArgs,
 } from "./ffmpeg";
 
 describe("ffmpeg arg builders", () => {
@@ -131,4 +135,26 @@ describe("ffmpeg arg builders", () => {
     expect(args).toContain("voice.m4a");
     expect(args).toContain("-shortest");
   });
+
+  it("replaceAudioArgs copies video so mux is cheap", () => {
+    const args = replaceAudioArgs("/tmp/v.mp4", "/tmp/a.wav", "/tmp/out.mp4");
+    expect(args).toContain("-c:v");
+    expect(args).toContain("copy");
+    expect(args).toContain("-shortest");
+    expect(args).not.toContain("libx264");
+  });
+
+  it("eyeContactReframeArgs is a honest crop/zoom, not iris warp", () => {
+    const args = eyeContactReframeArgs("/tmp/v.mp4", "/tmp/out.mp4");
+    expect(args.some((a) => a.includes("crop="))).toBe(true);
+    expect(args).toContain("libx264");
+    expect(args.join(" ")).not.toContain("iris");
+  });
+
+  it("fitAudioDurationArgs clamps atempo to 0.5–2", () => {
+    const args = fitAudioDurationArgs("/tmp/a.mp3", "/tmp/out.m4a", 8, 2.4);
+    expect(args.some((a) => a.includes("atempo=2"))).toBe(true);
+    expect(args).toContain("8.000");
+  });
 });
+

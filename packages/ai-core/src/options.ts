@@ -1,4 +1,5 @@
 import { isLectureExpertRecipeId } from "./expert-recipe";
+import { isTargetLanguageId, type TargetLanguageId } from "./languages";
 
 export const FACE_REGIONS = ["full", "pip_br", "pip_bl", "pip_tr", "pip_tl"] as const;
 export const VISUAL_STYLES = ["anime", "flat", "watercolor"] as const;
@@ -9,10 +10,17 @@ export type VisualStyle = (typeof VISUAL_STYLES)[number];
 export interface AiEditOptions {
   seekSeconds?: number;
   prompt?: string;
+  script?: string;
+  targetLanguage?: TargetLanguageId;
+  startMs?: number;
+  endMs?: number;
   region?: FaceRegion;
   style?: VisualStyle;
   maxScenes?: number;
   confirmOwned?: boolean;
+  confirmLikeness?: boolean;
+  confirmFaceEdit?: boolean;
+  confirmVoiceClone?: boolean;
   autoApply?: boolean;
   lessonId?: string;
   courseId?: string;
@@ -22,15 +30,24 @@ export interface AiEditOptions {
 const ALLOWED = new Set([
   "seekSeconds",
   "prompt",
+  "script",
+  "targetLanguage",
+  "startMs",
+  "endMs",
   "region",
   "style",
   "maxScenes",
   "confirmOwned",
+  "confirmLikeness",
+  "confirmFaceEdit",
+  "confirmVoiceClone",
   "autoApply",
   "lessonId",
   "courseId",
   "recipeId",
 ]);
+
+const MAX_CLOCK_MS = 36_000_000;
 
 const SCOPED_ID = /^[a-zA-Z0-9_-]{8,80}$/;
 
@@ -84,6 +101,31 @@ export function parseAiEditOptions(input: unknown): AiEditOptions {
     const trimmed = rec.prompt.trim();
     if (trimmed) out.prompt = trimmed;
   }
+  if (rec.script !== undefined) {
+    if (typeof rec.script !== "string" || rec.script.length > 4000) {
+      throw new Error("script tối đa 4000 ký tự");
+    }
+    const trimmed = rec.script.trim();
+    if (trimmed) out.script = trimmed;
+  }
+  if (rec.targetLanguage !== undefined) {
+    if (typeof rec.targetLanguage !== "string" || !isTargetLanguageId(rec.targetLanguage)) {
+      throw new Error("targetLanguage không hỗ trợ");
+    }
+    out.targetLanguage = rec.targetLanguage;
+  }
+  if (rec.startMs !== undefined) {
+    if (typeof rec.startMs !== "number" || !Number.isFinite(rec.startMs) || rec.startMs < 0 || rec.startMs > MAX_CLOCK_MS) {
+      throw new Error("startMs phải từ 0 đến 36000000");
+    }
+    out.startMs = Math.round(rec.startMs);
+  }
+  if (rec.endMs !== undefined) {
+    if (typeof rec.endMs !== "number" || !Number.isFinite(rec.endMs) || rec.endMs < 0 || rec.endMs > MAX_CLOCK_MS) {
+      throw new Error("endMs phải từ 0 đến 36000000");
+    }
+    out.endMs = Math.round(rec.endMs);
+  }
   if (rec.region !== undefined) {
     if (typeof rec.region !== "string" || !isFaceRegion(rec.region)) {
       throw new Error("region phải là full hoặc pip_br / pip_bl / pip_tr / pip_tl");
@@ -107,6 +149,24 @@ export function parseAiEditOptions(input: unknown): AiEditOptions {
       throw new Error("confirmOwned phải là true hoặc false");
     }
     out.confirmOwned = rec.confirmOwned;
+  }
+  if (rec.confirmLikeness !== undefined) {
+    if (typeof rec.confirmLikeness !== "boolean") {
+      throw new Error("confirmLikeness phải là true hoặc false");
+    }
+    out.confirmLikeness = rec.confirmLikeness;
+  }
+  if (rec.confirmFaceEdit !== undefined) {
+    if (typeof rec.confirmFaceEdit !== "boolean") {
+      throw new Error("confirmFaceEdit phải là true hoặc false");
+    }
+    out.confirmFaceEdit = rec.confirmFaceEdit;
+  }
+  if (rec.confirmVoiceClone !== undefined) {
+    if (typeof rec.confirmVoiceClone !== "boolean") {
+      throw new Error("confirmVoiceClone phải là true hoặc false");
+    }
+    out.confirmVoiceClone = rec.confirmVoiceClone;
   }
   if (rec.autoApply !== undefined) {
     if (typeof rec.autoApply !== "boolean") {
@@ -133,5 +193,47 @@ export function assertOwnedAbcReady(toolId: string, options: AiEditOptions): voi
   if (toolId !== "owned_abc") return;
   if (options.confirmOwned !== true) {
     throw new Error("Gói A+C cần bạn xác nhận video là của bạn (confirmOwned).");
+  }
+}
+
+export function assertStudioConsent(toolId: string, options: AiEditOptions): void {
+  assertOwnedAbcReady(toolId, options);
+  if (toolId === "avatar_presenter") {
+    if (options.confirmOwned !== true) {
+      throw new Error("Avatar cần xác nhận bạn sở hữu kịch bản/ảnh (confirmOwned).");
+    }
+    if (options.confirmLikeness !== true) {
+      throw new Error("Avatar cần xác nhận đây là người ảo hoặc ảnh bạn có quyền (confirmLikeness).");
+    }
+    return;
+  }
+  if (toolId === "video_translate") {
+    if (options.confirmOwned !== true) {
+      throw new Error("Dịch video cần xác nhận video là của bạn (confirmOwned).");
+    }
+    if (!options.targetLanguage) {
+      throw new Error("Chọn ngôn ngữ đích (targetLanguage).");
+    }
+    return;
+  }
+  if (toolId === "eye_contact") {
+    if (options.confirmOwned !== true) {
+      throw new Error("Canh mắt cần xác nhận video là của bạn (confirmOwned).");
+    }
+    if (options.confirmFaceEdit !== true) {
+      throw new Error("Canh mắt cần xác nhận được phép sửa khuôn mặt (confirmFaceEdit).");
+    }
+    return;
+  }
+  if (toolId === "overdub") {
+    if (options.confirmOwned !== true) {
+      throw new Error("Overdub cần xác nhận video và giọng là của bạn (confirmOwned).");
+    }
+    if (options.confirmVoiceClone !== true) {
+      throw new Error("Overdub cần xác nhận chỉ clone giọng bạn sở hữu (confirmVoiceClone).");
+    }
+    if (!options.script) {
+      throw new Error("Overdub cần câu thay thế (script).");
+    }
   }
 }
