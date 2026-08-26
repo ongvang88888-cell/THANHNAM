@@ -21,8 +21,10 @@ import {
   courseEnhanceArgs,
   createAiPortFromEnv,
   cuesFromWhisperSegments,
+  clampQuickTrim,
   describeRecipe,
   enhanceAndSpeechArgs,
+  enhanceSpeechTrimArgs,
   envAiCapabilities,
   extractLessonAudioArgs,
   extractSpeechAudioArgs,
@@ -36,6 +38,8 @@ import {
   kenBurnsStillArgs,
   parseAiEditOptions,
   pictureEnhanceArgs,
+  quickTrimCopyArgs,
+  quickTrimEncodeArgs,
   progressFields,
   progressForStatus,
   sceneImagePrompt,
@@ -318,6 +322,208 @@ export class VideoAiEditService implements OnModuleInit {
       courseId,
       recipeId: LECTURE_EXPERT_RECIPE_ID,
     });
+  }
+
+  async startPrepare(user: RequestUser, videoId: string) {
+    return this.startEdit(user, videoId, "owned_abc", {
+      confirmOwned: true,
+      autoApply: false,
+      recipeId: LECTURE_EXPERT_RECIPE_ID,
+    });
+  }
+
+  async assignVideo(user: RequestUser, videoId: string, body: { lessonId?: string; courseId?: string }) {
+    const lessonId = String(body.lessonId || "").trim();
+    if (!lessonId) {
+      throw new AppError(ErrorCodes.VALIDATION, "Chọn bài học để gắn video", 400);
+    }
+    const video = await this.ownedVideo(user, videoId);
+    const latest = await this.prisma.videoAiEdit.findFirst({
+      where: { videoId: video.id, tool: "owned_abc", status: "READY" },
+      orderBy: { createdAt: "desc" },
+    });
+    if (latest) {
+      return this.applyEdit(user, videoId, latest.id, body);
+    }
+    await this.swapLessonVideo(user, lessonId, video.id);
+    return {
+      id: video.id,
+      videoId: video.id,
+      newVideoId: video.id,
+      applied: ["lesson"],
+      status: "READY" as const,
+    };
+  }
+
+  async listLibrary(user: RequestUser) {
+    this.assertTeacher(user);
+    const videos = await this.prisma.video.findMany({
+      where: {
+        appId: user.appId,
+        ...(this.isAdmin(user) ? {} : { ownerUserId: user.userId }),
+      },
+      orderBy: { createdAt: "desc" },
+      take: 80,
+      include: {
+        aiEdits: { orderBy: { createdAt: "desc" }, take: 3 },
+      },
+    });
+    const videoIds = videos.map((row) => row.id);
+    const derivedIds = videos.flatMap((row) => {
+      const latest = row.aiEdits.find((edit) => edit.tool === "owned_abc") ?? row.aiEdits[0];
+      const output = asOutput(latest?.outputJson ?? null);
+      return output?.newVideoId ? [output.newVideoId] : [];
+    });
+    const attachments = await this.prisma.lessonContent.findMany({
+      where: {
+        contentType: "VIDEO",
+        refId: { in: [...videoIds, ...derivedIds] },
+      },
+      include: {
+        lesson: {
+          select: {
+            id: true,
+            title: true,
+            section: { select: { course: { select: { id: true, title: true, appId: true } } } },
+          },
+        },
+      },
+    });
+    const attachByRef = new Map<string, { lessonId: string; lessonTitle: string; courseId: string; courseTitle: string }>();
+    for (const row of attachments) {
+      if (!row.refId || row.lesson.section.course.appId !== user.appId) continue;
+      attachByRef.set(row.refId, {
+        lessonId: row.lesson.id,
+        lessonTitle: row.lesson.title,
+        courseId: row.lesson.section.course.id,
+        courseTitle: row.lesson.section.course.title,
+      });
+    }
+    const items = await Promise.all(
+      videos.map(async (video) => {
+        const latest = video.aiEdits.find((edit) => edit.tool === "owned_abc") ?? video.aiEdits[0] ?? null;
+        const output = asOutput(latest?.outputJson ?? null);
+        const assigned =
+          attachByRef.get(video.id) ?? (output?.newVideoId ? attachByRef.get(output.newVideoId) : undefined) ?? null;
+        const presented = latest ? await this.presentEdit(latest) : null;
+        const thumbnailKey = output?.thumbnailStorageKey || video.thumbnailKey;
+        const thumbnailUrl = thumbnailKey
+          ? (await this.storage.createDownloadUrl({ key: thumbnailKey, ttlSeconds: 600 })).url
+          : null;
+        return {
+          id: video.id,
+          title: video.title,
+          status: video.status,
+          durationMs: output?.durationMs ?? video.durationMs,
+          createdAt: video.createdAt,
+          thumbnailUrl,
+          assigned,
+          inbox: !assigned,
+          edit: presented,
+        };
+      }),
+    );
+    return { videos: items.filter((item) => item.edit || item.inbox) };
+  }
+
+  async quickAdjust(
+    user: RequestUser,
+    videoId: string,
+    body: { startMs?: number; endMs?: number; thumbSeekSeconds?: number },
+  ) {
+    const video = await this.ownedVideo(user, videoId);
+    const edit = await this.prisma.videoAiEdit.findFirst({
+      where: { videoId: video.id, status: "READY", tool: "owned_abc" },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!edit) {
+      throw new AppError(ErrorCodes.VALIDATION, "Chưa có bản AI để chỉnh nhanh. Đợi công thức chuyên gia chạy xong.", 400);
+    }
+    const output = asOutput(edit.outputJson);
+    if (!output?.storageKey) {
+      throw new AppError(ErrorCodes.VALIDATION, "Thiếu file đã chỉnh để cắt", 400);
+    }
+    const wantTrim = body.startMs !== undefined || body.endMs !== undefined;
+    const wantThumb = body.thumbSeekSeconds !== undefined;
+    if (!wantTrim && !wantThumb) {
+      throw new AppError(ErrorCodes.VALIDATION, "Chọn đoạn cắt hoặc điểm ảnh bìa", 400);
+    }
+    const obj = await this.storage.getObject(output.storageKey);
+    if (!obj || obj.bytes.length === 0) {
+      throw new AppError(ErrorCodes.VALIDATION, "Không đọc được file đã chỉnh. Hãy chạy lại AI.", 400);
+    }
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-adjust-"));
+    try {
+      const inputPath = path.join(dir, "in.mp4");
+      await writeFile(inputPath, obj.bytes);
+      const durationMs = (await this.probeDurationMs(inputPath)) ?? output.durationMs ?? 0;
+      if (wantTrim) {
+        const range = clampQuickTrim(body.startMs ?? 0, body.endMs ?? durationMs, durationMs);
+        if (range.endMs - range.startMs < durationMs - 80) {
+          const outPath = path.join(dir, "trim.mp4");
+          const startSec = range.startMs / 1000;
+          const durSec = (range.endMs - range.startMs) / 1000;
+          try {
+            await this.execFfmpeg(quickTrimCopyArgs(inputPath, outPath, startSec, durSec));
+          } catch {
+            await this.execFfmpeg(quickTrimEncodeArgs(inputPath, outPath, startSec, durSec));
+          }
+          const out = await readFile(outPath);
+          const key = buildObjectKey({
+            appId: video.appId,
+            type: "video-ai",
+            id: `${edit.id}-adj`,
+            filename: "quick-trim.mp4",
+          });
+          await this.storage.putObject(key, out, "video/mp4");
+          output.storageKey = key;
+          output.sizeBytes = out.length;
+          output.durationMs = (await this.probeDurationMs(outPath)) ?? range.endMs - range.startMs;
+          if (output.newVideoId) {
+            await this.prisma.video.update({
+              where: { id: output.newVideoId },
+              data: { storageKey: key, durationMs: output.durationMs },
+            });
+            await this.prisma.videoAsset.updateMany({
+              where: { videoId: output.newVideoId, format: "mp4" },
+              data: { storageKey: key, sizeBytes: BigInt(out.length) },
+            });
+          }
+        }
+      }
+      if (wantThumb) {
+        const thumbPath = path.join(dir, "thumb.jpg");
+        const seek = Math.max(0, Math.min(body.thumbSeekSeconds ?? 1.2, (output.durationMs ?? durationMs) / 1000));
+        const thumbSource = existsSync(path.join(dir, "trim.mp4")) ? path.join(dir, "trim.mp4") : inputPath;
+        await this.execFfmpeg(thumbnailArgs(thumbSource, thumbPath, seek));
+        const thumbBytes = await readFile(thumbPath);
+        const thumbKey = buildObjectKey({
+          appId: video.appId,
+          type: "video-ai",
+          id: edit.id,
+          filename: "quick-thumb.jpg",
+        });
+        await this.storage.putObject(thumbKey, thumbBytes, "image/jpeg");
+        output.thumbnailStorageKey = thumbKey;
+        await this.prisma.video.update({
+          where: { id: video.id },
+          data: { thumbnailKey: thumbKey },
+        });
+        if (output.newVideoId && output.newVideoId !== video.id) {
+          await this.prisma.video.update({
+            where: { id: output.newVideoId },
+            data: { thumbnailKey: thumbKey },
+          });
+        }
+      }
+      await this.prisma.videoAiEdit.update({
+        where: { id: edit.id },
+        data: { outputJson: output as unknown as Prisma.InputJsonValue },
+      });
+      return this.presentEdit({ ...edit, outputJson: output as unknown as Prisma.JsonValue });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   }
 
   private providerFor(tool: AiEditToolId, ai: AiPort, caps: AiCapabilities): string {
@@ -991,18 +1197,27 @@ export class VideoAiEditService implements OnModuleInit {
         throw new Error("Video không có tiếng giảng. Cần lời gốc để làm nét tiếng và giảm nhạc nền.");
       }
       await this.markStep(editId, "enhance");
+      const combinedPath = path.join(dir, "enhance-trim.mp4");
       const enhancedPath = path.join(dir, "enhance-speech.mp4");
-      await this.execFfmpeg(enhanceAndSpeechArgs(inputPath, enhancedPath));
       let lessonPath = enhancedPath;
       let trimApplied = false;
-      await this.markStep(editId, "trim");
-      const trimmedPath = path.join(dir, "owned-abc-trim.mp4");
       try {
-        await this.execFfmpeg(silenceTrimArgs(lessonPath, trimmedPath));
-        lessonPath = trimmedPath;
+        await this.execFfmpeg(enhanceSpeechTrimArgs(inputPath, combinedPath));
+        lessonPath = combinedPath;
         trimApplied = true;
+        await this.markStep(editId, "trim");
       } catch (err) {
-        this.log.warn(`silence trim skipped: ${err instanceof Error ? err.message : "error"}`);
+        this.log.warn(`one-pass enhance+trim fallback: ${err instanceof Error ? err.message : "error"}`);
+        await this.execFfmpeg(enhanceAndSpeechArgs(inputPath, enhancedPath));
+        await this.markStep(editId, "trim");
+        const trimmedPath = path.join(dir, "owned-abc-trim.mp4");
+        try {
+          await this.execFfmpeg(silenceTrimArgs(enhancedPath, trimmedPath));
+          lessonPath = trimmedPath;
+          trimApplied = true;
+        } catch (trimErr) {
+          this.log.warn(`silence trim skipped: ${trimErr instanceof Error ? trimErr.message : "error"}`);
+        }
       }
       const lessonBytes = await readFile(lessonPath);
       const lessonKey = buildObjectKey({
@@ -1028,10 +1243,8 @@ export class VideoAiEditService implements OnModuleInit {
       } = {
         thumbApplied: false,
       };
-      if (options.autoApply) {
-        await this.markStep(editId, "extras");
-        extras = await this.enrichOwnedAbcOutput(video, editId, ai, dir, inputPath, lessonPath, output);
-      }
+      await this.markStep(editId, "extras");
+      extras = await this.enrichOwnedAbcOutput(video, editId, ai, dir, inputPath, lessonPath, output);
       const recipe = describeRecipe(await this.capabilities(), {
         trimApplied,
         captionsMode: extras.captionsMode,

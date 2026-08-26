@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AutoVideoPublish } from "@/components/AutoVideoPublish";
 import { FileDrop } from "@/components/FileDrop";
+import { VideoInbox } from "@/components/VideoInbox";
 import { LazyVideoAiEditPanel } from "@/components/VideoAiEditPanel";
 import { apiGet, apiPost, apiPutBinary, formatVnd } from "@/lib/api";
 import { hasRole, useRequireAuth } from "@/lib/auth";
@@ -390,10 +391,11 @@ export default function TeacherPage() {
       )}
 
       {tab === "upload" && (
-        <div className="panel" style={{ maxWidth: 640 }}>
+        <div className="panel" style={{ maxWidth: 860 }}>
           <h2>Tải video vào bài</h2>
           <p className="muted">
-            Chọn khóa, chọn bài, rồi chọn video. Theo dõi thanh tiến trình; khi xong, bấm Lưu vào bài.
+            Chọn khóa, chọn bài, rồi chọn một video để gắn ngay. Hoặc kéo nhiều file vào kho bên dưới, để AI chạy
+            trước, rồi gán vào bài sau và chỉnh nhanh từng clip.
           </p>
           <label>Khóa học</label>
           <select value={attachCourseId} onChange={(e) => setAttachCourseId(e.target.value)}>
@@ -432,6 +434,18 @@ export default function TeacherPage() {
               onDone={(next) => {
                 setLastVideoId(next.newVideoId);
                 setMsg("Đã lưu video vào bài.");
+              }}
+            />
+          )}
+          {token && (
+            <VideoInbox
+              token={token}
+              courses={courses.map((course) => ({ id: course.id, title: course.title }))}
+              defaultCourseId={attachCourseId || undefined}
+              defaultLessonId={attachLessonId || undefined}
+              onAssigned={(videoId) => {
+                setLastVideoId(videoId);
+                setMsg("Đã gắn video từ kho vào bài.");
               }}
             />
           )}

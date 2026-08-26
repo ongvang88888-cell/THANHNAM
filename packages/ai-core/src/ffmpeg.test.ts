@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   cartoonPersonGraph,
   courseEnhanceArgs,
+  clampQuickTrim,
   enhanceAndSpeechArgs,
+  enhanceSpeechTrimArgs,
   kenBurnsStillArgs,
+  quickTrimCopyArgs,
   extractSpeechAudioArgs,
   illustratedConcatArgs,
   pictureEnhanceArgs,
@@ -75,8 +78,31 @@ describe("ffmpeg arg builders", () => {
     expect(args.some((a) => a.includes("highpass=f=90") && a.includes("lowpass=f=7500"))).toBe(true);
     expect(args.some((a) => a.includes("format=yuv420p"))).toBe(true);
     expect(args).toContain("yuv420p");
+    expect(args).toContain("-threads");
     expect(args).not.toContain("-c:v");
     expect(args).not.toContain("-c:a");
+  });
+
+  it("does enhance + silence + loudnorm in a single 4.2-safe encode", () => {
+    const args = enhanceSpeechTrimArgs("in.mp4", "out.mp4");
+    const af = args.find((a) => a.includes("silenceremove="));
+    expect(af).toBeTruthy();
+    expect(af).toContain("start_duration=0.45");
+    expect(af).not.toContain("start_silence");
+    expect(af).toContain("loudnorm=");
+    expect(args).toContain("-threads");
+    expect(args).toContain("yuv420p");
+  });
+
+  it("builds a stream-copy trim for post-AI adjust", () => {
+    const args = quickTrimCopyArgs("in.mp4", "out.mp4", 1.2, 8);
+    expect(args).toContain("-ss");
+    expect(args).toContain("1.200");
+    expect(args).toContain("-t");
+    expect(args).toContain("-c");
+    expect(args).toContain("copy");
+    expect(clampQuickTrim(-10, 9_000, 5_000)).toEqual({ startMs: 0, endMs: 5000 });
+    expect(clampQuickTrim(100, 200, 8_000).endMs - clampQuickTrim(100, 200, 8_000).startMs).toBeGreaterThanOrEqual(400);
   });
 
   it("builds a slow Ken Burns still clip", () => {

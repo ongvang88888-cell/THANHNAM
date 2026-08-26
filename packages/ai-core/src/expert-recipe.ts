@@ -5,11 +5,19 @@ export const LECTURE_EXPERT_RECIPE_ID = "lecture_expert_v1";
 export const LECTURE_ENHANCE_VF =
   "hqdn3d=1.2:1.0:4:4,unsharp=3:3:0.35:3:3:0.0,eq=contrast=1.04:brightness=0.012:saturation=1.04:gamma=1.01,scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p,setsar=1";
 
-export const LECTURE_SPEECH_AF =
-  "highpass=f=90,lowpass=f=7500,equalizer=f=250:t=q:w=1.2:g=-2,equalizer=f=3000:t=q:w=1.2:g=2,afftdn=nf=-24,loudnorm=I=-16:TP=-1.5:LRA=11";
+export const LECTURE_SPEECH_CLEAN_AF =
+  "highpass=f=90,lowpass=f=7500,equalizer=f=250:t=q:w=1.2:g=-2,equalizer=f=3000:t=q:w=1.2:g=2,afftdn=nf=-24";
+
+export const LECTURE_LOUDNORM_AF = "loudnorm=I=-16:TP=-1.5:LRA=11";
 
 export const LECTURE_SILENCE_AF =
   "silenceremove=start_periods=1:start_duration=0.45:start_threshold=-38dB:stop_periods=-1:stop_duration=0.7:stop_threshold=-38dB";
+
+/** Standalone speech tools — same sound as before, no silence cut. */
+export const LECTURE_SPEECH_AF = `${LECTURE_SPEECH_CLEAN_AF},${LECTURE_LOUDNORM_AF}`;
+
+/** One encode: clean speech, conservative silence, then loudness. */
+export const LECTURE_ONE_PASS_AF = `${LECTURE_SPEECH_CLEAN_AF},${LECTURE_SILENCE_AF},${LECTURE_LOUDNORM_AF}`;
 
 export type RecipeTechniqueStatus = "applied" | "skipped" | "refused";
 

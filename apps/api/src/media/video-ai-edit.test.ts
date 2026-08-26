@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   assertOwnedAbcReady,
+  clampQuickTrim,
   describeRecipe,
+  enhanceSpeechTrimArgs,
   isAiEditStepId,
   isAiEditToolId,
   parseAiEditOptions,
@@ -60,5 +62,9 @@ describe("video AI edit contract", () => {
     const recipe = describeRecipe({ speech: false, imageGen: false, llm: false });
     expect(recipe.recipeId).toBe("lecture_expert_v1");
     expect(recipe.techniques.some((row) => row.id === "content_id_dodge" && row.status === "refused")).toBe(true);
+    const onePass = enhanceSpeechTrimArgs("in.mp4", "out.mp4").find((arg) => arg.includes("silenceremove="));
+    expect(onePass).toContain("start_duration");
+    expect(onePass).not.toContain("start_silence");
+    expect(clampQuickTrim(0, 12_000, 10_000)).toEqual({ startMs: 0, endMs: 10_000 });
   });
 });

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { FileDrop } from "@/components/FileDrop";
+import { VideoQuickAdjust } from "@/components/VideoQuickAdjust";
 import { ApiError, apiGet, apiPatch, apiPost, apiPut, apiPutBinaryProgress } from "@/lib/api";
 
 const PIPELINE_STEPS = [
@@ -55,6 +56,7 @@ type AutoEdit = {
     autoApplyError?: string;
     newVideoId?: string;
     editionVideoId?: string;
+    durationMs?: number;
     title?: string;
     description?: string;
     providerNote?: string;
@@ -81,6 +83,8 @@ export type AutoPublishResult = {
   sourceVideoId: string;
   newVideoId: string;
   editionVideoId?: string;
+  editId?: string;
+  durationMs?: number;
   title?: string;
   description?: string;
   previewUrl: string | null;
@@ -133,6 +137,8 @@ function resultFromEdit(sourceVideoId: string, edit: AutoEdit): AutoPublishResul
     sourceVideoId,
     newVideoId: edit.output?.newVideoId || sourceVideoId,
     editionVideoId: edit.output?.editionVideoId,
+    editId: edit.id,
+    durationMs: edit.output?.durationMs,
     title: edit.output?.title,
     description: edit.output?.description,
     previewUrl: edit.previewUrl,
@@ -404,10 +410,28 @@ export function AutoVideoPublish(props: {
           )}
           {phase === "saving" && <p className="auto-publish-status">Đang lưu video vào bài học…</p>}
           {phase === "saved" && <p className="ok">Đã lưu vào bài.</p>}
-          {result.previewUrl && (
+          {sourceVideoId && (phase === "ready" || phase === "saving" || phase === "saved") && (
             <>
-              <div className="muted">Bài học đã chỉnh — giữ hình giáo viên</div>
-              <video className="ai-edit-preview" src={result.previewUrl} controls preload="metadata" />
+            <div className="muted">Bài học đã chỉnh — giữ hình giáo viên</div>
+            <VideoQuickAdjust
+              token={props.token}
+              videoId={sourceVideoId}
+              durationMs={result.durationMs}
+              previewUrl={result.previewUrl}
+              disabled={phase === "saving"}
+              onUpdated={(next) => {
+                setResult((current) =>
+                  current
+                    ? {
+                        ...current,
+                        previewUrl: next.previewUrl ?? current.previewUrl,
+                        durationMs: next.durationMs ?? current.durationMs,
+                        newVideoId: next.newVideoId || current.newVideoId,
+                      }
+                    : current,
+                );
+              }}
+            />
             </>
           )}
           {phase !== "saved" && (

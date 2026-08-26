@@ -1,5 +1,20 @@
-import { LECTURE_ENHANCE_VF, LECTURE_SILENCE_AF, LECTURE_SPEECH_AF } from "./expert-recipe";
+import { LECTURE_ENHANCE_VF, LECTURE_ONE_PASS_AF, LECTURE_SILENCE_AF, LECTURE_SPEECH_AF } from "./expert-recipe";
 import type { FaceRegion, VisualStyle } from "./options";
+
+export function ffmpegThreadArgs(): string[] {
+  return ["-threads", "0"];
+}
+
+export function clampQuickTrim(
+  startMs: number,
+  endMs: number,
+  durationMs: number,
+): { startMs: number; endMs: number } {
+  const duration = Number.isFinite(durationMs) && durationMs > 400 ? durationMs : Math.max(endMs, 400);
+  const start = Math.max(0, Math.min(Number.isFinite(startMs) ? startMs : 0, duration - 400));
+  const end = Math.max(start + 400, Math.min(Number.isFinite(endMs) ? endMs : duration, duration));
+  return { startMs: Math.round(start), endMs: Math.round(end) };
+}
 
 export function sanitizeDrawText(title: string): string {
   return title
@@ -222,6 +237,87 @@ export function enhanceAndSpeechArgs(inputPath: string, outputPath: string): str
     "22",
     "-pix_fmt",
     "yuv420p",
+    ...ffmpegThreadArgs(),
+    "-movflags",
+    "+faststart",
+    outputPath,
+  ];
+}
+
+/** One encode: slide-safe picture + studio speech + silence trim. ffmpeg 4.2-safe. */
+export function enhanceSpeechTrimArgs(inputPath: string, outputPath: string): string[] {
+  return [
+    "-y",
+    "-i",
+    inputPath,
+    "-vf",
+    COURSE_ENHANCE_VF,
+    "-af",
+    LECTURE_ONE_PASS_AF,
+    "-preset",
+    "veryfast",
+    "-crf",
+    "22",
+    "-pix_fmt",
+    "yuv420p",
+    ...ffmpegThreadArgs(),
+    "-movflags",
+    "+faststart",
+    outputPath,
+  ];
+}
+
+export function quickTrimCopyArgs(
+  inputPath: string,
+  outputPath: string,
+  startSec: number,
+  durationSec: number,
+): string[] {
+  const start = Math.max(0, startSec);
+  const duration = Math.max(0.4, durationSec);
+  return [
+    "-y",
+    "-ss",
+    start.toFixed(3),
+    "-i",
+    inputPath,
+    "-t",
+    duration.toFixed(3),
+    "-c",
+    "copy",
+    "-movflags",
+    "+faststart",
+    outputPath,
+  ];
+}
+
+export function quickTrimEncodeArgs(
+  inputPath: string,
+  outputPath: string,
+  startSec: number,
+  durationSec: number,
+): string[] {
+  const start = Math.max(0, startSec);
+  const duration = Math.max(0.4, durationSec);
+  return [
+    "-y",
+    "-ss",
+    start.toFixed(3),
+    "-i",
+    inputPath,
+    "-t",
+    duration.toFixed(3),
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "23",
+    "-c:a",
+    "aac",
+    "-pix_fmt",
+    "yuv420p",
+    ...ffmpegThreadArgs(),
     "-movflags",
     "+faststart",
     outputPath,

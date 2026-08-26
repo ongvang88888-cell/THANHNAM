@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   LECTURE_ENHANCE_VF,
   LECTURE_EXPERT_RECIPE_ID,
+  LECTURE_ONE_PASS_AF,
   LECTURE_SILENCE_AF,
   LECTURE_SPEECH_AF,
   describeRecipe,
@@ -21,6 +22,8 @@ describe("lecture_expert_v1 recipe", () => {
     expect(LECTURE_SPEECH_AF).not.toContain("dynaudnorm");
     expect(LECTURE_SILENCE_AF).toContain("start_duration=0.45");
     expect(LECTURE_SILENCE_AF).not.toContain("start_silence");
+    expect(LECTURE_ONE_PASS_AF.indexOf("silenceremove=")).toBeLessThan(LECTURE_ONE_PASS_AF.indexOf("loudnorm="));
+    expect(LECTURE_ONE_PASS_AF).toContain("afftdn=nf=-24");
   });
 
   it("marks applied, skipped, and refused techniques", () => {
