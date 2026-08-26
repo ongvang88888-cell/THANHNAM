@@ -12,6 +12,7 @@ config();
 
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
+import { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
 import { AppErrorFilter } from "./common/app-error.filter";
 import { assertProductionSecrets, corsOrigins, isProduction } from "./common/runtime";
@@ -19,7 +20,8 @@ import { assertProductionSecrets, corsOrigins, isProduction } from "./common/run
 async function bootstrap() {
   assertProductionSecrets();
 
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  app.useBodyParser("json", { limit: "2mb" });
   app.setGlobalPrefix("api/v1");
   app.use(
     helmet({

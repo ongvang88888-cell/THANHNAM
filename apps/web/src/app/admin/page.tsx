@@ -96,6 +96,7 @@ export default function AdminPage() {
       <nav className="admin-nav">
         <a className="is-on" href="/admin">Tổng quan</a>
         <a href="/admin/courses">Quản lý khóa học</a>
+        <a href="/admin/courses/import">Nhập hàng loạt</a>
       </nav>
       {error && <p className="toast error">{error}</p>}
       {msg && <p className="toast ok">{msg}</p>}
@@ -128,7 +129,10 @@ export default function AdminPage() {
       <div className="panel" style={{ marginBottom: 28 }}>
         <h2 style={{ fontFamily: "var(--font-display)", color: "var(--brand)" }}>Khóa học</h2>
         <p className="muted">Thêm, sửa, ẩn, lưu trữ hoặc xóa khóa học của toàn trường.</p>
-        <a className="btn" href="/admin/courses">Mở quản lý khóa học</a>
+        <div className="admin-actions">
+          <a className="btn" href="/admin/courses">Mở quản lý khóa học</a>
+          <a className="btn secondary" href="/admin/courses/import">Nhập hàng loạt</a>
+        </div>
       </div>
 
       <h2 style={{ fontFamily: "var(--font-display)", color: "var(--brand)" }}>Hàng chờ duyệt</h2>

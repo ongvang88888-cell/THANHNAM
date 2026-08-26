@@ -209,6 +209,7 @@ export default function AdminCoursesPage() {
       <nav className="admin-nav">
         <a href="/admin">Tổng quan</a>
         <a className="is-on" href="/admin/courses">Quản lý khóa học</a>
+        <a href="/admin/courses/import">Nhập hàng loạt</a>
       </nav>
 
       {error && <p className="toast error">{error}</p>}
@@ -225,6 +226,9 @@ export default function AdminCoursesPage() {
         <div className="split" style={{ marginBottom: 24 }}>
           <div className="panel">
             <h2>Thêm khóa học</h2>
+            <p className="muted">
+              Có nhiều khóa? Dùng <a href="/admin/courses/import">nhập hàng loạt CSV</a> với kiểm tra từng dòng.
+            </p>
             <div className="admin-form-grid">
               <div>
                 <label>Tên khóa</label>

@@ -17,6 +17,8 @@ import { AppError, ErrorCodes, hasAnyRole } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
 import { AuthGuard, CurrentUser, type RequestUser } from "../auth/auth.guard";
 import { AuthModule } from "../auth/auth.module";
+import { CourseImportController } from "./course-import.controller";
+import { CourseImportService } from "./course-import.service";
 
 class AdminGrantDto {
   @IsString()
@@ -941,7 +943,7 @@ export class AdminController {
 
 @Module({
   imports: [AuthModule],
-  controllers: [AdminController],
-  providers: [AdminService],
+  controllers: [AdminController, CourseImportController],
+  providers: [AdminService, CourseImportService],
 })
 export class AdminModule {}
