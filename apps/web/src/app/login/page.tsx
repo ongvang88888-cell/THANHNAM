@@ -46,11 +46,9 @@ export default function LoginPage() {
   }
 
   return (
-    <section className="panel stack">
+    <section className="panel auth-card">
       <h1 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>Đăng nhập</h1>
-      <p className="muted">
-        Demo: student@edu.local / teacher@edu.local / admin@edu.local — Password123!
-      </p>
+      <p className="muted">Vào thư viện, studio giảng viên hoặc trang quản trị.</p>
       <form onSubmit={onSubmit}>
         <label>Email</label>
         <input value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
@@ -61,11 +59,14 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"
         />
-        {error && <p className="error">{error}</p>}
+        {error && <p className="toast error">{error}</p>}
         <button disabled={loading} type="submit">
-          {loading ? "..." : "Đăng nhập"}
+          {loading ? "Đang vào…" : "Đăng nhập"}
         </button>
       </form>
+      <p className="muted">
+        Thử nhanh: student@edu.local · teacher@edu.local · admin@edu.local — Password123!
+      </p>
       <p className="muted">
         <a href="/register">Tạo tài khoản</a> · <a href="/forgot-password">Quên mật khẩu</a>
       </p>

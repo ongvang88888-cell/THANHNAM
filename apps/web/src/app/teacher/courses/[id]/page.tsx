@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import { FileDrop } from "@/components/FileDrop";
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut, apiPutBinary, formatVnd } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
+import { statusLabel, statusTone } from "@/lib/labels";
 
 type LessonContent = {
   id: string;
@@ -48,6 +50,8 @@ type Course = {
   researchDocuments?: DocBrief[];
 };
 
+type StudioTab = "lesson" | "settings" | "announce" | "quiz";
+
 function inferMime(filename: string, fallback: string): string {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
   const map: Record<string, string> = {
@@ -91,6 +95,7 @@ export default function TeacherCourseStudioPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<StudioTab>("lesson");
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
@@ -126,6 +131,8 @@ export default function TeacherCourseStudioPage() {
       return true;
     });
   }, [course]);
+
+  const lessonCount = course?.sections.reduce((sum, section) => sum + section.lessons.length, 0) ?? 0;
 
   async function load(nextLessonId?: string | null) {
     if (!token) return;
@@ -174,61 +181,46 @@ export default function TeacherCourseStudioPage() {
     }
   }
 
-  if (!course) return <p className="muted">{error || "Đang tải studio…"}</p>;
+  if (!course) {
+    return <p className="muted" style={{ padding: 24 }}>{error || "Đang mở studio…"}</p>;
+  }
 
   return (
-    <section>
-      <p>
-        <a href="/teacher">← Giảng viên</a>
-      </p>
-      <h1 style={{ fontFamily: "var(--font-display)", marginBottom: 8 }}>Studio khóa học</h1>
-      <p className="muted">
-        Soạn chương / bài, viết nội dung, tải video và tài liệu nghiên cứu. Admin duyệt trước khi lên cửa hàng.
-      </p>
-      <div style={{ margin: "12px 0 20px" }}>
-        <span className="badge">{course.status}</span>
-        <span className="badge">{course.product.status}</span>
-        <span className="badge">{formatVnd(course.product.prices?.[0]?.amountMinor ?? 0)}</span>
-      </div>
-      {error && <p className="error">{error}</p>}
-      {msg && <p className="ok">{msg}</p>}
-
-      <div className="panel" style={{ marginBottom: 20 }}>
-        <h2>Thông tin khóa học</h2>
-        <label>Tiêu đề</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} />
-        <label>Slug cửa hàng</label>
-        <input value={slug} onChange={(e) => setSlug(e.target.value)} />
-        <label>Mô tả</label>
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
-        <label>Giá (đồng)</label>
-        <input value={priceMinor} onChange={(e) => setPriceMinor(e.target.value)} inputMode="numeric" />
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+    <div className="studio-app">
+      <div className="studio-topbar">
+        <div>
+          <a href="/teacher">← Studio</a>
+          <h1>{course.title}</h1>
+          <div>
+            <span className={`badge ${statusTone(course.status)}`}>{statusLabel(course.status)}</span>
+            <span className={`badge ${statusTone(course.product.status)}`}>{statusLabel(course.product.status)}</span>
+            <span className="badge">{formatVnd(course.product.prices?.[0]?.amountMinor ?? 0)}</span>
+            <span className="muted">{course.sections.length} chương · {lessonCount} bài</span>
+          </div>
+        </div>
+        <div className="studio-actions">
+          <div className="tabs" style={{ margin: 0 }}>
+            {(
+              [
+                ["lesson", "Soạn bài"],
+                ["settings", "Cài đặt"],
+                ["announce", "Thông báo"],
+                ["quiz", "Quiz"],
+              ] as const
+            ).map(([key, label]) => (
+              <button key={key} type="button" className={tab === key ? "is-on" : undefined} onClick={() => setTab(key)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {selectedLesson && (
+            <a className="btn secondary btn-sm" href={`/learn/${selectedLesson.id}`}>
+              Xem như học viên
+            </a>
+          )}
           <button
             type="button"
-            disabled={busy}
-            onClick={() =>
-              void run(async () => {
-                if (!token) return;
-                const next = await apiPatch<Course>(
-                  `/teacher/courses/${course.id}`,
-                  {
-                    title,
-                    slug,
-                    description,
-                    priceMinor: Number(priceMinor) || 0,
-                  },
-                  token,
-                );
-                setCourse(next);
-              }, "Đã lưu thông tin khóa học")
-            }
-          >
-            Lưu thông tin
-          </button>
-          <button
-            type="button"
-            className="secondary"
+            className="btn-sm"
             disabled={busy}
             onClick={() =>
               void run(async () => {
@@ -243,11 +235,126 @@ export default function TeacherCourseStudioPage() {
         </div>
       </div>
 
-      <div className="studio-grid">
-        <div className="panel">
-          <h2>Chương trình</h2>
-          <label>Tên chương</label>
+      <div className="studio-body">
+        <aside className="studio-outline">
+          <div className="outline-head">
+            <strong>Chương trình</strong>
+          </div>
+          <p className="muted">Thêm chương bên trái, soạn bài ở giữa — giống cách Thinkific/Teachable tổ chức giáo trình.</p>
+          {course.sections.map((section, index) => (
+            <div key={section.id} className="outline-section">
+              <div className="outline-head">
+                <strong>
+                  {index + 1}. {section.title}
+                </strong>
+                <div className="studio-actions">
+                  <button
+                    type="button"
+                    className="ghost btn-sm"
+                    disabled={busy}
+                    onClick={() => {
+                      const nextTitle = window.prompt("Đổi tên chương", section.title);
+                      if (!nextTitle?.trim() || !token) return;
+                      void run(async () => {
+                        const next = await apiPatch<Course>(
+                          `/teacher/courses/${course.id}/sections/${section.id}`,
+                          { title: nextTitle.trim() },
+                          token,
+                        );
+                        setCourse(next);
+                      }, "Đã đổi tên chương");
+                    }}
+                  >
+                    Sửa
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost btn-sm"
+                    disabled={busy}
+                    onClick={() => {
+                      if (!token || !window.confirm(`Xóa chương “${section.title}” và mọi bài bên trong?`)) return;
+                      void run(async () => {
+                        const next = await apiDelete<Course>(
+                          `/teacher/courses/${course.id}/sections/${section.id}`,
+                          token,
+                        );
+                        setCourse(next);
+                        const fallback = next.sections.flatMap((s) => s.lessons)[0];
+                        setSelectedLessonId(fallback?.id ?? null);
+                        if (fallback) applyLesson(fallback);
+                      }, "Đã xóa chương");
+                    }}
+                  >
+                    Xóa
+                  </button>
+                </div>
+              </div>
+              {section.lessons.map((lesson) => (
+                <div key={lesson.id} style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  <button
+                    type="button"
+                    className={`outline-lesson${selectedLessonId === lesson.id ? " is-active" : ""}`}
+                    onClick={() => {
+                      setSelectedLessonId(lesson.id);
+                      applyLesson(lesson);
+                      setTab("lesson");
+                    }}
+                  >
+                    <span>{lesson.title}</span>
+                    {lesson.isPreview ? <span className="badge free">Preview</span> : null}
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost btn-sm"
+                    disabled={busy}
+                    onClick={() => {
+                      if (!token || !window.confirm(`Xóa bài “${lesson.title}”?`)) return;
+                      void run(async () => {
+                        const next = await apiDelete<Course>(
+                          `/teacher/courses/${course.id}/lessons/${lesson.id}`,
+                          token,
+                        );
+                        setCourse(next);
+                        const fallback = next.sections.flatMap((s) => s.lessons)[0];
+                        setSelectedLessonId(fallback?.id ?? null);
+                        if (fallback) applyLesson(fallback);
+                      }, "Đã xóa bài");
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="secondary btn-sm"
+                disabled={busy}
+                onClick={() =>
+                  void run(async () => {
+                    if (!token) return;
+                    const next = await apiPost<Course>(
+                      `/teacher/courses/${course.id}/sections/${section.id}/lessons`,
+                      { title: lessonTitle, isPreview: section.lessons.length === 0 },
+                      token,
+                    );
+                    setCourse(next);
+                    const created = next.sections.find((s) => s.id === section.id)?.lessons.slice(-1)[0];
+                    if (created) {
+                      setSelectedLessonId(created.id);
+                      applyLesson(created);
+                      setTab("lesson");
+                    }
+                  }, "Đã thêm bài")
+                }
+              >
+                + Thêm bài
+              </button>
+            </div>
+          ))}
+          <label>Tên chương mới</label>
           <input value={sectionTitle} onChange={(e) => setSectionTitle(e.target.value)} />
+          <label>Tên bài mặc định</label>
+          <input value={lessonTitle} onChange={(e) => setLessonTitle(e.target.value)} />
           <button
             type="button"
             className="secondary"
@@ -266,70 +373,258 @@ export default function TeacherCourseStudioPage() {
           >
             Thêm chương
           </button>
+        </aside>
 
-          {course.sections.map((section) => (
-            <div key={section.id} style={{ marginTop: 18 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <strong>{section.title}</strong>
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => {
-                    const nextTitle = window.prompt("Đổi tên chương", section.title);
-                    if (!nextTitle?.trim() || !token) return;
-                    void run(async () => {
-                      const next = await apiPatch<Course>(
-                        `/teacher/courses/${course.id}/sections/${section.id}`,
-                        { title: nextTitle.trim() },
-                        token,
-                      );
-                      setCourse(next);
-                    }, "Đã đổi tên chương");
-                  }}
-                >
-                  Đổi tên
-                </button>
-              </div>
-              <ul className="lesson-list">
-                {section.lessons.map((lesson) => (
-                  <li key={lesson.id}>
-                    <button
-                      type="button"
-                      className={selectedLessonId === lesson.id ? undefined : "secondary"}
-                      onClick={() => {
-                        setSelectedLessonId(lesson.id);
-                        applyLesson(lesson);
-                      }}
-                    >
-                      {lesson.title}
-                      {lesson.isPreview ? " · preview" : ""}
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary"
+        <section className="studio-editor">
+          {error && <p className="toast error">{error}</p>}
+          {msg && <p className="toast ok">{msg}</p>}
+
+          {tab === "lesson" && (
+            <>
+              {!selectedLesson && (
+                <div className="panel">
+                  <h2>Chưa có bài nào</h2>
+                  <p className="muted">Thêm bài ở cột trái. Bài đầu mỗi chương mặc định là xem trước miễn phí.</p>
+                </div>
+              )}
+              {selectedLesson && (
+                <>
+                  <label>Tiêu đề bài</label>
+                  <input
+                    className="editor-title"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                  />
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={editPreview}
+                      onChange={(e) => setEditPreview(e.target.checked)}
+                    />
+                    Bài xem trước miễn phí — học viên vào được trước khi mua
+                  </label>
+
+                  <div className="block">
+                    <h3>1. Nội dung chữ</h3>
+                    <textarea
+                      value={editBody}
+                      onChange={(e) => setEditBody(e.target.value)}
+                      rows={10}
+                      placeholder="Giảng giải, ghi chú nghiên cứu, tóm tắt…"
+                    />
+                  </div>
+
+                  <div className="block">
+                    <h3>2. Video bài học</h3>
+                    <p className="muted">Tải lên rồi nhớ Lưu bài. Video lớn sau này sẽ chuyển sang S3.</p>
+                    <input
+                      value={editVideoId}
+                      onChange={(e) => setEditVideoId(e.target.value)}
+                      placeholder="Mã video (tự điền sau khi tải)"
+                    />
+                    <FileDrop
+                      accept="video/mp4,video/*,application/octet-stream"
                       disabled={busy}
-                      onClick={() => {
-                        if (!token || !window.confirm(`Xóa bài “${lesson.title}”?`)) return;
+                      label="Kéo thả hoặc chọn video"
+                      hint="MP4 khuyến nghị"
+                      onFile={(file) => {
+                        if (!token) return;
                         void run(async () => {
-                          const next = await apiDelete<Course>(
-                            `/teacher/courses/${course.id}/lessons/${lesson.id}`,
+                          const session = await apiPost<{ videoId: string; upload: { url: string } }>(
+                            "/videos/upload-sessions",
+                            {
+                              filename: file.name,
+                              contentType: file.type || "video/mp4",
+                              title: editTitle || file.name,
+                            },
+                            token,
+                          );
+                          await apiPutBinary(session.upload.url, file, file.type || "video/mp4").catch(() => undefined);
+                          await apiPost(`/videos/${session.videoId}/complete`, { sizeBytes: file.size }, token);
+                          setEditVideoId(session.videoId);
+                        }, "Đã tải video — nhớ Lưu bài");
+                      }}
+                    />
+                  </div>
+
+                  <div className="block">
+                    <h3>3. Tài liệu nghiên cứu</h3>
+                    <p className="muted">PDF, Word, PowerPoint, Excel, ảnh hoặc TXT. Học viên mở khi có quyền học bài này.</p>
+                    <ul className="lesson-list">
+                      {editDocumentIds.map((docId) => {
+                        const meta = documentCatalog.find((d) => d.id === docId);
+                        return (
+                          <li key={docId}>
+                            <span>
+                              {meta?.title ?? docId}
+                              {meta?.versions?.[0] ? ` · v${meta.versions[0].version}` : ""}
+                            </span>
+                            <button
+                              type="button"
+                              className="ghost btn-sm"
+                              onClick={() => setEditDocumentIds((prev) => prev.filter((id) => id !== docId))}
+                            >
+                              Gỡ
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {documentCatalog.filter((d) => !editDocumentIds.includes(d.id)).length > 0 && (
+                      <>
+                        <label>Gắn tài liệu đã có</label>
+                        <select
+                          defaultValue=""
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            e.target.value = "";
+                            if (!value) return;
+                            setEditDocumentIds((prev) => (prev.includes(value) ? prev : [...prev, value]));
+                          }}
+                        >
+                          <option value="">Chọn tài liệu…</option>
+                          {documentCatalog
+                            .filter((d) => !editDocumentIds.includes(d.id))
+                            .map((d) => (
+                              <option key={d.id} value={d.id}>
+                                {d.title}
+                              </option>
+                            ))}
+                        </select>
+                      </>
+                    )}
+                    <FileDrop
+                      accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,.zip,application/pdf"
+                      disabled={busy}
+                      label="Tải tài liệu mới vào bài này"
+                      hint="File sẽ được gắn ngay sau khi tải xong"
+                      onFile={(file) => {
+                        if (!token) return;
+                        void run(async () => {
+                          const created = await apiPost<{ document: { id: string; title: string } }>(
+                            `/teacher/courses/${course.id}/documents`,
+                            { title: file.name.replace(/\.[^.]+$/, "") || file.name },
+                            token,
+                          );
+                          const session = await apiPost<{ versionId: string; upload: { url: string } }>(
+                            "/documents/upload-sessions",
+                            {
+                              documentId: created.document.id,
+                              filename: file.name,
+                              contentType: inferMime(file.name, file.type || "application/pdf"),
+                              sizeBytes: file.size,
+                            },
+                            token,
+                          );
+                          await apiPutBinary(
+                            session.upload.url,
+                            file,
+                            inferMime(file.name, file.type || "application/pdf"),
+                          ).catch(() => undefined);
+                          await apiPost(`/documents/versions/${session.versionId}/complete`, { sizeBytes: file.size }, token);
+                          const nextIds = editDocumentIds.includes(created.document.id)
+                            ? editDocumentIds
+                            : [...editDocumentIds, created.document.id];
+                          setEditDocumentIds(nextIds);
+                          await apiPatch(
+                            `/teacher/courses/${course.id}/lessons/${selectedLesson.id}`,
+                            { title: editTitle, isPreview: editPreview },
+                            token,
+                          );
+                          await apiPut(
+                            `/teacher/courses/${course.id}/lessons/${selectedLesson.id}/content`,
+                            {
+                              body: editBody,
+                              videoId: editVideoId,
+                              documentIds: nextIds,
+                            },
+                            token,
+                          );
+                          await load(selectedLesson.id);
+                        }, "Đã tải và gắn tài liệu vào bài");
+                      }}
+                    />
+                  </div>
+
+                  <div className="studio-actions">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        void run(async () => {
+                          if (!token) return;
+                          await apiPatch(
+                            `/teacher/courses/${course.id}/lessons/${selectedLesson.id}`,
+                            { title: editTitle, isPreview: editPreview },
+                            token,
+                          );
+                          const next = await apiPut<Course>(
+                            `/teacher/courses/${course.id}/lessons/${selectedLesson.id}/content`,
+                            {
+                              body: editBody,
+                              videoId: editVideoId,
+                              documentIds: editDocumentIds,
+                            },
                             token,
                           );
                           setCourse(next);
-                          const fallback = next.sections.flatMap((s) => s.lessons)[0];
-                          setSelectedLessonId(fallback?.id ?? null);
-                          if (fallback) applyLesson(fallback);
-                        }, "Đã xóa bài");
-                      }}
+                          const refreshed = next.sections
+                            .flatMap((s) => s.lessons)
+                            .find((l) => l.id === selectedLesson.id);
+                          if (refreshed) applyLesson(refreshed);
+                        }, "Đã lưu bài")
+                      }
                     >
-                      Xóa
+                      {busy ? "Đang lưu…" : "Lưu bài"}
                     </button>
-                  </li>
-                ))}
-              </ul>
-              <label>Bài trong chương này</label>
-              <input value={lessonTitle} onChange={(e) => setLessonTitle(e.target.value)} />
+                    <a className="btn secondary" href={`/learn/${selectedLesson.id}`}>
+                      Xem như học viên
+                    </a>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {tab === "settings" && (
+            <div className="panel">
+              <h2>Cài đặt khóa học</h2>
+              <label>Tiêu đề</label>
+              <input value={title} onChange={(e) => setTitle(e.target.value)} />
+              <label>Đường dẫn cửa hàng</label>
+              <input value={slug} onChange={(e) => setSlug(e.target.value)} />
+              <label>Mô tả</label>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} />
+              <label>Giá (đồng)</label>
+              <input value={priceMinor} onChange={(e) => setPriceMinor(e.target.value)} inputMode="numeric" />
+              <div className="studio-actions">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      if (!token) return;
+                      const next = await apiPatch<Course>(
+                        `/teacher/courses/${course.id}`,
+                        {
+                          title,
+                          slug,
+                          description,
+                          priceMinor: Number(priceMinor) || 0,
+                        },
+                        token,
+                      );
+                      setCourse(next);
+                    }, "Đã lưu thông tin khóa học")
+                  }
+                >
+                  Lưu cài đặt
+                </button>
+              </div>
+              <hr style={{ border: 0, borderTop: "1px solid var(--line)", margin: "24px 0" }} />
+              <h3>Mở dần bài học (drip)</h3>
+              <label>Số ngày mở bài trả phí sau khi mua</label>
+              <input value={dripDays} onChange={(e) => setDripDays(e.target.value)} />
               <button
                 type="button"
                 className="secondary"
@@ -337,340 +632,106 @@ export default function TeacherCourseStudioPage() {
                 onClick={() =>
                   void run(async () => {
                     if (!token) return;
-                    const next = await apiPost<Course>(
-                      `/teacher/courses/${course.id}/sections/${section.id}/lessons`,
-                      { title: lessonTitle, isPreview: section.lessons.length === 0 },
+                    const next = await apiPatch<Course>(
+                      `/teacher/courses/${course.id}/drip`,
+                      {
+                        dripDaysAfterPurchase: Number(dripDays) || 0,
+                        setPreviewAsPrerequisite: true,
+                      },
                       token,
                     );
                     setCourse(next);
-                    const created = next.sections
-                      .find((s) => s.id === section.id)
-                      ?.lessons.slice(-1)[0];
-                    if (created) {
-                      setSelectedLessonId(created.id);
-                      applyLesson(created);
-                    }
-                  }, "Đã thêm bài")
+                  }, "Đã áp dụng drip")
                 }
               >
-                Thêm bài
+                Áp dụng drip + bài preview làm điều kiện
               </button>
+            </div>
+          )}
+
+          {tab === "announce" && (
+            <div className="panel">
+              <h2>Thông báo cho học viên</h2>
+              <ul className="lesson-list">
+                {course.announcements.map((a) => (
+                  <li key={a.id}>
+                    <span>
+                      <strong>{a.title}</strong>
+                      <div className="muted">{a.body}</div>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <input value={annTitle} onChange={(e) => setAnnTitle(e.target.value)} />
+              <textarea value={annBody} onChange={(e) => setAnnBody(e.target.value)} placeholder="Nội dung" rows={3} />
               <button
                 type="button"
                 className="secondary"
                 disabled={busy}
-                onClick={() => {
-                  if (!token || !window.confirm(`Xóa chương “${section.title}” và mọi bài bên trong?`)) return;
+                onClick={() =>
                   void run(async () => {
-                    const next = await apiDelete<Course>(
-                      `/teacher/courses/${course.id}/sections/${section.id}`,
+                    if (!token) return;
+                    await apiPost(
+                      `/courses/${course.id}/announcements`,
+                      { courseId: course.id, title: annTitle, body: annBody },
                       token,
                     );
-                    setCourse(next);
-                    const fallback = next.sections.flatMap((s) => s.lessons)[0];
-                    setSelectedLessonId(fallback?.id ?? null);
-                    if (fallback) applyLesson(fallback);
-                  }, "Đã xóa chương");
-                }}
+                    await load(selectedLessonId);
+                  }, "Đã đăng thông báo")
+                }
               >
-                Xóa chương
+                Đăng thông báo
               </button>
             </div>
-          ))}
-        </div>
-
-        <div className="panel">
-          <h2>Soạn bài</h2>
-          {!selectedLesson && <p className="muted">Thêm một bài học để bắt đầu soạn.</p>}
-          {selectedLesson && (
-            <>
-              <label>Tiêu đề bài</label>
-              <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
-              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={editPreview}
-                  onChange={(e) => setEditPreview(e.target.checked)}
-                  style={{ width: "auto", margin: 0 }}
-                />
-                Bài xem trước miễn phí
-              </label>
-              <label>Nội dung chữ</label>
-              <textarea
-                value={editBody}
-                onChange={(e) => setEditBody(e.target.value)}
-                rows={8}
-                placeholder="Giảng giải, ghi chú nghiên cứu, tóm tắt…"
-              />
-              <label>Video bài học</label>
-              <input
-                value={editVideoId}
-                onChange={(e) => setEditVideoId(e.target.value)}
-                placeholder="videoId (tự điền sau khi tải lên)"
-              />
-              <input
-                type="file"
-                accept="video/mp4,video/*,application/octet-stream"
-                disabled={busy}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  if (!file || !token) return;
-                  void run(async () => {
-                    const session = await apiPost<{ videoId: string; upload: { url: string } }>(
-                      "/videos/upload-sessions",
-                      {
-                        filename: file.name,
-                        contentType: file.type || "video/mp4",
-                        title: editTitle || file.name,
-                      },
-                      token,
-                    );
-                    await apiPutBinary(session.upload.url, file, file.type || "video/mp4").catch(() => undefined);
-                    await apiPost(`/videos/${session.videoId}/complete`, { sizeBytes: file.size }, token);
-                    setEditVideoId(session.videoId);
-                  }, "Đã tải video — nhớ Lưu bài");
-                }}
-              />
-
-              <h3>Tài liệu nghiên cứu</h3>
-              <p className="muted">PDF, Word, PowerPoint, Excel, ảnh hoặc TXT. Học viên mở được khi có quyền học bài này.</p>
-              <ul className="lesson-list">
-                {editDocumentIds.map((docId) => {
-                  const meta = documentCatalog.find((d) => d.id === docId);
-                  return (
-                    <li key={docId}>
-                      <span>
-                        {meta?.title ?? docId}
-                        {meta?.versions?.[0] ? ` · v${meta.versions[0].version}` : ""}
-                      </span>
-                      <button
-                        type="button"
-                        className="secondary"
-                        onClick={() => setEditDocumentIds((prev) => prev.filter((id) => id !== docId))}
-                      >
-                        Gỡ
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-              {documentCatalog.filter((d) => !editDocumentIds.includes(d.id)).length > 0 && (
-                <>
-                  <label>Gắn tài liệu đã có</label>
-                  <select
-                    defaultValue=""
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      e.target.value = "";
-                      if (!value) return;
-                      setEditDocumentIds((prev) => (prev.includes(value) ? prev : [...prev, value]));
-                    }}
-                  >
-                    <option value="">Chọn tài liệu…</option>
-                    {documentCatalog
-                      .filter((d) => !editDocumentIds.includes(d.id))
-                      .map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.title}
-                        </option>
-                      ))}
-                  </select>
-                </>
-              )}
-              <label>Tải tài liệu mới vào bài này</label>
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,.zip,application/pdf"
-                disabled={busy}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  if (!file || !token) return;
-                  void run(async () => {
-                    const created = await apiPost<{ document: { id: string; title: string } }>(
-                      `/teacher/courses/${course.id}/documents`,
-                      { title: file.name.replace(/\.[^.]+$/, "") || file.name },
-                      token,
-                    );
-                    const session = await apiPost<{ versionId: string; upload: { url: string } }>(
-                      "/documents/upload-sessions",
-                      {
-                        documentId: created.document.id,
-                        filename: file.name,
-                        contentType: inferMime(file.name, file.type || "application/pdf"),
-                        sizeBytes: file.size,
-                      },
-                      token,
-                    );
-                    await apiPutBinary(
-                      session.upload.url,
-                      file,
-                      inferMime(file.name, file.type || "application/pdf"),
-                    ).catch(() => undefined);
-                    await apiPost(`/documents/versions/${session.versionId}/complete`, { sizeBytes: file.size }, token);
-                    const nextIds = editDocumentIds.includes(created.document.id)
-                      ? editDocumentIds
-                      : [...editDocumentIds, created.document.id];
-                    setEditDocumentIds(nextIds);
-                    await apiPatch(
-                      `/teacher/courses/${course.id}/lessons/${selectedLesson.id}`,
-                      { title: editTitle, isPreview: editPreview },
-                      token,
-                    );
-                    await apiPut(
-                      `/teacher/courses/${course.id}/lessons/${selectedLesson.id}/content`,
-                      {
-                        body: editBody,
-                        videoId: editVideoId,
-                        documentIds: nextIds,
-                      },
-                      token,
-                    );
-                    await load(selectedLesson.id);
-                  }, "Đã tải và gắn tài liệu vào bài");
-                }}
-              />
-
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() =>
-                    void run(async () => {
-                      if (!token) return;
-                      await apiPatch(
-                        `/teacher/courses/${course.id}/lessons/${selectedLesson.id}`,
-                        { title: editTitle, isPreview: editPreview },
-                        token,
-                      );
-                      const next = await apiPut<Course>(
-                        `/teacher/courses/${course.id}/lessons/${selectedLesson.id}/content`,
-                        {
-                          body: editBody,
-                          videoId: editVideoId,
-                          documentIds: editDocumentIds,
-                        },
-                        token,
-                      );
-                      setCourse(next);
-                      const refreshed = next.sections
-                        .flatMap((s) => s.lessons)
-                        .find((l) => l.id === selectedLesson.id);
-                      if (refreshed) applyLesson(refreshed);
-                    }, "Đã lưu bài")
-                  }
-                >
-                  Lưu bài
-                </button>
-                <a className="btn secondary" href={`/learn/${selectedLesson.id}`}>
-                  Xem như học viên
-                </a>
-              </div>
-            </>
           )}
-        </div>
-      </div>
 
-      <div className="panel" style={{ marginTop: 20 }}>
-        <h2>Drip</h2>
-        <label>Số ngày mở bài trả phí sau khi mua</label>
-        <input value={dripDays} onChange={(e) => setDripDays(e.target.value)} />
-        <button
-          type="button"
-          className="secondary"
-          disabled={busy}
-          onClick={() =>
-            void run(async () => {
-              if (!token) return;
-              const next = await apiPatch<Course>(
-                `/teacher/courses/${course.id}/drip`,
-                {
-                  dripDaysAfterPurchase: Number(dripDays) || 0,
-                  setPreviewAsPrerequisite: true,
-                },
-                token,
-              );
-              setCourse(next);
-            }, "Đã áp dụng drip")
-          }
-        >
-          Áp dụng drip + bài preview làm điều kiện
-        </button>
+          {tab === "quiz" && (
+            <div className="panel">
+              <h2>Quiz nhanh</h2>
+              <ul className="lesson-list">
+                {course.quizzes.map((q) => (
+                  <li key={q.id}>
+                    <a href={`/quizzes/${q.id}`}>{q.title}</a>
+                  </li>
+                ))}
+              </ul>
+              <label>Tên quiz</label>
+              <input value={quizTitle} onChange={(e) => setQuizTitle(e.target.value)} />
+              <label>Câu hỏi</label>
+              <input value={stem} onChange={(e) => setStem(e.target.value)} />
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy}
+                onClick={() =>
+                  void run(async () => {
+                    if (!token) return;
+                    await apiPost(
+                      `/teacher/courses/${course.id}/quizzes`,
+                      {
+                        title: quizTitle,
+                        questions: [
+                          {
+                            stem,
+                            answers: [
+                              { body: "Đúng", isCorrect: true },
+                              { body: "Sai", isCorrect: false },
+                            ],
+                          },
+                        ],
+                      },
+                      token,
+                    );
+                    await load(selectedLessonId);
+                  }, "Đã tạo quiz")
+                }
+              >
+                Tạo quiz đúng/sai
+              </button>
+            </div>
+          )}
+        </section>
       </div>
-
-      <div className="panel" style={{ marginTop: 20 }}>
-        <h2>Thông báo</h2>
-        <ul className="lesson-list">
-          {course.announcements.map((a) => (
-            <li key={a.id}>
-              <strong>{a.title}</strong> — {a.body}
-            </li>
-          ))}
-        </ul>
-        <input value={annTitle} onChange={(e) => setAnnTitle(e.target.value)} />
-        <input value={annBody} onChange={(e) => setAnnBody(e.target.value)} placeholder="Nội dung" />
-        <button
-          type="button"
-          className="secondary"
-          disabled={busy}
-          onClick={() =>
-            void run(async () => {
-              if (!token) return;
-              await apiPost(
-                `/courses/${course.id}/announcements`,
-                { courseId: course.id, title: annTitle, body: annBody },
-                token,
-              );
-              await load(selectedLessonId);
-            }, "Đã đăng thông báo")
-          }
-        >
-          Đăng thông báo
-        </button>
-      </div>
-
-      <div className="panel" style={{ marginTop: 20 }}>
-        <h2>Quiz</h2>
-        <ul className="lesson-list">
-          {course.quizzes.map((q) => (
-            <li key={q.id}>
-              <a href={`/quizzes/${q.id}`}>{q.title}</a>
-            </li>
-          ))}
-        </ul>
-        <input value={quizTitle} onChange={(e) => setQuizTitle(e.target.value)} />
-        <input value={stem} onChange={(e) => setStem(e.target.value)} />
-        <button
-          type="button"
-          className="secondary"
-          disabled={busy}
-          onClick={() =>
-            void run(async () => {
-              if (!token) return;
-              await apiPost(
-                `/teacher/courses/${course.id}/quizzes`,
-                {
-                  title: quizTitle,
-                  questions: [
-                    {
-                      stem,
-                      answers: [
-                        { body: "Đúng", isCorrect: true },
-                        { body: "Sai", isCorrect: false },
-                      ],
-                    },
-                  ],
-                },
-                token,
-              );
-              await load(selectedLessonId);
-            }, "Đã tạo quiz")
-          }
-        >
-          Tạo quiz MCQ
-        </button>
-      </div>
-    </section>
+    </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiGet, apiPost, formatVnd } from "@/lib/api";
 import { hasRole, useRequireAuth } from "@/lib/auth";
+import { productTypeLabel, statusLabel, statusTone } from "@/lib/labels";
 
 type Dash = {
   users: number;
@@ -70,7 +71,7 @@ export default function AdminPage() {
   async function publish(id: string) {
     if (!token) return;
     await apiPost(`/admin/products/${id}/publish`, {}, token);
-    setMsg(`Published ${id}`);
+    setMsg("Đã xuất bản sản phẩm");
     await load();
   }
 
@@ -78,7 +79,7 @@ export default function AdminPage() {
     if (!token) return;
     if (!confirm(`Refund order ${orderId} and revoke entitlements?`)) return;
     await apiPost(`/orders/${orderId}/refund`, { reason: "admin_ui_refund" }, token);
-    setMsg(`Refunded ${orderId}`);
+    setMsg("Đã hoàn đơn");
     await load();
   }
 
@@ -88,38 +89,39 @@ export default function AdminPage() {
 
   return (
     <section>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Admin</h1>
-      <p className="muted">admin@edu.local · dashboard + review + refunds</p>
-      {user && <p>{user.email}</p>}
-      {error && <p className="error">{error}</p>}
-      {msg && <p className="ok">{msg}</p>}
+      <div className="page-head">
+        <h1>Quản trị trường</h1>
+        <p className="muted">Duyệt khóa, theo dõi đơn, cấp quyền và hoa hồng.</p>
+      </div>
+      {error && <p className="toast error">{error}</p>}
+      {msg && <p className="toast ok">{msg}</p>}
 
       {dash && (
-        <div className="grid">
-          <div className="panel">
-            <h3>Users</h3>
-            <p style={{ fontSize: "2rem" }}>{dash.users}</p>
+        <div className="stats-grid">
+          <div className="stat">
+            <div className="label">Người dùng</div>
+            <p className="value">{dash.users}</p>
           </div>
-          <div className="panel">
-            <h3>Products</h3>
-            <p style={{ fontSize: "2rem" }}>{dash.products}</p>
+          <div className="stat">
+            <div className="label">Sản phẩm</div>
+            <p className="value">{dash.products}</p>
           </div>
-          <div className="panel">
-            <h3>Paid orders</h3>
-            <p style={{ fontSize: "2rem" }}>{dash.paidOrders}</p>
+          <div className="stat">
+            <div className="label">Đơn đã trả</div>
+            <p className="value">{dash.paidOrders}</p>
           </div>
-          <div className="panel">
-            <h3>Entitlements</h3>
-            <p style={{ fontSize: "2rem" }}>{dash.activeEntitlements}</p>
+          <div className="stat">
+            <div className="label">Quyền đang mở</div>
+            <p className="value">{dash.activeEntitlements}</p>
           </div>
-          <div className="panel">
-            <h3>Revenue</h3>
-            <p style={{ fontSize: "1.4rem" }}>{formatVnd(dash.revenueMinor)}</p>
+          <div className="stat">
+            <div className="label">Doanh thu</div>
+            <p className="value">{formatVnd(dash.revenueMinor)}</p>
           </div>
         </div>
       )}
 
-      <h2 style={{ fontFamily: "var(--font-display)" }}>Review queue (IN_REVIEW)</h2>
+      <h2 style={{ fontFamily: "var(--font-display)", color: "var(--brand)" }}>Hàng chờ duyệt</h2>
       <div className="panel">
         {queue.length === 0 && <p className="muted">Không có sản phẩm chờ duyệt.</p>}
         <ul className="lesson-list">
@@ -128,18 +130,18 @@ export default function AdminPage() {
               <div>
                 <strong>{p.name}</strong>
                 <div className="muted">
-                  {p.type} · {p.slug} · {p.id}
+                  {productTypeLabel(p.type)} · {p.slug}
                 </div>
               </div>
               <button type="button" onClick={() => publish(p.id).catch((e) => setError(e.message))}>
-                Publish
+                Xuất bản
               </button>
             </li>
           ))}
         </ul>
       </div>
 
-      <h2 style={{ fontFamily: "var(--font-display)" }}>Users</h2>
+      <h2 style={{ fontFamily: "var(--font-display)", color: "var(--brand)" }}>Người dùng</h2>
       <div className="panel">
         <ul className="lesson-list">
           {users.map((u) => (
@@ -147,13 +149,13 @@ export default function AdminPage() {
               <span>
                 {u.displayName} · {u.email}
               </span>
-              <span className="badge">{u.status}</span>
+              <span className={`badge ${statusTone(u.status)}`}>{statusLabel(u.status)}</span>
             </li>
           ))}
         </ul>
-        <label>Grant entitlement (userId)</label>
+        <label>Cấp quyền — mã người dùng</label>
         <input value={grantUserId} onChange={(e) => setGrantUserId(e.target.value)} />
-        <label>resourceId (product id)</label>
+        <label>Mã sản phẩm</label>
         <input value={grantResource} onChange={(e) => setGrantResource(e.target.value)} />
         <button
           type="button"
@@ -170,21 +172,21 @@ export default function AdminPage() {
               },
               token,
             )
-              .then(() => setMsg("Granted"))
+              .then(() => setMsg("Đã cấp quyền"))
               .catch((e: Error) => setError(e.message));
           }}
         >
-          Grant product
+          Cấp sản phẩm
         </button>
       </div>
 
-      <h2 style={{ fontFamily: "var(--font-display)" }}>Coupons</h2>
+      <h2 style={{ fontFamily: "var(--font-display)", color: "var(--brand)" }}>Mã giảm giá</h2>
       <div className="panel">
         <ul className="lesson-list">
           {coupons.map((c) => (
             <li key={c.code}>
               <span>{c.code}</span>
-              <span>{c.percentOff ? `${c.percentOff}%` : ""} {c.enabled ? "ON" : "OFF"}</span>
+              <span>{c.percentOff ? `${c.percentOff}%` : ""} {c.enabled ? "Bật" : "Tắt"}</span>
             </li>
           ))}
         </ul>
@@ -196,7 +198,7 @@ export default function AdminPage() {
             if (!token) return;
             apiPost("/admin/coupons", { code: couponCode, percentOff: 20 }, token)
               .then(() => {
-                setMsg("Coupon saved");
+                setMsg("Đã lưu mã giảm giá");
                 void load();
               })
               .catch((e: Error) => setError(e.message));
@@ -206,14 +208,14 @@ export default function AdminPage() {
         </button>
       </div>
 
-      <h2 style={{ fontFamily: "var(--font-display)" }}>Affiliate payouts</h2>
+      <h2 style={{ fontFamily: "var(--font-display)", color: "var(--brand)" }}>Rút hoa hồng</h2>
       <div className="panel">
         {payouts.length === 0 && <p className="muted">Chưa có yêu cầu rút.</p>}
         <ul className="lesson-list">
           {payouts.map((p) => (
             <li key={p.id}>
               <span>
-                {p.status} · {formatVnd(p.amountMinor)}
+                {statusLabel(p.status)} · {formatVnd(p.amountMinor)}
               </span>
               {p.status === "REQUESTED" && (
                 <button
@@ -223,13 +225,13 @@ export default function AdminPage() {
                     if (!token) return;
                     apiPost(`/admin/affiliate-payouts/${p.id}/resolve`, { status: "PAID" }, token)
                       .then(() => {
-                        setMsg("Payout marked PAID");
+                        setMsg("Đã đánh dấu đã trả");
                         void load();
                       })
                       .catch((e: Error) => setError(e.message));
                   }}
                 >
-                  Mark PAID
+                  Đánh dấu đã trả
                 </button>
               )}
             </li>
@@ -237,13 +239,13 @@ export default function AdminPage() {
         </ul>
       </div>
 
-      <h2 style={{ fontFamily: "var(--font-display)" }}>Orders / refunds</h2>
+      <h2 style={{ fontFamily: "var(--font-display)", color: "var(--brand)" }}>Đơn hàng / hoàn tiền</h2>
       <div className="panel">
         <ul className="lesson-list">
           {orders.slice(0, 30).map((o) => (
             <li key={o.id}>
               <div>
-                <strong>{o.status}</strong> · {formatVnd(o.totalMinor)} {o.currency}
+                <strong>{statusLabel(o.status)}</strong> · {formatVnd(o.totalMinor)} {o.currency}
                 <div className="muted">
                   {o.id} · {o.user?.email} · {o.payments[0]?.provider}
                 </div>
@@ -254,7 +256,7 @@ export default function AdminPage() {
                   className="secondary"
                   onClick={() => refund(o.id).catch((e) => setError(e.message))}
                 >
-                  Refund
+                  Hoàn tiền
                 </button>
               )}
             </li>

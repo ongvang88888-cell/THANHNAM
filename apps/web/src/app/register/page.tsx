@@ -53,7 +53,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <section className="panel stack">
+    <section className="panel auth-card">
       <h1 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>Tạo tài khoản</h1>
       <p className="muted">Đăng ký học viên. Chúng tôi sẽ gửi email xác minh (hoặc hiện token ở môi trường dev).</p>
       <form onSubmit={onSubmit}>
@@ -71,7 +71,7 @@ export default function RegisterPage() {
         />
         {error && <p className="error">{error}</p>}
         <button disabled={loading} type="submit">
-          {loading ? "..." : "Đăng ký"}
+          {loading ? "Đang tạo…" : "Đăng ký"}
         </button>
       </form>
       <p className="muted">

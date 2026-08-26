@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiGet, apiPost, apiPut, type AccessDecision } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
@@ -29,6 +29,22 @@ type LessonPayload = {
   durationSec?: number;
 };
 
+type OutlineLesson = {
+  id: string;
+  title: string;
+  isPreview: boolean;
+};
+
+type Outline = {
+  id: string;
+  title: string;
+  sections: Array<{
+    id: string;
+    title: string;
+    lessons: OutlineLesson[];
+  }>;
+};
+
 type Comment = {
   id: string;
   body: string;
@@ -43,6 +59,7 @@ export default function LearnPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
   const { token, ready } = useRequireAuth();
   const [lesson, setLesson] = useState<LessonPayload | null>(null);
+  const [outline, setOutline] = useState<Outline | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
@@ -54,6 +71,15 @@ export default function LearnPage() {
   const [noteBody, setNoteBody] = useState("");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [documents, setDocuments] = useState<LessonDocument[]>([]);
+
+  const flatLessons = useMemo(
+    () => outline?.sections.flatMap((section) => section.lessons) ?? [],
+    [outline],
+  );
+  const currentIndex = flatLessons.findIndex((row) => row.id === lesson?.id);
+  const prevLesson = currentIndex > 0 ? flatLessons[currentIndex - 1] : null;
+  const nextLesson =
+    currentIndex >= 0 && currentIndex < flatLessons.length - 1 ? flatLessons[currentIndex + 1] : null;
 
   async function load() {
     if (!ready || !token) return;
@@ -73,6 +99,9 @@ export default function LearnPage() {
       apiGet<Announcement[]>(`/courses/${data.courseId}/announcements`)
         .then(setAnnouncements)
         .catch(() => setAnnouncements([]));
+      apiGet<Outline>(`/courses/${data.courseId}/curriculum`)
+        .then(setOutline)
+        .catch(() => setOutline(null));
     }
 
     if (data.access.code === "CAN_ACCESS") {
@@ -86,7 +115,7 @@ export default function LearnPage() {
           );
           setPlaybackUrl(pb.playbackUrl);
         } catch (e) {
-          setPlaybackError(e instanceof Error ? e.message : "Playback failed");
+          setPlaybackError(e instanceof Error ? e.message : "Không mở được video");
         }
       }
       const docContents = data.contents.filter((c) => c.contentType === "DOCUMENT" && c.refId);
@@ -142,242 +171,292 @@ export default function LearnPage() {
       }
       await apiPost("/rewards/dev/complete", { rewardSessionId: elig.rewardSessionId }, token);
       await load();
-      setMsg("Đã mở khóa bằng rewarded ad (môi trường dev).");
+      setMsg("Đã mở khóa bằng quảng cáo thưởng (môi trường thử).");
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Reward failed");
+      setMsg(e instanceof Error ? e.message : "Không mở được bằng quảng cáo");
     } finally {
       setBusy(false);
     }
   }
 
-  if (!lesson) return <p className="muted">{msg || "Loading..."}</p>;
+  if (!lesson) return <p className="muted" style={{ padding: 24 }}>{msg || "Đang mở bài học…"}</p>;
   const access = lesson.access;
 
   return (
-    <section className="panel">
-      <h1 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>{lesson.title}</h1>
-      <div>
-        {access.code === "CAN_ACCESS" && <span className="badge free">CAN ACCESS</span>}
-        {access.code === "NEEDS_PURCHASE" && <span className="badge paid">NEEDS PURCHASE</span>}
-        {access.code === "NEEDS_AD" && <span className="badge ad">NEEDS AD</span>}
-        {access.code === "CANNOT_ACCESS" && <span className="badge locked">LOCKED</span>}
-      </div>
-
-      {announcements.length > 0 && (
-        <div style={{ marginTop: 16 }}>
-          <h3>Thông báo khóa học</h3>
-          {announcements.map((a) => (
-            <p key={a.id}>
-              <strong>{a.title}</strong> — {a.body}
-            </p>
-          ))}
+    <div className="player">
+      <section className="player-main">
+        <p className="muted">{outline?.title ?? "Bài học"}</p>
+        <h1 style={{ fontFamily: "var(--font-display)", marginTop: 4 }}>{lesson.title}</h1>
+        <div>
+          {access.code === "CAN_ACCESS" && <span className="badge free">Đang học</span>}
+          {access.code === "NEEDS_PURCHASE" && <span className="badge paid">Cần mua</span>}
+          {access.code === "NEEDS_AD" && <span className="badge ad">Mở bằng quảng cáo</span>}
+          {access.code === "CANNOT_ACCESS" && <span className="badge locked">Đang khóa</span>}
         </div>
-      )}
 
-      {access.code !== "CAN_ACCESS" && (
-        <div style={{ marginTop: 18 }}>
-          <p className="muted">
-            Nội dung đang khóa. Lý do: <strong>{access.code}</strong>
-            {access.reasons?.length ? ` (${access.reasons.join(", ")})` : ""}
-          </p>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <a className="btn" href="/">
-              Mua khóa học
-            </a>
-            <button className="secondary" disabled={busy} onClick={watchAd}>
-              {busy ? "..." : "Xem quảng cáo để mở"}
-            </button>
+        {announcements.length > 0 && (
+          <div className="panel" style={{ marginTop: 16 }}>
+            <h3>Thông báo khóa học</h3>
+            {announcements.map((a) => (
+              <p key={a.id}>
+                <strong>{a.title}</strong> — {a.body}
+              </p>
+            ))}
           </div>
-        </div>
-      )}
+        )}
 
-      {access.code === "CAN_ACCESS" && (
-        <div style={{ marginTop: 20 }}>
-          {lesson.contents.map((c) => {
-            if (c.contentType === "VIDEO") {
-              return (
-                <div key={c.id} style={{ marginBottom: 20 }}>
-                  {playbackUrl ? (
-                    <video
-                      controls
-                      playsInline
-                      style={{ width: "100%", maxHeight: 480, background: "#0b1612" }}
-                      src={playbackUrl}
-                      onPause={() => void saveProgress(false)}
-                      onEnded={() => void saveProgress(true)}
-                    />
-                  ) : (
-                    <p className="muted">{playbackError || "Loading video…"}</p>
-                  )}
-                </div>
-              );
-            }
-            if (c.contentType === "DOCUMENT") {
-              const file = documents.find((d) => d.documentId === c.refId);
-              return (
-                <div key={c.id} className="panel" style={{ marginBottom: 20 }}>
-                  <h3 style={{ marginTop: 0 }}>Tài liệu nghiên cứu</h3>
-                  {file ? (
-                    <>
-                      <p>
-                        {file.title} · {file.mime} · v{file.version}
-                      </p>
-                      <a className="btn" href={file.url} target="_blank" rel="noreferrer">
-                        Tải / mở tài liệu
-                      </a>
-                      {file.mime === "application/pdf" && (
-                        <iframe
-                          title={file.title}
-                          src={file.url}
-                          style={{
-                            width: "100%",
-                            height: 480,
-                            marginTop: 12,
-                            border: "1px solid var(--line)",
-                            background: "#fff",
-                          }}
-                        />
-                      )}
-                    </>
-                  ) : (
-                    <p className="muted">Đang tải tài liệu…</p>
-                  )}
-                </div>
-              );
-            }
-            return (
-              <article key={c.id} style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-                {c.body}
-              </article>
-            );
-          })}
-          {access.expiresAt && (
+        {access.code !== "CAN_ACCESS" && (
+          <div className="panel" style={{ marginTop: 18 }}>
             <p className="muted">
-              Quyền tạm thời hết hạn: {new Date(access.expiresAt).toLocaleString()}
+              Nội dung đang khóa. {access.reasons?.length ? access.reasons.join(", ") : access.code}
+            </p>
+            <div className="studio-actions">
+              <a className="btn" href="/">
+                Mua khóa học
+              </a>
+              <button className="secondary" disabled={busy} onClick={() => void watchAd()}>
+                {busy ? "Đang mở…" : "Xem quảng cáo để mở"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {access.code === "CAN_ACCESS" && (
+          <div style={{ marginTop: 20 }}>
+            {lesson.contents.map((c) => {
+              if (c.contentType === "VIDEO") {
+                return (
+                  <div key={c.id} className="block">
+                    {playbackUrl ? (
+                      <video
+                        controls
+                        playsInline
+                        style={{ width: "100%", maxHeight: 480, background: "#0b1612", borderRadius: 12 }}
+                        src={playbackUrl}
+                        onPause={() => void saveProgress(false)}
+                        onEnded={() => void saveProgress(true)}
+                      />
+                    ) : (
+                      <p className="muted">{playbackError || "Đang tải video…"}</p>
+                    )}
+                  </div>
+                );
+              }
+              if (c.contentType === "DOCUMENT") {
+                const file = documents.find((d) => d.documentId === c.refId);
+                return (
+                  <div key={c.id} className="panel" style={{ marginBottom: 20 }}>
+                    <h3 style={{ marginTop: 0 }}>Tài liệu nghiên cứu</h3>
+                    {file ? (
+                      <>
+                        <p>
+                          {file.title} · {file.mime} · v{file.version}
+                        </p>
+                        <a className="btn" href={file.url} target="_blank" rel="noreferrer">
+                          Tải / mở tài liệu
+                        </a>
+                        {file.mime === "application/pdf" && (
+                          <iframe
+                            title={file.title}
+                            src={file.url}
+                            style={{
+                              width: "100%",
+                              height: 480,
+                              marginTop: 12,
+                              border: "1px solid var(--line)",
+                              background: "#fff",
+                              borderRadius: 12,
+                            }}
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <p className="muted">Đang tải tài liệu…</p>
+                    )}
+                  </div>
+                );
+              }
+              return (
+                <article key={c.id} className="block" style={{ whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
+                  {c.body}
+                </article>
+              );
+            })}
+            {access.expiresAt && (
+              <p className="muted">
+                Quyền tạm thời hết hạn: {new Date(access.expiresAt).toLocaleString("vi-VN")}
+              </p>
+            )}
+            <div className="studio-actions" style={{ marginTop: 12 }}>
+              <button type="button" className="secondary" onClick={() => void saveProgress(false)}>
+                Lưu tiến độ
+              </button>
+              <button type="button" onClick={() => void saveProgress(true)}>
+                Đánh dấu hoàn thành
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  if (!token) return;
+                  apiPost("/bookmarks", { resourceType: "lesson", resourceId: lesson.id }, token)
+                    .then(() => setMsg("Đã lưu vào bookmark"))
+                    .catch((e: Error) => setMsg(e.message));
+                }}
+              >
+                Bookmark
+              </button>
+            </div>
+            <div className="player-nav">
+              {prevLesson ? (
+                <a className="btn secondary" href={`/learn/${prevLesson.id}`}>
+                  ← {prevLesson.title}
+                </a>
+              ) : (
+                <span />
+              )}
+              {nextLesson ? (
+                <a className="btn" href={`/learn/${nextLesson.id}`}>
+                  {nextLesson.title} →
+                </a>
+              ) : (
+                <a className="btn secondary" href="/library">
+                  Về thư viện
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="panel" style={{ marginTop: 28 }}>
+          <h3>Ghi chú của tôi</h3>
+          <textarea
+            value={noteBody}
+            onChange={(e) => setNoteBody(e.target.value)}
+            rows={3}
+            placeholder="Viết nhanh ý chính của bài…"
+          />
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              if (!token || !noteBody.trim()) return;
+              apiPost<Note>("/notes", { resourceType: "lesson", resourceId: lesson.id, body: noteBody }, token)
+                .then((n) => {
+                  setNotes((prev) => [n, ...prev]);
+                  setNoteBody("");
+                })
+                .catch((e: Error) => setMsg(e.message));
+            }}
+          >
+            Lưu ghi chú
+          </button>
+          <ul className="lesson-list">
+            {notes.map((n) => (
+              <li key={n.id}>{n.body}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="panel" style={{ marginTop: 16 }}>
+          <h3>Bình luận</h3>
+          <ul className="lesson-list">
+            {comments
+              .filter((c) => !c.parentId)
+              .map((c) => (
+                <li key={c.id} style={{ display: "block" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                    <div>
+                      <strong>{c.user.displayName}</strong>
+                      <div className="muted">{c.body}</div>
+                    </div>
+                    <span className="muted">{new Date(c.createdAt).toLocaleString("vi-VN")}</span>
+                  </div>
+                  <button type="button" className="ghost btn-sm" onClick={() => setReplyTo(c.id)}>
+                    Trả lời
+                  </button>
+                  <ul className="lesson-list" style={{ marginLeft: 16 }}>
+                    {comments
+                      .filter((r) => r.parentId === c.id)
+                      .map((r) => (
+                        <li key={r.id}>
+                          <div>
+                            <strong>{r.user.displayName}</strong>
+                            <div className="muted">{r.body}</div>
+                          </div>
+                          <span className="muted">{new Date(r.createdAt).toLocaleString("vi-VN")}</span>
+                        </li>
+                      ))}
+                  </ul>
+                </li>
+              ))}
+          </ul>
+          {replyTo && (
+            <p className="muted">
+              Đang trả lời một bình luận.{" "}
+              <button type="button" className="ghost btn-sm" onClick={() => setReplyTo(null)}>
+                Hủy
+              </button>
             </p>
           )}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-            <button type="button" className="secondary" onClick={() => void saveProgress(false)}>
-              Lưu tiến độ
-            </button>
-            <button type="button" onClick={() => void saveProgress(true)}>
-              Đánh dấu hoàn thành
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => {
-                if (!token) return;
-                apiPost("/bookmarks", { resourceType: "lesson", resourceId: lesson.id }, token)
-                  .then(() => setMsg("Đã thêm bookmark"))
-                  .catch((e: Error) => setMsg(e.message));
-              }}
-            >
-              Bookmark
-            </button>
-          </div>
+          <input
+            value={commentBody}
+            onChange={(e) => setCommentBody(e.target.value)}
+            placeholder={replyTo ? "Viết trả lời…" : "Viết bình luận…"}
+          />
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              if (!token || !commentBody.trim()) return;
+              apiPost<Comment>(
+                `/lessons/${lesson.id}/comments`,
+                { body: commentBody, ...(replyTo ? { parentId: replyTo } : {}) },
+                token,
+              )
+                .then((c) => {
+                  setComments((prev) => [...prev, { ...c, user: c.user ?? { displayName: "Bạn" } }]);
+                  setCommentBody("");
+                  setReplyTo(null);
+                })
+                .catch((e: Error) => setMsg(e.message));
+            }}
+          >
+            Gửi
+          </button>
         </div>
-      )}
+        {msg && <p className="toast ok">{msg}</p>}
+      </section>
 
-      <div style={{ marginTop: 28 }}>
-        <h3>Ghi chú của tôi</h3>
-        <textarea
-          value={noteBody}
-          onChange={(e) => setNoteBody(e.target.value)}
-          rows={3}
-          style={{ width: "100%", font: "inherit", padding: 12 }}
-        />
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => {
-            if (!token || !noteBody.trim()) return;
-            apiPost<Note>("/notes", { resourceType: "lesson", resourceId: lesson.id, body: noteBody }, token)
-              .then((n) => {
-                setNotes((prev) => [n, ...prev]);
-                setNoteBody("");
-              })
-              .catch((e: Error) => setMsg(e.message));
-          }}
-        >
-          Lưu ghi chú
-        </button>
-        <ul className="lesson-list">
-          {notes.map((n) => (
-            <li key={n.id}>{n.body}</li>
-          ))}
-        </ul>
-      </div>
-
-      <div style={{ marginTop: 20 }}>
-        <h3>Bình luận</h3>
-        <ul className="lesson-list">
-          {comments
-            .filter((c) => !c.parentId)
-            .map((c) => (
-              <li key={c.id} style={{ display: "block" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                  <div>
-                    <strong>{c.user.displayName}</strong>
-                    <div className="muted">{c.body}</div>
-                  </div>
-                  <span className="muted">{new Date(c.createdAt).toLocaleString("vi-VN")}</span>
-                </div>
-                <button type="button" className="secondary" onClick={() => setReplyTo(c.id)}>
-                  Trả lời
-                </button>
-                <ul className="lesson-list" style={{ marginLeft: 16 }}>
-                  {comments
-                    .filter((r) => r.parentId === c.id)
-                    .map((r) => (
-                      <li key={r.id}>
-                        <div>
-                          <strong>{r.user.displayName}</strong>
-                          <div className="muted">{r.body}</div>
-                        </div>
-                        <span className="muted">{new Date(r.createdAt).toLocaleString("vi-VN")}</span>
-                      </li>
-                    ))}
-                </ul>
-              </li>
+      <aside className="player-aside">
+        <h2 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>Nội dung khóa</h2>
+        <p className="muted">
+          {currentIndex >= 0 ? `Bài ${currentIndex + 1}/${flatLessons.length || 1}` : "Mục lục"}
+        </p>
+        {outline?.sections.map((section, index) => (
+          <div key={section.id} className="outline-section">
+            <div className="outline-head">
+              <strong>
+                {index + 1}. {section.title}
+              </strong>
+            </div>
+            {section.lessons.map((row) => (
+              <a
+                key={row.id}
+                href={`/learn/${row.id}`}
+                className={`outline-lesson${row.id === lesson.id ? " is-active" : ""}`}
+                style={{ textDecoration: "none" }}
+              >
+                <span>{row.title}</span>
+                {row.isPreview ? <span className="badge free">Preview</span> : null}
+              </a>
             ))}
-        </ul>
-        {replyTo && (
-          <p className="muted">
-            Đang trả lời một bình luận.{" "}
-            <button type="button" className="secondary" onClick={() => setReplyTo(null)}>
-              Hủy
-            </button>
-          </p>
-        )}
-        <input
-          value={commentBody}
-          onChange={(e) => setCommentBody(e.target.value)}
-          placeholder={replyTo ? "Viết trả lời…" : "Viết bình luận…"}
-        />
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => {
-            if (!token || !commentBody.trim()) return;
-            apiPost<Comment>(
-              `/lessons/${lesson.id}/comments`,
-              { body: commentBody, ...(replyTo ? { parentId: replyTo } : {}) },
-              token,
-            )
-              .then((c) => {
-                setComments((prev) => [...prev, { ...c, user: c.user ?? { displayName: "Bạn" } }]);
-                setCommentBody("");
-                setReplyTo(null);
-              })
-              .catch((e: Error) => setMsg(e.message));
-          }}
-        >
-          Gửi
-        </button>
-      </div>
-
-      {msg && <p className="ok">{msg}</p>}
-    </section>
+          </div>
+        ))}
+        <a className="btn secondary btn-sm" href="/library">
+          Về thư viện
+        </a>
+      </aside>
+    </div>
   );
 }

@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FileDrop } from "@/components/FileDrop";
 import { apiGet, apiPost, apiPutBinary, formatVnd } from "@/lib/api";
 import { hasRole, useRequireAuth } from "@/lib/auth";
+import { productTypeLabel, statusLabel, statusTone } from "@/lib/labels";
 
 type CourseRow = {
   id: string;
@@ -28,23 +30,33 @@ type BundleRow = {
   prices?: Array<{ amountMinor: number }>;
 };
 
+type Tab = "courses" | "documents" | "bundles" | "upload" | "affiliate";
+
+const TABS: Array<{ id: Tab; label: string }> = [
+  { id: "courses", label: "Khóa học" },
+  { id: "documents", label: "Tài liệu bán" },
+  { id: "bundles", label: "Combo" },
+  { id: "upload", label: "Tải file" },
+  { id: "affiliate", label: "Affiliate" },
+];
+
 export default function TeacherPage() {
   const { token, user, ready } = useRequireAuth();
-  const [tab, setTab] = useState<"courses" | "documents" | "bundles" | "upload" | "affiliate">("courses");
+  const [tab, setTab] = useState<Tab>("courses");
   const [courses, setCourses] = useState<CourseRow[]>([]);
   const [documents, setDocuments] = useState<DocRow[]>([]);
   const [bundles, setBundles] = useState<BundleRow[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [courseTitle, setCourseTitle] = useState("New Course");
-  const [courseSlug, setCourseSlug] = useState(`course-${Date.now()}`);
-  const [docTitle, setDocTitle] = useState("New Document");
-  const [docSlug, setDocSlug] = useState(`doc-${Date.now()}`);
-  const [bundleTitle, setBundleTitle] = useState("New Bundle");
-  const [bundleSlug, setBundleSlug] = useState(`bundle-${Date.now()}`);
+  const [courseTitle, setCourseTitle] = useState("Khóa học mới");
+  const [courseSlug, setCourseSlug] = useState(`khoa-hoc-${Date.now()}`);
+  const [docTitle, setDocTitle] = useState("Tài liệu mới");
+  const [docSlug, setDocSlug] = useState(`tai-lieu-${Date.now()}`);
+  const [bundleTitle, setBundleTitle] = useState("Combo mới");
+  const [bundleSlug, setBundleSlug] = useState(`combo-${Date.now()}`);
   const [childIds, setChildIds] = useState("");
-  const [videoTitle, setVideoTitle] = useState("Lesson video");
+  const [videoTitle, setVideoTitle] = useState("Video bài học");
   const [lastVideoId, setLastVideoId] = useState<string | null>(null);
   const [attachCourseId, setAttachCourseId] = useState("");
   const [docUploadId, setDocUploadId] = useState("");
@@ -75,8 +87,8 @@ export default function TeacherPage() {
     const res = await apiPost<{ course: CourseRow }>("/teacher/courses", {
       title: courseTitle,
       slug: courseSlug,
-      description: "Draft course",
-      priceMinor: 19900000,
+      description: "Bản nháp khóa học",
+      priceMinor: 499000,
     }, token);
     window.location.href = `/teacher/courses/${res.course.id}`;
   }
@@ -89,13 +101,13 @@ export default function TeacherPage() {
       {
         title: docTitle,
         slug: docSlug,
-        description: "Draft document product",
-        priceMinor: 9900000,
+        description: "Tài liệu bán trên cửa hàng",
+        priceMinor: 99000,
       },
       token,
     );
     setDocUploadId(res.document.id);
-    setMsg(`Created document ${res.document.title} — upload file next`);
+    setMsg(`Đã tạo ${res.document.title}. Hãy tải file ở tab Tải file.`);
     setTab("upload");
     await refresh();
   }
@@ -108,7 +120,7 @@ export default function TeacherPage() {
       .map((s) => s.trim())
       .filter(Boolean);
     if (ids.length === 0) {
-      setError("Nhập childProductIds (comma-separated product IDs)");
+      setError("Nhập mã sản phẩm con, cách nhau bằng dấu phẩy.");
       return;
     }
     await apiPost(
@@ -117,20 +129,20 @@ export default function TeacherPage() {
         title: bundleTitle,
         slug: bundleSlug,
         type: "MIXED_BUNDLE",
-        priceMinor: 54900000,
+        priceMinor: 799000,
         childProductIds: ids,
-        description: "Draft bundle",
+        description: "Combo khóa học và tài liệu",
       },
       token,
     );
-    setMsg("Created bundle draft");
+    setMsg("Đã tạo combo bản nháp");
     await refresh();
   }
 
   async function submitProduct(productId: string) {
     if (!token) return;
     await apiPost(`/teacher/products/${productId}/submit`, {}, token);
-    setMsg(`Submitted ${productId} for review`);
+    setMsg("Đã gửi admin duyệt");
     await refresh();
   }
 
@@ -149,12 +161,10 @@ export default function TeacherPage() {
       },
       token,
     );
-    await apiPutBinary(session.upload.url, file, file.type || "video/mp4").catch(() => {
-      // Local memory storage still marks READY via /complete sizeBytes
-    });
+    await apiPutBinary(session.upload.url, file, file.type || "video/mp4").catch(() => undefined);
     await apiPost(`/videos/${session.videoId}/complete`, { sizeBytes: file.size }, token);
     setLastVideoId(session.videoId);
-    setMsg(`Video READY: ${session.videoId}`);
+    setMsg("Video đã sẵn sàng. Mở studio để gắn vào bài.");
   }
 
   async function uploadDocumentFile(file: File) {
@@ -173,11 +183,9 @@ export default function TeacherPage() {
       },
       token,
     );
-    await apiPutBinary(session.upload.url, file, file.type || "application/pdf").catch(() => {
-      // Local memory: complete still records size
-    });
+    await apiPutBinary(session.upload.url, file, file.type || "application/pdf").catch(() => undefined);
     await apiPost(`/documents/versions/${session.versionId}/complete`, { sizeBytes: file.size }, token);
-    setMsg(`Document version uploaded for ${docUploadId}`);
+    setMsg("Đã tải phiên bản tài liệu");
     await refresh();
   }
 
@@ -187,98 +195,112 @@ export default function TeacherPage() {
 
   return (
     <section>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Teacher Portal</h1>
-      <p className="muted">
-        Tạo khóa học rồi mở studio để soạn chương, bài, video và tài liệu nghiên cứu.
-      </p>
-      {user && <p>User: {user.email}</p>}
+      <div className="page-head">
+        <h1>Studio giảng viên</h1>
+        <p className="muted">
+          Tạo khóa, soạn chương–bài, tải video và tài liệu nghiên cứu. Admin duyệt trước khi lên cửa hàng.
+        </p>
+      </div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "16px 0" }}>
-        {(["courses", "documents", "bundles", "upload", "affiliate"] as const).map((t) => (
+      <div className="tabs">
+        {TABS.map((item) => (
           <button
-            key={t}
-            className={tab === t ? undefined : "secondary"}
+            key={item.id}
+            className={tab === item.id ? "is-on" : undefined}
             type="button"
-            onClick={() => setTab(t)}
+            onClick={() => setTab(item.id)}
           >
-            {t}
+            {item.label}
           </button>
         ))}
       </div>
 
-      {error && <p className="error">{error}</p>}
-      {msg && <p className="ok">{msg}</p>}
+      {error && <p className="toast error">{error}</p>}
+      {msg && <p className="toast ok">{msg}</p>}
 
       {tab === "courses" && (
         <>
-          <div className="panel stack" style={{ marginBottom: 24 }}>
-            <label>Title</label>
-            <input value={courseTitle} onChange={(e) => setCourseTitle(e.target.value)} />
-            <label>Slug</label>
-            <input value={courseSlug} onChange={(e) => setCourseSlug(e.target.value)} />
-            <button type="button" onClick={() => createCourse().catch((e) => setError(e.message))}>
-              Tạo khóa học và mở studio
-            </button>
+          <div className="panel" style={{ marginBottom: 24 }}>
+            <h2>Tạo khóa học mới</h2>
+            <div className="split">
+              <div>
+                <label>Tiêu đề</label>
+                <input value={courseTitle} onChange={(e) => setCourseTitle(e.target.value)} />
+                <label>Đường dẫn cửa hàng</label>
+                <input value={courseSlug} onChange={(e) => setCourseSlug(e.target.value)} />
+                <button type="button" onClick={() => createCourse().catch((e) => setError(e.message))}>
+                  Tạo và mở studio
+                </button>
+              </div>
+              <p className="muted">
+                Khóa mới bắt đầu ở trạng thái bản nháp, có sẵn Chương 1. Bạn soạn xong rồi gửi duyệt.
+              </p>
+            </div>
           </div>
-          <div className="panel">
-            <h2>My courses</h2>
-            <ul className="lesson-list">
-              {courses.map((c) => (
-                <li key={c.id}>
-                  <span>
-                    {c.title}{" "}
-                    <span className="badge">{c.status}</span>{" "}
-                    <span className="badge">{c.product?.status}</span>
-                    <div className="muted">
-                      <a href={`/teacher/courses/${c.id}`}>Mở studio</a> · course {c.id} ·{" "}
-                      {c.product?.prices?.[0] ? formatVnd(c.product.prices[0].amountMinor) : ""}
-                    </div>
-                  </span>
+          <div className="grid">
+            {courses.map((c) => (
+              <article className="product" key={c.id}>
+                <div className="cover" />
+                <div className="type">Khóa học</div>
+                <h3>{c.title}</h3>
+                <div>
+                  <span className={`badge ${statusTone(c.status)}`}>{statusLabel(c.status)}</span>
+                  {c.product && (
+                    <span className={`badge ${statusTone(c.product.status)}`}>
+                      {statusLabel(c.product.status)}
+                    </span>
+                  )}
+                </div>
+                <p className="price">{c.product?.prices?.[0] ? formatVnd(c.product.prices[0].amountMinor) : "—"}</p>
+                <div className="studio-actions">
+                  <a className="btn btn-sm" href={`/teacher/courses/${c.id}`}>
+                    Mở studio
+                  </a>
                   {c.product?.id && (
                     <button
                       type="button"
-                      className="secondary"
+                      className="secondary btn-sm"
                       onClick={() => submitProduct(c.product!.id).catch((e) => setError(e.message))}
                     >
-                      Submit
+                      Gửi duyệt
                     </button>
                   )}
-                </li>
-              ))}
-            </ul>
+                </div>
+              </article>
+            ))}
           </div>
         </>
       )}
 
       {tab === "documents" && (
         <>
-          <div className="panel stack" style={{ marginBottom: 24 }}>
-            <label>Title</label>
+          <div className="panel stack" style={{ marginBottom: 24, maxWidth: 520 }}>
+            <h2>Tạo tài liệu bán</h2>
+            <label>Tiêu đề</label>
             <input value={docTitle} onChange={(e) => setDocTitle(e.target.value)} />
-            <label>Slug</label>
+            <label>Đường dẫn</label>
             <input value={docSlug} onChange={(e) => setDocSlug(e.target.value)} />
             <button type="button" onClick={() => createDocument().catch((e) => setError(e.message))}>
-              Create document product
+              Tạo tài liệu
             </button>
           </div>
           <div className="panel">
-            <h2>My documents</h2>
+            <h2>Tài liệu của tôi</h2>
             <ul className="lesson-list">
               {documents.map((d) => (
                 <li key={d.id}>
                   <span>
-                    {d.title} <span className="badge">{d.status}</span>
-                    <div className="muted">
-                      doc {d.id} · v{d.versions?.[0]?.version ?? 0} · product {d.product?.id}
-                    </div>
+                    {d.title}{" "}
+                    <span className={`badge ${statusTone(d.status)}`}>{statusLabel(d.status)}</span>
+                    <div className="muted">Phiên bản {d.versions?.[0]?.version ?? 0}</div>
                   </span>
                   {d.product?.id && (
                     <button
                       type="button"
-                      className="secondary"
+                      className="secondary btn-sm"
                       onClick={() => submitProduct(d.product!.id).catch((e) => setError(e.message))}
                     >
-                      Submit
+                      Gửi duyệt
                     </button>
                   )}
                 </li>
@@ -291,41 +313,37 @@ export default function TeacherPage() {
       {tab === "bundles" && (
         <>
           <div className="panel stack" style={{ marginBottom: 24, maxWidth: 560 }}>
-            <label>Title</label>
+            <h2>Tạo combo</h2>
+            <label>Tiêu đề</label>
             <input value={bundleTitle} onChange={(e) => setBundleTitle(e.target.value)} />
-            <label>Slug</label>
+            <label>Đường dẫn</label>
             <input value={bundleSlug} onChange={(e) => setBundleSlug(e.target.value)} />
-            <label>Child product IDs (comma-separated)</label>
+            <label>Mã sản phẩm con (cách nhau bằng dấu phẩy)</label>
             <input
               value={childIds}
               onChange={(e) => setChildIds(e.target.value)}
               placeholder="productId1,productId2"
             />
-            <p className="muted">
-              Gợi ý: copy product id từ courses/documents ở trên (chỉ product đã tồn tại).
-            </p>
             <button type="button" onClick={() => createBundle().catch((e) => setError(e.message))}>
-              Create MIXED_BUNDLE
+              Tạo combo
             </button>
           </div>
           <div className="panel">
-            <h2>My bundles</h2>
+            <h2>Combo của tôi</h2>
             <ul className="lesson-list">
               {bundles.map((b) => (
                 <li key={b.id}>
                   <span>
-                    {b.name} <span className="badge">{b.type}</span>{" "}
-                    <span className="badge">{b.status}</span>
-                    <div className="muted">
-                      {b.id} · {b.prices?.[0] ? formatVnd(b.prices[0].amountMinor) : ""}
-                    </div>
+                    {b.name} <span className="badge">{productTypeLabel(b.type)}</span>{" "}
+                    <span className={`badge ${statusTone(b.status)}`}>{statusLabel(b.status)}</span>
+                    <div className="muted">{b.prices?.[0] ? formatVnd(b.prices[0].amountMinor) : ""}</div>
                   </span>
                   <button
                     type="button"
-                    className="secondary"
+                    className="secondary btn-sm"
                     onClick={() => submitProduct(b.id).catch((e) => setError(e.message))}
                   >
-                    Submit
+                    Gửi duyệt
                   </button>
                 </li>
               ))}
@@ -335,72 +353,56 @@ export default function TeacherPage() {
       )}
 
       {tab === "upload" && (
-        <div className="panel stack" style={{ maxWidth: 560 }}>
-          <h2 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>Video upload</h2>
-          <label>Title</label>
+        <div className="panel" style={{ maxWidth: 640 }}>
+          <h2>Tải video</h2>
+          <label>Tiêu đề video</label>
           <input value={videoTitle} onChange={(e) => setVideoTitle(e.target.value)} />
-          <label>File</label>
-          <input
-            type="file"
+          <FileDrop
             accept="video/*,application/octet-stream"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void uploadVideo(f).catch((err) => setError(err.message));
-            }}
+            label="Chọn video bài học"
+            hint="Sau khi tải, mở studio để gắn vào đúng bài"
+            onFile={(file) => void uploadVideo(file).catch((err) => setError(err.message))}
           />
-          {lastVideoId && <p className="ok">lastVideoId: {lastVideoId}</p>}
-          <label>Attach to course</label>
-          <select
-            value={attachCourseId}
-            onChange={(e) => setAttachCourseId(e.target.value)}
-            style={{ width: "100%", padding: 12, marginBottom: 12 }}
-          >
+          {lastVideoId && <p className="ok">Mã video: {lastVideoId}</p>}
+          <label>Gắn vào khóa</label>
+          <select value={attachCourseId} onChange={(e) => setAttachCourseId(e.target.value)}>
             {courses.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.title}
               </option>
             ))}
           </select>
-          <p className="muted">
-            Gắn video vào một bài cụ thể trong studio — không thay cả chương trình khóa học.
-          </p>
           {attachCourseId && (
             <a className="btn secondary" href={`/teacher/courses/${attachCourseId}`}>
               Mở studio để gắn video
             </a>
           )}
 
-          <h2 style={{ fontFamily: "var(--font-display)" }}>Document file upload</h2>
-          <label>Document</label>
-          <select
-            value={docUploadId}
-            onChange={(e) => setDocUploadId(e.target.value)}
-            style={{ width: "100%", padding: 12, marginBottom: 12 }}
-          >
+          <h2>Tải file cho tài liệu bán</h2>
+          <label>Tài liệu</label>
+          <select value={docUploadId} onChange={(e) => setDocUploadId(e.target.value)}>
             {documents.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.title}
               </option>
             ))}
           </select>
-          <input
-            type="file"
+          <FileDrop
             accept=".pdf,.png,.jpg,.jpeg,.txt,application/pdf"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void uploadDocumentFile(f).catch((err) => setError(err.message));
-            }}
+            label="Chọn file PDF hoặc ảnh"
+            hint="Dùng cho sản phẩm tài liệu trên cửa hàng"
+            onFile={(file) => void uploadDocumentFile(file).catch((err) => setError(err.message))}
           />
         </div>
       )}
 
       {tab === "affiliate" && (
         <div className="panel">
-          <h2>Hoa hồng & rút tiền</h2>
-          <p className="muted">
-            Quản lý mã giới thiệu, số dư và yêu cầu rút trên trang Affiliate.
-          </p>
-          <a href="/affiliate">Mở bảng affiliate →</a>
+          <h2>Hoa hồng và rút tiền</h2>
+          <p className="muted">Quản lý mã giới thiệu, số dư và yêu cầu rút trên trang Affiliate.</p>
+          <a className="btn" href="/affiliate">
+            Mở bảng affiliate
+          </a>
         </div>
       )}
     </section>

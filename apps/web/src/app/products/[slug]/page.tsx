@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiGet, apiPost, formatVnd } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { productTypeLabel } from "@/lib/labels";
 
 type CheckoutConfig = {
   allowMock: boolean;
@@ -186,7 +187,7 @@ export default function ProductPage() {
     }
   }
 
-  if (!product) return <p className="muted">{msg || "Loading..."}</p>;
+  if (!product) return <p className="muted">{msg || "Đang mở khóa học…"}</p>;
   const price = product.prices[0];
   const isCourse = product.type === "VIDEO_COURSE";
   const isDoc = product.type === "DIGITAL_DOCUMENT";
@@ -198,145 +199,141 @@ export default function ProductPage() {
 
   return (
     <section>
-      <div className="badge paid">{product.type}</div>
-      {campaignBadge && (
-        <div className="badge" style={{ marginLeft: 8, background: "var(--accent, #C4A35A)", color: "#111" }}>
-          {campaignBadge}
-        </div>
-      )}
-      <h1 style={{ fontFamily: "var(--font-display)", fontSize: "2.4rem", margin: "8px 0" }}>
-        {product.name}
-      </h1>
-      <p className="muted">{product.description}</p>
-      <p className="price" style={{ fontSize: "1.4rem", fontWeight: 700 }}>
-        {price ? formatVnd(price.amountMinor) : "—"}
-      </p>
+      <div className="split">
+        <div>
+          <span className="badge paid">{productTypeLabel(product.type)}</span>
+          {campaignBadge && <span className="badge review">{campaignBadge}</span>}
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "2.4rem", margin: "8px 0" }}>
+            {product.name}
+          </h1>
+          <p className="muted">{product.description}</p>
+          <p className="price" style={{ fontSize: "1.6rem", fontWeight: 700, color: "var(--brand)" }}>
+            {price ? formatVnd(price.amountMinor) : "—"}
+          </p>
 
-      {isBundle && (product.bundleChildren?.length ?? 0) > 0 && (
-        <div className="panel" style={{ marginBottom: 20 }}>
-          <h2 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>Bundle includes</h2>
-          <ul className="lesson-list">
-            {product.bundleChildren!.map((child) => (
-              <li key={child.productId}>
-                <div>
-                  <a href={`/products/${child.slug}`}>{child.name}</a>
-                  <div className="muted">{child.type}</div>
-                </div>
-                <span>{child.price ? formatVnd(child.price.amountMinor) : "—"}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <form className="panel stack" onSubmit={buy} style={{ marginBottom: 24, maxWidth: 480 }}>
-        <label htmlFor="provider">Payment provider</label>
-        <select
-          id="provider"
-          value={provider}
-          onChange={(e) => setProvider(e.target.value as typeof provider)}
-          style={{ width: "100%", padding: "12px 14px", marginBottom: 12, font: "inherit" }}
-        >
-          {(!checkoutCfg || checkoutCfg.allowMock) && (
-            <option value="mock">Mock (local / tự hoàn tất)</option>
-          )}
-          <option value="stripe">Stripe</option>
-          <option value="vnpay">VNPay</option>
-          <option value="momo">MoMo</option>
-          <option value="zalopay">ZaloPay</option>
-        </select>
-        <label htmlFor="coupon">Coupon code</label>
-        <input
-          id="coupon"
-          value={couponCode}
-          onChange={(e) => setCouponCode(e.target.value)}
-          placeholder="WELCOME10"
-          style={{ width: "100%", padding: "12px 14px", marginBottom: 12, font: "inherit" }}
-        />
-        <label htmlFor="affiliate">Affiliate / ref</label>
-        <input
-          id="affiliate"
-          value={affiliateCode}
-          onChange={(e) => setAffiliateCode(e.target.value)}
-          placeholder="TEACHERREF"
-          style={{ width: "100%", padding: "12px 14px", marginBottom: 12, font: "inherit" }}
-        />
-        <button type="submit" disabled={busy}>
-          {busy ? "Đang xử lý..." : isSubscription ? "Đăng ký gói" : "Mua ngay"}
-        </button>
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => {
-            if (!ready) return;
-            if (!token) {
-              router.push(`/login?next=${encodeURIComponent(`/products/${slug}`)}`);
-              return;
-            }
-            if (!product) return;
-            apiPost("/wishlist", { productId: product.id }, token)
-              .then(() => setWishMsg("Đã thêm vào yêu thích"))
-              .catch((e: Error) => setWishMsg(e.message));
-          }}
-        >
-          Thêm yêu thích
-        </button>
-        <a className="btn secondary" href="/library">
-          Thư viện
-        </a>
-        {wishMsg && <p className="ok">{wishMsg}</p>}
-      </form>
-
-      {isCourse && product.course?.sections[0]?.lessons[0]?.id && (
-        <p>
-          Đã mua?{" "}
-          <a href={`/learn/${product.course.sections[0].lessons[0].id}`}>
-            Mở bài đầu tiên
-          </a>
-        </p>
-      )}
-      {isDoc && product.document && (
-        <p>
-          Đã mua? <a href={`/documents/${product.document.id}`}>Mở / tải tài liệu</a>
-        </p>
-      )}
-
-      {msg && <p className="ok">{msg}</p>}
-
-      {product.course && (
-        <div className="panel">
-          <h2 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>Curriculum</h2>
-          {product.course.sections.map((s) => (
-            <div key={s.id}>
-              <h3>{s.title}</h3>
+          {isBundle && (product.bundleChildren?.length ?? 0) > 0 && (
+            <div className="panel" style={{ marginBottom: 20 }}>
+              <h2 style={{ marginTop: 0 }}>Combo gồm</h2>
               <ul className="lesson-list">
-                {s.lessons.map((l) => (
-                  <li key={l.id}>
+                {product.bundleChildren!.map((child) => (
+                  <li key={child.productId}>
                     <div>
-                      <a href={`/learn/${l.id}`}>{l.title}</a>
-                      <div>
-                        {l.isPreview ? (
-                          <span className="badge free">FREE PREVIEW</span>
-                        ) : (
-                          <>
-                            <span className="badge paid">BUY</span>
-                            <span className="badge ad">WATCH AD</span>
-                          </>
-                        )}
-                        {l.contents?.some((c) => c.contentType === "VIDEO") && (
-                          <span className="badge">VIDEO</span>
-                        )}
-                      </div>
+                      <a href={`/products/${child.slug}`}>{child.name}</a>
+                      <div className="muted">{productTypeLabel(child.type)}</div>
                     </div>
-                    <span className="muted">{Math.round((l.durationSec || 0) / 60)} phút</span>
+                    <span>{child.price ? formatVnd(child.price.amountMinor) : "—"}</span>
                   </li>
                 ))}
               </ul>
             </div>
-          ))}
-          <CourseQuizzes courseId={product.course.id} token={token} />
+          )}
+
+          {product.course && (
+            <div className="panel">
+              <h2 style={{ marginTop: 0 }}>Chương trình học</h2>
+              {product.course.sections.map((s) => (
+                <div key={s.id}>
+                  <h3>{s.title}</h3>
+                  <ul className="lesson-list">
+                    {s.lessons.map((l) => (
+                      <li key={l.id}>
+                        <div>
+                          <a href={`/learn/${l.id}`}>{l.title}</a>
+                          <div>
+                            {l.isPreview ? (
+                              <span className="badge free">Xem trước</span>
+                            ) : (
+                              <>
+                                <span className="badge paid">Mua khóa</span>
+                                <span className="badge ad">Mở bằng QC</span>
+                              </>
+                            )}
+                            {l.contents?.some((c) => c.contentType === "VIDEO") && (
+                              <span className="badge">Video</span>
+                            )}
+                          </div>
+                        </div>
+                        <span className="muted">{Math.round((l.durationSec || 0) / 60)} phút</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <CourseQuizzes courseId={product.course.id} token={token} />
+            </div>
+          )}
         </div>
-      )}
+
+        <form className="panel" onSubmit={buy}>
+          <h2 style={{ marginTop: 0 }}>Thanh toán</h2>
+          <label htmlFor="provider">Cổng thanh toán</label>
+          <select
+            id="provider"
+            value={provider}
+            onChange={(e) => setProvider(e.target.value as typeof provider)}
+          >
+            {(!checkoutCfg || checkoutCfg.allowMock) && (
+              <option value="mock">Thử nghiệm (tự hoàn tất)</option>
+            )}
+            <option value="stripe">Stripe</option>
+            <option value="vnpay">VNPay</option>
+            <option value="momo">MoMo</option>
+            <option value="zalopay">ZaloPay</option>
+          </select>
+          <label htmlFor="coupon">Mã giảm giá</label>
+          <input
+            id="coupon"
+            value={couponCode}
+            onChange={(e) => setCouponCode(e.target.value)}
+            placeholder="WELCOME10"
+          />
+          <label htmlFor="affiliate">Mã giới thiệu</label>
+          <input
+            id="affiliate"
+            value={affiliateCode}
+            onChange={(e) => setAffiliateCode(e.target.value)}
+            placeholder="TEACHERREF"
+          />
+          <button type="submit" disabled={busy}>
+            {busy ? "Đang xử lý…" : isSubscription ? "Đăng ký gói" : "Mua ngay"}
+          </button>
+          <div className="studio-actions" style={{ marginTop: 10 }}>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => {
+                if (!ready) return;
+                if (!token) {
+                  router.push(`/login?next=${encodeURIComponent(`/products/${slug}`)}`);
+                  return;
+                }
+                if (!product) return;
+                apiPost("/wishlist", { productId: product.id }, token)
+                  .then(() => setWishMsg("Đã thêm vào yêu thích"))
+                  .catch((e: Error) => setWishMsg(e.message));
+              }}
+            >
+              Yêu thích
+            </button>
+            <a className="btn ghost" href="/library">
+              Thư viện
+            </a>
+          </div>
+          {isCourse && product.course?.sections[0]?.lessons[0]?.id && (
+            <p>
+              Đã mua?{" "}
+              <a href={`/learn/${product.course.sections[0].lessons[0].id}`}>Mở bài đầu tiên</a>
+            </p>
+          )}
+          {isDoc && product.document && (
+            <p>
+              Đã mua? <a href={`/documents/${product.document.id}`}>Mở tài liệu</a>
+            </p>
+          )}
+          {wishMsg && <p className="ok">{wishMsg}</p>}
+          {msg && <p className="ok">{msg}</p>}
+        </form>
+      </div>
 
       <ProductReviews productId={product.id} token={token} />
     </section>
@@ -421,7 +418,7 @@ function CourseQuizzes({ courseId, token }: { courseId: string; token: string | 
   if (quizzes.length === 0) return null;
   return (
     <div style={{ marginTop: 20 }}>
-      <h3>Quizzes</h3>
+      <h3>Quiz</h3>
       <ul className="lesson-list">
         {quizzes.map((q) => (
           <li key={q.id}>

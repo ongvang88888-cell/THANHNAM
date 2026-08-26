@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiGet } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
+import { productTypeLabel } from "@/lib/labels";
 
 type LibraryProduct = {
   id: string;
@@ -24,8 +25,14 @@ function hrefFor(p: LibraryProduct): string {
   return `/products/${p.slug}`;
 }
 
+function actionLabel(type: string): string {
+  if (type === "DIGITAL_DOCUMENT") return "Mở tài liệu";
+  if (type.includes("BUNDLE")) return "Mở combo";
+  return "Tiếp tục học";
+}
+
 export default function LibraryPage() {
-  const { token, user, ready, logout } = useRequireAuth();
+  const { token, user, ready } = useRequireAuth();
   const [data, setData] = useState<{
     products: LibraryProduct[];
     continueLearning?: Array<{ lessonId: string; lessonTitle: string; courseTitle: string }>;
@@ -48,59 +55,42 @@ export default function LibraryPage() {
       });
   }, [ready, token]);
 
-  if (!ready || !user) return <p className="muted">Loading...</p>;
+  if (!ready || !user) return <p className="muted">Đang mở thư viện…</p>;
 
   return (
     <section>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-        <div>
-          <h1 style={{ fontFamily: "var(--font-display)", marginBottom: 4 }}>Thư viện</h1>
-          <p className="muted">
-            {user.displayName || user.email} · {user.roles.join(", ")}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <a className="btn secondary" href="/certificates">
-            Chứng chỉ
-          </a>
-          <a className="btn secondary" href="/invoices">
-            Hóa đơn
-          </a>
-          <button className="secondary" onClick={() => void logout()}>
-            Đăng xuất
-          </button>
-        </div>
+      <div className="page-head">
+        <h1>Thư viện của tôi</h1>
+        <p className="muted">{user.displayName || user.email}</p>
       </div>
 
-      {error && <p className="error">{error}</p>}
+      {error && <p className="toast error">{error}</p>}
 
-      <h2 style={{ fontFamily: "var(--font-display)" }}>Continue Learning</h2>
-      <div className="panel">
-        {(data?.continueLearning?.length ?? 0) === 0 && <p className="muted">Chưa có tiến độ.</p>}
-        <ul className="lesson-list">
-          {data?.continueLearning?.map((c) => (
-            <li key={c.lessonId}>
-              <a href={`/learn/${c.lessonId}`}>
-                {c.courseTitle} — {c.lessonTitle}
-              </a>
-            </li>
-          ))}
-        </ul>
+      <h2 style={{ fontFamily: "var(--font-display)", color: "var(--brand)" }}>Tiếp tục học</h2>
+      <div className="grid" style={{ marginBottom: 28 }}>
+        {(data?.continueLearning?.length ?? 0) === 0 && (
+          <div className="panel">
+            <p className="muted">Chưa có tiến độ. Mua một khóa hoặc mở bài xem trước để bắt đầu.</p>
+          </div>
+        )}
+        {data?.continueLearning?.map((c) => (
+          <a className="product" key={c.lessonId} href={`/learn/${c.lessonId}`}>
+            <div className="type">Đang học</div>
+            <h3>{c.courseTitle}</h3>
+            <p className="muted">{c.lessonTitle}</p>
+            <div className="price">Vào bài →</div>
+          </a>
+        ))}
       </div>
 
-      <h2 style={{ fontFamily: "var(--font-display)" }}>Owned products</h2>
+      <h2 style={{ fontFamily: "var(--font-display)", color: "var(--brand)" }}>Đã sở hữu</h2>
       <div className="grid">
         {data?.products.map((p) => (
           <a className="product" key={p.id} href={hrefFor(p)}>
-            <div className="type">{p.type}</div>
+            <div className="cover" />
+            <div className="type">{productTypeLabel(p.type)}</div>
             <h3>{p.name}</h3>
-            <p className="muted">
-              {p.type === "DIGITAL_DOCUMENT"
-                ? "Open document"
-                : p.type.includes("BUNDLE")
-                  ? "Open bundle"
-                  : "Open course"}
-            </p>
+            <p className="muted">{actionLabel(p.type)}</p>
           </a>
         ))}
       </div>
