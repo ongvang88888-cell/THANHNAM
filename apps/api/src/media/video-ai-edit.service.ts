@@ -402,7 +402,7 @@ export class VideoAiEditService implements OnModuleInit {
     const items = await Promise.all(
       videos.map(async (video) => {
         const latestOwned = video.aiEdits.find((edit) => edit.tool === "owned_abc") ?? null;
-        if (!latestOwned && video.aiEdits.length > 0) return null;
+        if (!latestOwned) return null;
         const latest = latestOwned;
         const output = asOutput(latest?.outputJson ?? null);
         const assigned =
