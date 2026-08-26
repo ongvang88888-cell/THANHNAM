@@ -43,7 +43,7 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
     group: "image",
     label: "A+C — bài của tôi",
     description:
-      "Công thức lecture_expert_v1: một lần encode làm nét nhẹ + lọc tiếng giảng, cắt im lặng conservative, ảnh bìa và phụ đề. Giữ camera giáo viên. Không tô hoạt hình mặc định. Chỉ video bạn sở hữu.",
+      "Công thức lecture_expert_v1: làm nét nhẹ + lọc tiếng giảng, cắt im lặng, tô người giữa khung thành hoạt hình, ảnh bìa và phụ đề. Giữ slide hai bên và tiếng gốc. Chỉ video bạn sở hữu.",
     market: "Descript Studio Sound + Premiere Enhance Speech / Auto Color",
     outputKind: "video",
     needs: ["ffmpeg"],
@@ -104,7 +104,7 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
     group: "image",
     label: "Biến người thành hoạt hình",
     description:
-      "Tô giáo viên thành hoạt hình (làm phẳng + bảng màu + nét mực + chống nhấp nháy), giữ 100% tiếng gốc. Chọn 'người giữa khung' để giữ slide. Bản trên máy — không phải DomoAI / Runway Aleph. Cần xác nhận sửa mặt. Không chạy tự động.",
+      "Tô giáo viên thành hoạt hình (làm phẳng + bảng màu + nét mực + chống nhấp nháy), giữ 100% tiếng gốc. Sau khi tải lên, hệ thống tự tô người giữa khung. Studio thủ công để đổi vùng/độ đậm. Bản trên máy — không phải DomoAI / Runway Aleph. Cần xác nhận sửa mặt khi chạy tay.",
     market: "DomoAI + CapCut Restyle + Runway Aleph (giữ chuyển động/tiếng, tô phong cách)",
     outputKind: "video",
     needs: ["ffmpeg"],

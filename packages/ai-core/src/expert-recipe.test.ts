@@ -34,9 +34,10 @@ describe("lecture_expert_v1 recipe", () => {
       "auto_color",
       "silence_trim",
       "thumbnail",
+      "toon_restyle",
     ]);
     expect(recipe.techniques.find((row) => row.id === "captions")?.status).toBe("skipped");
-    expect(recipe.techniques.find((row) => row.id === "toon_restyle")?.status).toBe("skipped");
+    expect(recipe.techniques.find((row) => row.id === "toon_restyle")?.status).toBe("applied");
     expect(recipe.techniques.find((row) => row.id === "illustrated_edition")?.status).toBe("skipped");
     expect(recipe.techniques.find((row) => row.id === "v2v")?.status).toBe("refused");
     expect(recipe.techniques.find((row) => row.id === "content_id_dodge")?.status).toBe("refused");
@@ -46,6 +47,11 @@ describe("lecture_expert_v1 recipe", () => {
     expect(recipe.techniques.find((row) => row.id === "avatar_presenter")?.status).toBe("skipped");
   });
 
+  it("marks toon skipped when the encode failed", () => {
+    const recipe = describeRecipe({ speech: false, imageGen: false, llm: false }, { toonApplied: false });
+    expect(recipe.techniques.find((row) => row.id === "toon_restyle")?.status).toBe("skipped");
+    expect(recipe.techniques.find((row) => row.id === "toon_restyle")?.note).toMatch(/không tô được/i);
+  });
 
   it("promotes captions and copy when keys and outcomes exist", () => {
     const recipe = describeRecipe(

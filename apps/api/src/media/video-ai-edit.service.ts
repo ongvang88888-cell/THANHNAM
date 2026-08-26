@@ -449,6 +449,9 @@ export class VideoAiEditService implements OnModuleInit {
       lessonId: lesson.id,
       courseId,
       recipeId: LECTURE_EXPERT_RECIPE_ID,
+      region: "speaker",
+      style: "anime",
+      toonStrength: "high",
     });
   }
 
@@ -457,6 +460,9 @@ export class VideoAiEditService implements OnModuleInit {
       confirmOwned: true,
       autoApply: false,
       recipeId: LECTURE_EXPERT_RECIPE_ID,
+      region: "speaker",
+      style: "anime",
+      toonStrength: "high",
     });
   }
 
@@ -1357,6 +1363,19 @@ export class VideoAiEditService implements OnModuleInit {
           this.log.warn(`silence trim skipped: ${trimErr instanceof Error ? trimErr.message : "error"}`);
         }
       }
+      await this.markStep(editId, "toon");
+      let toonApplied = false;
+      const toonPath = path.join(dir, "owned-abc-toon.mp4");
+      const region = options.region ?? "speaker";
+      const style = options.style ?? "anime";
+      const strength = options.toonStrength ?? "high";
+      try {
+        await this.execFfmpeg(toonTalkingHeadArgs(lessonPath, toonPath, region, style, strength));
+        lessonPath = toonPath;
+        toonApplied = true;
+      } catch (toonErr) {
+        this.log.warn(`auto toon restyle skipped: ${toonErr instanceof Error ? toonErr.message : "error"}`);
+      }
       const lessonKey = buildObjectKey({
         appId: video.appId,
         type: "video-ai",
@@ -1371,7 +1390,9 @@ export class VideoAiEditService implements OnModuleInit {
         contentType: "video/mp4",
         sizeBytes: lessonSize,
         durationMs: (await this.probeDurationMs(lessonPath)) ?? video.durationMs ?? undefined,
-        providerNote: `${OWNERSHIP_DISCLAIMER} Công thức lecture_expert_v1: một lần encode hình + tiếng, cắt im lặng conservative, giữ camera giáo viên. Không tô hoạt hình mặc định.`,
+        providerNote: toonApplied
+          ? `${OWNERSHIP_DISCLAIMER} Công thức lecture_expert_v1: làm nét + lọc tiếng, cắt im lặng, rồi tô người giữa khung thành hoạt hình. Giữ slide và tiếng gốc.`
+          : `${OWNERSHIP_DISCLAIMER} Công thức lecture_expert_v1: làm nét + lọc tiếng, cắt im lặng. Tô hoạt hình lỗi — giữ bản làm nét.`,
       };
       let extras: {
         captionsMode?: "whisper" | "heuristic" | "failed";
@@ -1384,6 +1405,7 @@ export class VideoAiEditService implements OnModuleInit {
       extras = await this.enrichOwnedAbcOutput(video, editId, ai, dir, inputPath, lessonPath, output);
       const recipe = describeRecipe(await this.capabilities(), {
         trimApplied,
+        toonApplied,
         captionsMode: extras.captionsMode,
         copyMode: extras.copyMode,
         thumbApplied: extras.thumbApplied,

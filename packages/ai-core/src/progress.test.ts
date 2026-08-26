@@ -15,6 +15,7 @@ describe("AI edit progress steps", () => {
       "source",
       "enhance",
       "trim",
+      "toon",
       "extras",
       "apply",
       "done",
@@ -29,8 +30,14 @@ describe("AI edit progress steps", () => {
     expect(isAiEditStepId("enhance")).toBe(true);
     expect(isAiEditStepId("render")).toBe(false);
     expect(getAiEditStep("apply")?.label).toMatch(/gắn video/i);
+    expect(isAiEditStepId("toon")).toBe(true);
+    expect(progressFields("toon")).toEqual({
+      progress: 68,
+      step: "toon",
+      stepLabel: "Đang tô người thành hoạt hình",
+    });
     expect(progressFields("extras")).toEqual({
-      progress: 78,
+      progress: 82,
       step: "extras",
       stepLabel: "Đang tạo ảnh bìa, phụ đề và mô tả",
     });

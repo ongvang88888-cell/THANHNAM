@@ -301,7 +301,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
       <p className="muted">
         {props.variant === "advanced"
           ? "Chỉ dùng khi muốn chạy từng công cụ riêng. Luồng tải video đã tự chỉnh và gắn vào bài."
-          : "Gói A+C chạy công thức chuyên gia v1: làm nét nhẹ + lọc tiếng giảng, cắt im lặng, phụ đề và ảnh bìa. Giữ camera giáo viên. Tô hoạt hình chỉ có trong công cụ thủ công bên dưới."}
+          : "Gói A+C chạy công thức chuyên gia v1: làm nét + lọc tiếng, cắt im lặng, rồi tô người giữa khung thành hoạt hình. Giữ slide và tiếng gốc. Công cụ bên dưới để đổi vùng/độ đậm."}
       </p>
       <p className="ai-edit-legal muted">
         {catalog.ownershipDisclaimer ??

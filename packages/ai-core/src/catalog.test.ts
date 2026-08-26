@@ -68,14 +68,15 @@ describe("AI edit catalog", () => {
     expect(avail.available).toBe(true);
     expect(avail.mode).toBe("fallback");
     expect(tool.description).toMatch(/lecture_expert_v1/);
-    expect(tool.description).not.toMatch(/tô kiểu anime|biến người trong khung/);
+    expect(tool.description).toMatch(/tô người giữa khung thành hoạt hình/);
+    expect(tool.description).not.toMatch(/Không tô hoạt hình mặc định/);
   });
 
   it("describes local expert toon without claiming cloud V2V", () => {
     const tool = getAiEditTool("toon_talking_head")!;
     expect(tool.description).toMatch(/trên máy/i);
     expect(tool.description).toMatch(/không phải DomoAI/i);
-    expect(tool.description).toMatch(/Không chạy tự động/);
+    expect(tool.description).toMatch(/tự tô người giữa khung/);
     expect(tool.market).toMatch(/DomoAI/);
   });
 

@@ -31,6 +31,7 @@ export interface RecipeTechnique {
 
 export interface RecipeOutcome {
   trimApplied?: boolean;
+  toonApplied?: boolean;
   captionsMode?: "whisper" | "heuristic" | "failed";
   copyMode?: "llm" | "heuristic" | "failed";
   thumbApplied?: boolean;
@@ -56,6 +57,7 @@ export function describeRecipe(caps: Pick<AiCapabilities, "speech" | "imageGen" 
   const copyStatus: RecipeTechniqueStatus =
     outcome.copyMode === "failed" ? "skipped" : caps.llm && outcome.copyMode !== "heuristic" ? "applied" : "skipped";
   const trimStatus: RecipeTechniqueStatus = outcome.trimApplied === false ? "skipped" : "applied";
+  const toonStatus: RecipeTechniqueStatus = outcome.toonApplied === false ? "skipped" : "applied";
   const thumbStatus: RecipeTechniqueStatus = outcome.thumbApplied === false ? "skipped" : "applied";
 
   return {
@@ -113,9 +115,12 @@ export function describeRecipe(caps: Pick<AiCapabilities, "speech" | "imageGen" 
       {
         id: "toon_restyle",
         source: "DomoAI / CapCut Restyle / Runway Aleph",
-        status: "skipped",
+        status: toonStatus,
         label: "Tô người thành hoạt hình",
-        note: "Không mặc định trên bài giảng. Studio thủ công: tô speaker, giữ slide và tiếng gốc.",
+        note:
+          toonStatus === "skipped"
+            ? "ffmpeg không tô được — giữ bản làm nét, slide và tiếng gốc."
+            : "Tô người giữa khung ngay sau khi tải lên — giữ slide và tiếng gốc.",
       },
       {
         id: "avatar_presenter",

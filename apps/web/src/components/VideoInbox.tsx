@@ -455,14 +455,15 @@ export function VideoInbox(props: {
       <h2>Kho video hàng loạt</h2>
       <p className="muted">
         Tải nhiều video một lúc. Mỗi file chạy đủ công thức chuyên gia như tải 1 video: làm nét, lọc tiếng, cắt im lặng,
-        ảnh bìa và phụ đề. Khi xong, xem lại ngay trên hàng, chỉnh thông số, chọn bài rồi bấm Lưu.
+        tô người thành hoạt hình, ảnh bìa và phụ đề. Khi xong, bản xem trên hàng là bản hoạt hình — chỉnh thông số, chọn
+        bài rồi bấm Lưu.
       </p>
       <FileDrop
         accept="video/mp4,video/*,application/octet-stream"
         multiple
         disabled={queue.length >= 40}
         label="Chọn nhiều video vào kho"
-        hint="Chọn hàng loạt. Tối đa 2 video AI chạy cùng lúc. Gắn bài trên từng hàng sau khi xem lại."
+        hint="Chọn hàng loạt. Mỗi video tự tô hoạt hình sau khi xử lý. Tối đa 2 lệnh AI cùng lúc. Gắn bài trên từng hàng sau khi xem lại."
         onFile={(file) => enqueue([file])}
         onFiles={(files) => enqueue(files)}
       />

@@ -64,21 +64,29 @@ describe("video AI edit contract", () => {
         lessonId: "clxxxxxxxxxxxxxxxxxxx1",
         courseId: "clxxxxxxxxxxxxxxxxxxx2",
         recipeId: "lecture_expert_v1",
+        region: "speaker",
+        style: "anime",
+        toonStrength: "high",
       }),
     ).toEqual({
       autoApply: true,
       lessonId: "clxxxxxxxxxxxxxxxxxxx1",
       courseId: "clxxxxxxxxxxxxxxxxxxx2",
       recipeId: "lecture_expert_v1",
+      region: "speaker",
+      style: "anime",
+      toonStrength: "high",
     });
     expect(() => parseAiEditOptions({ seekSeconds: 90_000 })).toThrow(/seekSeconds/);
     expect(() => assertOwnedAbcReady("owned_abc", { region: "pip_br" })).toThrow(/confirmOwned/);
     expect(progressFields("apply")).toMatchObject({ progress: 92, step: "apply" });
     expect(progressFields("done").stepLabel).toMatch(/sẵn sàng lưu/i);
-    expect(progressFields("enhance").progress).toBe(40);
-    expect(isAiEditStepId("toon")).toBe(false);
+    expect(progressFields("enhance").progress).toBe(36);
+    expect(isAiEditStepId("toon")).toBe(true);
+    expect(progressFields("toon").progress).toBe(68);
     const recipe = describeRecipe({ speech: false, imageGen: false, llm: false });
     expect(recipe.recipeId).toBe("lecture_expert_v1");
+    expect(recipe.techniques.some((row) => row.id === "toon_restyle" && row.status === "applied")).toBe(true);
     expect(recipe.techniques.some((row) => row.id === "content_id_dodge" && row.status === "refused")).toBe(true);
     expect(recipe.techniques.some((row) => row.id === "avatar_presenter" && row.status === "skipped")).toBe(true);
     expect(recipe.techniques.some((row) => row.id === "overdub" && row.status === "skipped")).toBe(true);

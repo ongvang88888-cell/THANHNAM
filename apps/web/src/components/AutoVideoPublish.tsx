@@ -343,7 +343,7 @@ export function AutoVideoPublish(props: {
         accept="video/mp4,video/*,application/octet-stream"
         disabled={!ready}
         label="Chọn video để lên bài"
-        hint="Chọn một file. Hệ thống áp công thức chuyên gia v1: làm nét nhẹ, lọc tiếng giảng, cắt im lặng, phụ đề và ảnh bìa. Không tô hoạt hình. Khi xong, bấm Lưu vào bài."
+        hint="Chọn một file. Hệ thống áp công thức chuyên gia v1: làm nét, lọc tiếng, cắt im lặng, rồi tô người thành hoạt hình. Khi xong, bản xem là bản hoạt hình — bấm Lưu vào bài."
         onFile={(file) => void handleFile(file)}
       />
       <p className="muted auto-publish-legal">

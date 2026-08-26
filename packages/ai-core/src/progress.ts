@@ -2,9 +2,10 @@ export const AI_EDIT_STEPS = [
   { id: "upload", label: "Đang tải video lên máy chủ", percent: 8 },
   { id: "queue", label: "Đã nhận video — xếp hàng chỉnh", percent: 12 },
   { id: "source", label: "Đang đọc file gốc", percent: 18 },
-  { id: "enhance", label: "Đang làm nét hình và giảm nhạc nền", percent: 40 },
-  { id: "trim", label: "Đang cắt đoạn im lặng", percent: 62 },
-  { id: "extras", label: "Đang tạo ảnh bìa, phụ đề và mô tả", percent: 78 },
+  { id: "enhance", label: "Đang làm nét hình và giảm nhạc nền", percent: 36 },
+  { id: "trim", label: "Đang cắt đoạn im lặng", percent: 48 },
+  { id: "toon", label: "Đang tô người thành hoạt hình", percent: 68 },
+  { id: "extras", label: "Đang tạo ảnh bìa, phụ đề và mô tả", percent: 82 },
   { id: "apply", label: "Đang gắn video vào bài học", percent: 92 },
   { id: "done", label: "Xong — sẵn sàng lưu vào bài", percent: 100 },
 ] as const;
