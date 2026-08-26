@@ -1,12 +1,14 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Injectable,
   Module,
   Param,
   Patch,
   Post,
+  Put,
   UseGuards,
   Inject,
 } from "@nestjs/common";
@@ -27,6 +29,15 @@ import { AppError, ErrorCodes, hasAnyRole } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
 import { AuthGuard, CurrentUser, type RequestUser } from "../auth/auth.guard";
 import { AuthModule } from "../auth/auth.module";
+import { buildLessonContents } from "./lesson-contents";
+import {
+  CreateCourseDocumentDto,
+  CreateLessonDto,
+  PutLessonContentDto,
+  TeacherStudioService,
+  TitleDto,
+  UpdateCourseDto,
+} from "./teacher-studio.service";
 
 class CreateCourseDto {
   @IsString()
@@ -110,6 +121,11 @@ class LessonInput {
   videoId?: string;
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  documentIds?: string[];
+
+  @IsOptional()
   @IsString()
   key?: string;
 
@@ -144,6 +160,11 @@ class UpdateCurriculumDto {
 }
 
 class PatchLessonDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  title?: string;
+
   @IsOptional()
   @IsInt()
   @Min(0)
@@ -247,6 +268,13 @@ export class TeacherService {
           title: dto.title,
           status: "DRAFT",
           creatorUserId: user.userId,
+        },
+      });
+      await tx.courseSection.create({
+        data: {
+          courseId: course.id,
+          title: "Chương 1",
+          position: 1,
         },
       });
       return { course, product };
@@ -356,6 +384,18 @@ export class TeacherService {
             throw new AppError(ErrorCodes.NOT_FOUND, `Video ${lesson.videoId} not found`, 404);
           }
         }
+        for (const documentId of lesson.documentIds ?? []) {
+          const document = await this.prisma.document.findFirst({
+            where: {
+              id: String(documentId),
+              appId: user.appId,
+              ownerUserId: user.userId,
+            },
+          });
+          if (!document) {
+            throw new AppError(ErrorCodes.NOT_FOUND, `Document ${documentId} not found`, 404);
+          }
+        }
       }
     }
 
@@ -374,22 +414,11 @@ export class TeacherService {
         });
         let lessonPos = 1;
         for (const lesson of section.lessons) {
-          const contents: Array<{
-            contentType: "TEXT" | "VIDEO";
-            body?: string;
-            refId?: string;
-            position: number;
-          }> = [];
-          if (lesson.body) {
-            contents.push({ contentType: "TEXT", body: lesson.body, position: 1 });
-          }
-          if (lesson.videoId) {
-            contents.push({
-              contentType: "VIDEO",
-              refId: String(lesson.videoId),
-              position: contents.length + 1,
-            });
-          }
+          const contents = buildLessonContents({
+            body: lesson.body,
+            videoId: lesson.videoId,
+            documentIds: lesson.documentIds,
+          });
           const createdLesson = await tx.lesson.create({
             data: {
               sectionId: created.id,
@@ -488,6 +517,7 @@ export class TeacherService {
       await tx.lesson.update({
         where: { id: lesson.id },
         data: {
+          title: dto.title !== undefined ? dto.title.trim() : lesson.title,
           dripDaysAfterPurchase:
             dto.dripDaysAfterPurchase !== undefined ? dto.dripDaysAfterPurchase : lesson.dripDaysAfterPurchase,
           dripUnlockAt:
@@ -625,7 +655,30 @@ export class TeacherService {
       },
     });
     if (!course) throw new AppError(ErrorCodes.NOT_FOUND, "Course not found", 404);
-    return course;
+    const documentIds = [
+      ...new Set(
+        course.sections.flatMap((section) =>
+          section.lessons.flatMap((lesson) =>
+            lesson.contents
+              .filter((content) => content.contentType === "DOCUMENT" && content.refId)
+              .map((content) => String(content.refId)),
+          ),
+        ),
+      ),
+    ];
+    const attachedDocuments = documentIds.length
+      ? await this.prisma.document.findMany({
+          where: { id: { in: documentIds }, appId: user.appId },
+          include: { versions: { orderBy: { version: "desc" }, take: 1 } },
+        })
+      : [];
+    const researchDocuments = await this.prisma.document.findMany({
+      where: { appId: user.appId, ownerUserId: user.userId, productId: null },
+      include: { versions: { orderBy: { version: "desc" }, take: 1 } },
+      orderBy: { updatedAt: "desc" },
+      take: 100,
+    });
+    return { ...course, attachedDocuments, researchDocuments };
   }
 
   async createQuiz(
@@ -693,7 +746,10 @@ export class TeacherService {
 @Controller("teacher")
 @UseGuards(AuthGuard)
 export class TeacherController {
-  constructor(@Inject(TeacherService) private readonly teacher: TeacherService) {}
+  constructor(
+    @Inject(TeacherService) private readonly teacher: TeacherService,
+    @Inject(TeacherStudioService) private readonly studio: TeacherStudioService,
+  ) {}
 
   @Get("courses")
   list(@CurrentUser() user: RequestUser) {
@@ -744,6 +800,88 @@ export class TeacherController {
   @Post("bundles")
   createBundle(@CurrentUser() user: RequestUser, @Body() dto: CreateBundleDto) {
     return this.teacher.createBundle(user, dto);
+  }
+
+  @Patch("courses/:id")
+  async updateCourse(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Body() dto: UpdateCourseDto,
+  ) {
+    await this.studio.updateCourse(user, id, dto);
+    return this.teacher.getCourse(user, id);
+  }
+
+  @Post("courses/:id/sections")
+  async addSection(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Body() dto: TitleDto,
+  ) {
+    await this.studio.addSection(user, id, dto);
+    return this.teacher.getCourse(user, id);
+  }
+
+  @Patch("courses/:id/sections/:sectionId")
+  async updateSection(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Param("sectionId") sectionId: string,
+    @Body() dto: TitleDto,
+  ) {
+    await this.studio.updateSection(user, id, sectionId, dto);
+    return this.teacher.getCourse(user, id);
+  }
+
+  @Delete("courses/:id/sections/:sectionId")
+  async deleteSection(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Param("sectionId") sectionId: string,
+  ) {
+    await this.studio.deleteSection(user, id, sectionId);
+    return this.teacher.getCourse(user, id);
+  }
+
+  @Post("courses/:id/sections/:sectionId/lessons")
+  async addLesson(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Param("sectionId") sectionId: string,
+    @Body() dto: CreateLessonDto,
+  ) {
+    await this.studio.addLesson(user, id, sectionId, dto);
+    return this.teacher.getCourse(user, id);
+  }
+
+  @Delete("courses/:id/lessons/:lessonId")
+  async deleteLesson(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Param("lessonId") lessonId: string,
+  ) {
+    await this.studio.deleteLesson(user, id, lessonId);
+    return this.teacher.getCourse(user, id);
+  }
+
+  @Put("courses/:id/lessons/:lessonId/content")
+  async putLessonContent(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Param("lessonId") lessonId: string,
+    @Body() dto: PutLessonContentDto,
+  ) {
+    await this.studio.putLessonContent(user, id, lessonId, dto);
+    return this.teacher.getCourse(user, id);
+  }
+
+  @Post("courses/:id/documents")
+  createCourseDocument(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Body() dto: CreateCourseDocumentDto,
+  ) {
+    return this.studio.createCourseDocument(user, id, dto);
   }
 
   @Patch("courses/:id/curriculum")
@@ -798,6 +936,6 @@ export class TeacherController {
 @Module({
   imports: [AuthModule],
   controllers: [TeacherController],
-  providers: [TeacherService],
+  providers: [TeacherService, TeacherStudioService],
 })
 export class TeacherModule {}

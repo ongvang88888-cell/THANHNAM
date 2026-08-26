@@ -82,6 +82,15 @@ nav a:hover { color: var(--brand); }
   border: 1px solid var(--line);
   padding: 24px;
 }
+.studio-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) 1fr;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .studio-grid { grid-template-columns: 1fr; }
+}
 .badge {
   display: inline-block; padding: 4px 10px; font-size: .78rem;
   border: 1px solid var(--line); margin-right: 8px; margin-bottom: 8px;

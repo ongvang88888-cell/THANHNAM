@@ -91,7 +91,11 @@ export class MediaService {
 
   async createVideoUpload(user: RequestUser, dto: UploadSessionDto) {
     this.assertTeacher(user);
-    assertAllowedMime(dto.contentType);
+    try {
+      assertAllowedMime(dto.contentType);
+    } catch {
+      throw new AppError(ErrorCodes.VALIDATION, `MIME not allowed: ${dto.contentType}`, 400);
+    }
     const video = await this.prisma.video.create({
       data: {
         appId: user.appId,
@@ -171,7 +175,11 @@ export class MediaService {
 
   async createDocumentUpload(user: RequestUser, dto: DocumentUploadDto) {
     this.assertTeacher(user);
-    assertAllowedMime(dto.contentType);
+    try {
+      assertAllowedMime(dto.contentType);
+    } catch {
+      throw new AppError(ErrorCodes.VALIDATION, `MIME not allowed: ${dto.contentType}`, 400);
+    }
     const document = await this.prisma.document.findFirst({
       where: {
         id: String(dto.documentId),
@@ -264,20 +272,43 @@ export class MediaService {
     });
     if (!doc) throw new AppError(ErrorCodes.NOT_FOUND, "Document not found", 404);
 
-    if (doc.productId) {
-      const entitlement = await this.prisma.entitlement.findFirst({
-        where: {
-          userId: user.userId,
-          status: "ACTIVE",
-          resourceType: "product",
-          resourceId: doc.productId,
-          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-        },
-      });
-      if (!entitlement) {
-        throw new AppError(ErrorCodes.NEEDS_PURCHASE, "Purchase required", 403, {
-          productIds: [doc.productId],
+    const isOwner = doc.ownerUserId === user.userId;
+    const isAdmin = hasAnyRole(user as never, ["admin", "super_admin"]);
+    if (!isOwner && !isAdmin) {
+      let allowed = false;
+      if (doc.productId) {
+        const entitlement = await this.prisma.entitlement.findFirst({
+          where: {
+            userId: user.userId,
+            status: "ACTIVE",
+            resourceType: "product",
+            resourceId: doc.productId,
+            OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+          },
         });
+        if (entitlement) allowed = true;
+      }
+      if (!allowed) {
+        const refs = await this.prisma.lessonContent.findMany({
+          where: { contentType: "DOCUMENT", refId: doc.id },
+          select: { lessonId: true },
+          take: 20,
+        });
+        for (const ref of refs) {
+          const decision = await this.access.evaluateLesson(user, ref.lessonId);
+          if (decision.code === "CAN_ACCESS") {
+            allowed = true;
+            break;
+          }
+        }
+      }
+      if (!allowed) {
+        if (doc.productId) {
+          throw new AppError(ErrorCodes.NEEDS_PURCHASE, "Purchase required", 403, {
+            productIds: [doc.productId],
+          });
+        }
+        throw new AppError(ErrorCodes.FORBIDDEN, "Document is not available", 403);
       }
     }
 

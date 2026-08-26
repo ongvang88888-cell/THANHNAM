@@ -2,7 +2,22 @@
 
 ## Capabilities
 
-Create/edit courses · upload video/docs · sections/lessons · quizzes/assignments · preview flags · pricing · bundles · submit review · students · analytics · revenue · reviews
+Create/edit courses · **studio** (sections/lessons incremental) · lesson text + video + research documents · upload video/docs · quizzes · preview flags · pricing · bundles · submit review · students · analytics · revenue · reviews
+
+## Course studio
+
+Teacher web: `/teacher/courses/:id`
+
+- `PATCH /teacher/courses/:id` — title, slug, description, price
+- `POST /teacher/courses/:id/sections` · `PATCH/DELETE .../sections/:sectionId`
+- `POST /teacher/courses/:id/sections/:sectionId/lessons` · `DELETE .../lessons/:lessonId`
+- `PUT /teacher/courses/:id/lessons/:lessonId/content` — `body`, `videoId`, `documentIds[]`
+- `POST /teacher/courses/:id/documents` — research PDF/Office **without** a store product
+- `PATCH /teacher/courses/:id/curriculum` still replaces the whole tree (legacy)
+
+Course-internal documents have no `productId`. Learners download them via `/documents/:id/content` when they can access a lesson that references the file. Teachers preview their own drafts (creator bypass).
+
+Teachers cannot self-publish; submit for admin review.
 
 ## Data isolation
 

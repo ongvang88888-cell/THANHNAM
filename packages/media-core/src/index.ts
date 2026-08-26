@@ -49,6 +49,7 @@ const ALLOWED_DOC_MIME = new Set([
   "audio/mpeg",
   "audio/wav",
   "video/mp4",
+  "text/plain",
 ]);
 
 export function assertAllowedMime(mime: string): void {

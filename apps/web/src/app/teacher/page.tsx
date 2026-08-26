@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiGet, apiPatch, apiPost, apiPutBinary, formatVnd } from "@/lib/api";
+import { apiGet, apiPost, apiPutBinary, formatVnd } from "@/lib/api";
 import { hasRole, useRequireAuth } from "@/lib/auth";
 
 type CourseRow = {
@@ -78,30 +78,7 @@ export default function TeacherPage() {
       description: "Draft course",
       priceMinor: 19900000,
     }, token);
-    await apiPatch(
-      `/teacher/courses/${res.course.id}/curriculum`,
-      {
-        sections: [
-          {
-            title: "Section 1",
-            lessons: [
-              { title: "Preview lesson", isPreview: true, body: "Free preview content", key: "preview" },
-              {
-                title: "Paid lesson",
-                isPreview: false,
-                body: "Paid lesson body",
-                key: "paid",
-                prerequisiteKey: "preview",
-                dripDaysAfterPurchase: 1,
-              },
-            ],
-          },
-        ],
-      },
-      token,
-    );
-    setMsg(`Created course ${res.course.title}`);
-    await refresh();
+    window.location.href = `/teacher/courses/${res.course.id}`;
   }
 
   async function createDocument() {
@@ -180,39 +157,6 @@ export default function TeacherPage() {
     setMsg(`Video READY: ${session.videoId}`);
   }
 
-  async function attachVideoToCourse() {
-    if (!token || !lastVideoId || !attachCourseId) return;
-    const ok = window.confirm(
-      "Thao tác này sẽ thay thế toàn bộ chương trình khóa học bằng một section video. Tiếp tục?",
-    );
-    if (!ok) return;
-    await apiPatch(
-      `/teacher/courses/${attachCourseId}/curriculum`,
-      {
-        sections: [
-          {
-            title: "Video section",
-            lessons: [
-              {
-                title: "Preview (text)",
-                isPreview: true,
-                body: "Free preview",
-              },
-              {
-                title: "Main video lesson",
-                isPreview: false,
-                body: "Watch the attached video below.",
-                videoId: lastVideoId,
-              },
-            ],
-          },
-        ],
-      },
-      token,
-    );
-    setMsg(`Attached video ${lastVideoId} to course ${attachCourseId}`);
-  }
-
   async function uploadDocumentFile(file: File) {
     if (!token || !docUploadId) return;
     setError(null);
@@ -244,7 +188,9 @@ export default function TeacherPage() {
   return (
     <section>
       <h1 style={{ fontFamily: "var(--font-display)" }}>Teacher Portal</h1>
-      <p className="muted">teacher@edu.local · tạo course / document / bundle, upload, submit review</p>
+      <p className="muted">
+        Tạo khóa học rồi mở studio để soạn chương, bài, video và tài liệu nghiên cứu.
+      </p>
       {user && <p>User: {user.email}</p>}
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "16px 0" }}>
@@ -271,7 +217,7 @@ export default function TeacherPage() {
             <label>Slug</label>
             <input value={courseSlug} onChange={(e) => setCourseSlug(e.target.value)} />
             <button type="button" onClick={() => createCourse().catch((e) => setError(e.message))}>
-              Create draft course + curriculum
+              Tạo khóa học và mở studio
             </button>
           </div>
           <div className="panel">
@@ -284,7 +230,7 @@ export default function TeacherPage() {
                     <span className="badge">{c.status}</span>{" "}
                     <span className="badge">{c.product?.status}</span>
                     <div className="muted">
-                      <a href={`/teacher/courses/${c.id}`}>Sửa curriculum / quiz</a> · course {c.id} ·{" "}
+                      <a href={`/teacher/courses/${c.id}`}>Mở studio</a> · course {c.id} ·{" "}
                       {c.product?.prices?.[0] ? formatVnd(c.product.prices[0].amountMinor) : ""}
                     </div>
                   </span>
@@ -415,13 +361,14 @@ export default function TeacherPage() {
               </option>
             ))}
           </select>
-          <button
-            type="button"
-            disabled={!lastVideoId}
-            onClick={() => attachVideoToCourse().catch((e) => setError(e.message))}
-          >
-            Replace curriculum with video lesson
-          </button>
+          <p className="muted">
+            Gắn video vào một bài cụ thể trong studio — không thay cả chương trình khóa học.
+          </p>
+          {attachCourseId && (
+            <a className="btn secondary" href={`/teacher/courses/${attachCourseId}`}>
+              Mở studio để gắn video
+            </a>
+          )}
 
           <h2 style={{ fontFamily: "var(--font-display)" }}>Document file upload</h2>
           <label>Document</label>

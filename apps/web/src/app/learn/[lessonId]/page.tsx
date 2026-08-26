@@ -12,6 +12,14 @@ type LessonContent = {
   refId?: string | null;
 };
 
+type LessonDocument = {
+  documentId: string;
+  title: string;
+  mime: string;
+  url: string;
+  version: number;
+};
+
 type LessonPayload = {
   id: string;
   title: string;
@@ -45,6 +53,7 @@ export default function LearnPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [noteBody, setNoteBody] = useState("");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [documents, setDocuments] = useState<LessonDocument[]>([]);
 
   async function load() {
     if (!ready || !token) return;
@@ -52,6 +61,7 @@ export default function LearnPage() {
     setLesson(data);
     setPlaybackUrl(null);
     setPlaybackError(null);
+    setDocuments([]);
 
     apiGet<Comment[]>(`/lessons/${data.id}/comments`)
       .then(setComments)
@@ -78,6 +88,15 @@ export default function LearnPage() {
         } catch (e) {
           setPlaybackError(e instanceof Error ? e.message : "Playback failed");
         }
+      }
+      const docContents = data.contents.filter((c) => c.contentType === "DOCUMENT" && c.refId);
+      if (docContents.length > 0) {
+        const loaded = await Promise.all(
+          docContents.map((c) =>
+            apiPost<LessonDocument>(`/documents/${c.refId}/content`, {}, token).catch(() => null),
+          ),
+        );
+        setDocuments(loaded.filter((row): row is LessonDocument => Boolean(row)));
       }
     }
   }
@@ -189,6 +208,39 @@ export default function LearnPage() {
                     />
                   ) : (
                     <p className="muted">{playbackError || "Loading video…"}</p>
+                  )}
+                </div>
+              );
+            }
+            if (c.contentType === "DOCUMENT") {
+              const file = documents.find((d) => d.documentId === c.refId);
+              return (
+                <div key={c.id} className="panel" style={{ marginBottom: 20 }}>
+                  <h3 style={{ marginTop: 0 }}>Tài liệu nghiên cứu</h3>
+                  {file ? (
+                    <>
+                      <p>
+                        {file.title} · {file.mime} · v{file.version}
+                      </p>
+                      <a className="btn" href={file.url} target="_blank" rel="noreferrer">
+                        Tải / mở tài liệu
+                      </a>
+                      {file.mime === "application/pdf" && (
+                        <iframe
+                          title={file.title}
+                          src={file.url}
+                          style={{
+                            width: "100%",
+                            height: 480,
+                            marginTop: 12,
+                            border: "1px solid var(--line)",
+                            background: "#fff",
+                          }}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <p className="muted">Đang tải tài liệu…</p>
                   )}
                 </div>
               );

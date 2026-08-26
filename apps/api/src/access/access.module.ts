@@ -112,7 +112,10 @@ export class AccessService {
     const decision = evaluateAccess({
       now: new Date(),
       isAuthenticated: Boolean(user),
-      isStaffBypass: user ? hasAnyRole(user, ["admin", "super_admin"]) : false,
+      isStaffBypass: user
+        ? hasAnyRole(user, ["admin", "super_admin"]) ||
+          (hasAnyRole(user, ["teacher"]) && course.creatorUserId === user.userId)
+        : false,
       policies,
       entitlements,
       completedLessonIds,
