@@ -3,6 +3,7 @@ import {
   cartoonPersonGraph,
   courseEnhanceArgs,
   enhanceAndSpeechArgs,
+  kenBurnsStillArgs,
   extractSpeechAudioArgs,
   illustratedConcatArgs,
   pictureEnhanceArgs,
@@ -27,9 +28,13 @@ describe("ffmpeg arg builders", () => {
     expect(args).toContain("-c:a");
   });
 
-  it("trims silence with a safe encoder preset", () => {
+  it("trims silence with ffmpeg 4.2-safe params", () => {
     const args = silenceTrimArgs("in.mp4", "out.mp4");
-    expect(args.some((a) => a.startsWith("silenceremove="))).toBe(true);
+    const filter = args.find((a) => a.startsWith("silenceremove="));
+    expect(filter).toContain("start_duration=0.45");
+    expect(filter).toContain("stop_duration=0.7");
+    expect(filter).not.toContain("start_silence");
+    expect(filter).not.toContain("stop_silence");
     expect(args).toContain("veryfast");
   });
 
@@ -47,7 +52,7 @@ describe("ffmpeg arg builders", () => {
 
   it("focuses speech and copies the video stream", () => {
     const args = speechFocusArgs("in.mp4", "out.mp4");
-    expect(args.some((a) => a.includes("highpass=f=140") && a.includes("lowpass=f=3800"))).toBe(true);
+    expect(args.some((a) => a.includes("highpass=f=90") && a.includes("lowpass=f=7500"))).toBe(true);
     expect(args.slice(args.indexOf("-c:v"), args.indexOf("-c:v") + 2)).toEqual(["-c:v", "copy"]);
   });
 
@@ -67,9 +72,18 @@ describe("ffmpeg arg builders", () => {
   it("combines slide-safe enhance with speech-focus in one encode", () => {
     const args = enhanceAndSpeechArgs("in.mp4", "out.mp4");
     expect(args.some((a) => a.includes("hqdn3d=") && a.includes("unsharp=3:3"))).toBe(true);
-    expect(args.some((a) => a.includes("highpass=f=140") && a.includes("lowpass=f=3800"))).toBe(true);
+    expect(args.some((a) => a.includes("highpass=f=90") && a.includes("lowpass=f=7500"))).toBe(true);
+    expect(args.some((a) => a.includes("format=yuv420p"))).toBe(true);
+    expect(args).toContain("yuv420p");
     expect(args).not.toContain("-c:v");
     expect(args).not.toContain("-c:a");
+  });
+
+  it("builds a slow Ken Burns still clip", () => {
+    const args = kenBurnsStillArgs("poster.jpg", "out.mp4", 8);
+    expect(args.join(" ")).toContain("zoompan=");
+    expect(args).toContain("-an");
+    expect(args).toContain("yuv420p");
   });
 
   it("muxes original lesson audio onto illustrated stills", () => {

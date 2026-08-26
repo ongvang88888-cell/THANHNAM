@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { cuesFromWhisperSegments, formatVttTimestamp, heuristicCuesFromTitle, toVtt } from "./vtt";
+import {
+  cuesFromWhisperSegments,
+  formatVttTimestamp,
+  heuristicCuesFromTitle,
+  normalizeCaptionCues,
+  toVtt,
+  wrapCaptionText,
+} from "./vtt";
 
 describe("VTT helpers", () => {
   it("formats timestamps", () => {
@@ -31,5 +38,25 @@ describe("VTT helpers", () => {
     expect(cues[0]?.text).toContain("Excel cơ bản");
     expect(cues[1]?.text).toMatch(/Whisper|duyệt/i);
     expect(toVtt(cues)).toContain("WEBVTT");
+  });
+
+  it("wraps captions to two broadcast lines", () => {
+    const wrapped = wrapCaptionText(
+      "Phụ đề tự động chưa có khóa Whisper. Thêm OPENAI_API_KEY hoặc GROQ_API_KEY để nhận transcript thật.",
+    );
+    const lines = wrapped.split("\n");
+    expect(lines.length).toBeLessThanOrEqual(2);
+    expect(lines.every((line) => line.length <= 42)).toBe(true);
+  });
+
+  it("merges short whisper cues and clamps duration", () => {
+    const cues = normalizeCaptionCues([
+      { startMs: 0, endMs: 400, text: "Xin" },
+      { startMs: 400, endMs: 700, text: "chào các bạn trong buổi học hôm nay về Excel" },
+    ]);
+    expect(cues).toHaveLength(1);
+    expect(cues[0]?.endMs).toBeGreaterThanOrEqual(1000);
+    expect(cues[0]?.endMs - (cues[0]?.startMs ?? 0)).toBeLessThanOrEqual(7000);
+    expect(cues[0]?.text.split("\n").length).toBeLessThanOrEqual(2);
   });
 });

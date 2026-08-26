@@ -14,6 +14,7 @@ describe("parseAiEditOptions", () => {
       maxScenes: 6,
     });
     expect(parseAiEditOptions({ confirmOwned: true })).toEqual({ confirmOwned: true });
+    expect(parseAiEditOptions({ recipeId: "lecture_expert_v1" })).toEqual({ recipeId: "lecture_expert_v1" });
     expect(
       parseAiEditOptions({
         autoApply: true,
@@ -35,6 +36,7 @@ describe("parseAiEditOptions", () => {
     expect(() => parseAiEditOptions({ confirmOwned: "yes" })).toThrow(/confirmOwned/);
     expect(() => parseAiEditOptions({ autoApply: "yes" })).toThrow(/autoApply/);
     expect(() => parseAiEditOptions({ lessonId: "short" })).toThrow(/lessonId/);
+    expect(() => parseAiEditOptions({ recipeId: "anime_v1" })).toThrow(/recipeId/);
     expect(() => parseAiEditOptions("x")).toThrow(/object/);
   });
 

@@ -1,3 +1,5 @@
+import { isLectureExpertRecipeId } from "./expert-recipe";
+
 export const FACE_REGIONS = ["full", "pip_br", "pip_bl", "pip_tr", "pip_tl"] as const;
 export const VISUAL_STYLES = ["anime", "flat", "watercolor"] as const;
 
@@ -14,6 +16,7 @@ export interface AiEditOptions {
   autoApply?: boolean;
   lessonId?: string;
   courseId?: string;
+  recipeId?: string;
 }
 
 const ALLOWED = new Set([
@@ -26,6 +29,7 @@ const ALLOWED = new Set([
   "autoApply",
   "lessonId",
   "courseId",
+  "recipeId",
 ]);
 
 const SCOPED_ID = /^[a-zA-Z0-9_-]{8,80}$/;
@@ -115,6 +119,12 @@ export function parseAiEditOptions(input: unknown): AiEditOptions {
   }
   if (rec.courseId !== undefined) {
     out.courseId = parseScopedId(rec.courseId, "courseId");
+  }
+  if (rec.recipeId !== undefined) {
+    if (typeof rec.recipeId !== "string" || !isLectureExpertRecipeId(rec.recipeId)) {
+      throw new Error("recipeId phải là lecture_expert_v1");
+    }
+    out.recipeId = rec.recipeId;
   }
   return out;
 }

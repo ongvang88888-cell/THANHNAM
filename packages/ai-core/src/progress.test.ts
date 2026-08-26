@@ -14,7 +14,6 @@ describe("AI edit progress steps", () => {
       "queue",
       "source",
       "enhance",
-      "toon",
       "trim",
       "extras",
       "apply",

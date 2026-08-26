@@ -12,6 +12,7 @@ import {
 } from "@edu/media-core";
 import {
   AI_EDIT_TOOLS,
+  LECTURE_EXPERT_RECIPE_ID,
   OWNERSHIP_DISCLAIMER,
   assertOwnedAbcReady,
   buildConcatDemuxerList,
@@ -20,6 +21,7 @@ import {
   courseEnhanceArgs,
   createAiPortFromEnv,
   cuesFromWhisperSegments,
+  describeRecipe,
   enhanceAndSpeechArgs,
   envAiCapabilities,
   extractLessonAudioArgs,
@@ -31,6 +33,7 @@ import {
   illustratedConcatArgs,
   isAiEditToolId,
   isPlaceholderLessonTitle,
+  kenBurnsStillArgs,
   parseAiEditOptions,
   pictureEnhanceArgs,
   progressFields,
@@ -40,6 +43,7 @@ import {
   speechFocusArgs,
   studioSoundArgs,
   thumbnailArgs,
+  thumbnailSeekSeconds,
   timeSliceCues,
   titlePosterArgs,
   toVtt,
@@ -50,6 +54,7 @@ import {
   type AiEditStepId,
   type AiEditToolId,
   type AiPort,
+  type RecipeTechnique,
 } from "@edu/ai-core";
 import { AppError, ErrorCodes, assertNever, hasAnyRole } from "@edu/shared-core";
 import type { Prisma, Video, VideoAiEdit } from "@edu/database";
@@ -89,6 +94,8 @@ export interface VideoAiEditOutput {
   progress?: number;
   step?: string;
   stepLabel?: string;
+  recipeId?: string;
+  techniques?: RecipeTechnique[];
 }
 
 @Injectable()
@@ -167,6 +174,7 @@ export class VideoAiEditService implements OnModuleInit {
     return {
       enabled: caps.enabled,
       ownershipDisclaimer: OWNERSHIP_DISCLAIMER,
+      recipe: describeRecipe(caps),
       capabilities: caps,
       video: {
         id: video.id,
@@ -308,8 +316,7 @@ export class VideoAiEditService implements OnModuleInit {
       autoApply: true,
       lessonId: lesson.id,
       courseId,
-      region: "full",
-      style: "anime",
+      recipeId: LECTURE_EXPERT_RECIPE_ID,
     });
   }
 
@@ -823,9 +830,7 @@ export class VideoAiEditService implements OnModuleInit {
       const outputPath = path.join(dir, "thumb.jpg");
       await writeFile(inputPath, source.bytes);
       const durationMs = (await this.probeDurationMs(inputPath)) ?? video.durationMs ?? 0;
-      const seek =
-        options.seekSeconds ??
-        (durationMs > 2000 ? Math.min(durationMs / 1000 / 2, 8) : 0.2);
+      const seek = options.seekSeconds ?? thumbnailSeekSeconds(durationMs);
       await this.execFfmpeg(thumbnailArgs(inputPath, outputPath, seek));
       const out = await readFile(outputPath);
       const key = buildObjectKey({
@@ -988,20 +993,16 @@ export class VideoAiEditService implements OnModuleInit {
       await this.markStep(editId, "enhance");
       const enhancedPath = path.join(dir, "enhance-speech.mp4");
       await this.execFfmpeg(enhanceAndSpeechArgs(inputPath, enhancedPath));
-      const region = options.region ?? "full";
-      const style = options.style ?? "anime";
-      await this.markStep(editId, "toon");
-      let lessonPath = path.join(dir, "owned-abc-lesson.mp4");
-      await this.execFfmpeg(toonTalkingHeadArgs(enhancedPath, lessonPath, region, style));
-      if (options.autoApply) {
-        await this.markStep(editId, "trim");
-        const trimmedPath = path.join(dir, "owned-abc-trim.mp4");
-        try {
-          await this.execFfmpeg(silenceTrimArgs(lessonPath, trimmedPath));
-          lessonPath = trimmedPath;
-        } catch (err) {
-          this.log.warn(`silence trim skipped: ${err instanceof Error ? err.message : "error"}`);
-        }
+      let lessonPath = enhancedPath;
+      let trimApplied = false;
+      await this.markStep(editId, "trim");
+      const trimmedPath = path.join(dir, "owned-abc-trim.mp4");
+      try {
+        await this.execFfmpeg(silenceTrimArgs(lessonPath, trimmedPath));
+        lessonPath = trimmedPath;
+        trimApplied = true;
+      } catch (err) {
+        this.log.warn(`silence trim skipped: ${err instanceof Error ? err.message : "error"}`);
       }
       const lessonBytes = await readFile(lessonPath);
       const lessonKey = buildObjectKey({
@@ -1012,22 +1013,33 @@ export class VideoAiEditService implements OnModuleInit {
       });
       await this.storage.putObject(lessonKey, lessonBytes, "video/mp4");
 
-      const pipNote =
-        region === "full"
-          ? "C biến người trong cả khung thành hoạt hình."
-          : "C tô hoạt hình vùng PIP/mặt, giữ slide.";
       const output: VideoAiEditOutput = {
         kind: "video",
         storageKey: lessonKey,
         contentType: "video/mp4",
         sizeBytes: lessonBytes.length,
         durationMs: (await this.probeDurationMs(lessonPath)) ?? video.durationMs ?? undefined,
-        providerNote: `${OWNERSHIP_DISCLAIMER} A làm nét + giảm nhạc nền. ${pipNote} Giữ camera giáo viên, không thay bằng thẻ chữ.`,
+        providerNote: `${OWNERSHIP_DISCLAIMER} Công thức lecture_expert_v1: một lần encode hình + tiếng, cắt im lặng conservative, giữ camera giáo viên. Không tô hoạt hình mặc định.`,
+      };
+      let extras: {
+        captionsMode?: "whisper" | "heuristic" | "failed";
+        copyMode?: "llm" | "heuristic" | "failed";
+        thumbApplied: boolean;
+      } = {
+        thumbApplied: false,
       };
       if (options.autoApply) {
         await this.markStep(editId, "extras");
-        await this.enrichOwnedAbcOutput(video, editId, ai, dir, inputPath, lessonPath, output);
+        extras = await this.enrichOwnedAbcOutput(video, editId, ai, dir, inputPath, lessonPath, output);
       }
+      const recipe = describeRecipe(await this.capabilities(), {
+        trimApplied,
+        captionsMode: extras.captionsMode,
+        copyMode: extras.copyMode,
+        thumbApplied: extras.thumbApplied,
+      });
+      output.recipeId = recipe.recipeId;
+      output.techniques = recipe.techniques;
       return output;
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -1042,11 +1054,16 @@ export class VideoAiEditService implements OnModuleInit {
     inputPath: string,
     lessonPath: string,
     output: VideoAiEditOutput,
-  ): Promise<void> {
+  ): Promise<{
+    captionsMode?: "whisper" | "heuristic" | "failed";
+    copyMode?: "llm" | "heuristic" | "failed";
+    thumbApplied: boolean;
+  }> {
+    let thumbApplied = false;
     try {
       const thumbPath = path.join(dir, "auto-thumb.jpg");
       const durationMs = (await this.probeDurationMs(lessonPath)) ?? output.durationMs ?? 0;
-      const seek = durationMs > 2000 ? Math.min(durationMs / 1000 / 2, 8) : 0.2;
+      const seek = thumbnailSeekSeconds(durationMs);
       await this.execFfmpeg(thumbnailArgs(lessonPath, thumbPath, seek));
       const thumbBytes = await readFile(thumbPath);
       const thumbKey = buildObjectKey({
@@ -1057,16 +1074,19 @@ export class VideoAiEditService implements OnModuleInit {
       });
       await this.storage.putObject(thumbKey, thumbBytes, "image/jpeg");
       output.thumbnailStorageKey = thumbKey;
+      thumbApplied = true;
     } catch (err) {
       this.log.warn(`auto thumbnail skipped: ${err instanceof Error ? err.message : "error"}`);
     }
 
     let transcript = "";
+    let captionsMode: "whisper" | "heuristic" | "failed" | undefined;
     try {
       const speechPath = path.join(dir, "auto-speech.mp3");
       await this.execFfmpeg(extractSpeechAudioArgs(inputPath, speechPath));
       const audio = await readFile(speechPath);
       let cues = heuristicCuesFromTitle(video.title, video.durationMs ?? undefined);
+      captionsMode = "heuristic";
       try {
         const speech = await ai.transcribe({ bytes: audio, filename: "speech.mp3", mime: "audio/mpeg" });
         if (speech.text.trim() || speech.segments.length > 0) {
@@ -1075,9 +1095,10 @@ export class VideoAiEditService implements OnModuleInit {
             speech.segments.length > 0
               ? cuesFromWhisperSegments(speech.segments)
               : [{ startMs: 0, endMs: video.durationMs ?? 8000, text: transcript }];
+          captionsMode = "whisper";
         }
       } catch {
-        // fallback heuristic cues
+        captionsMode = "heuristic";
       }
       const vtt = toVtt(cues);
       const captionKey = buildObjectKey({
@@ -1092,9 +1113,11 @@ export class VideoAiEditService implements OnModuleInit {
       output.captionSizeBytes = bytes.length;
       output.text = transcript || cues.map((cue) => cue.text).join("\n");
     } catch (err) {
+      captionsMode = "failed";
       this.log.warn(`auto captions skipped: ${err instanceof Error ? err.message : "error"}`);
     }
 
+    let copyMode: "llm" | "heuristic" | "failed" | undefined;
     try {
       const copy = await ai.suggestLessonCopy({
         title: video.title,
@@ -1103,9 +1126,12 @@ export class VideoAiEditService implements OnModuleInit {
       output.title = copy.title;
       output.description = copy.description;
       output.tags = copy.tags;
+      copyMode = copy.provider === "null" ? "heuristic" : "llm";
     } catch (err) {
+      copyMode = "failed";
       this.log.warn(`auto copy skipped: ${err instanceof Error ? err.message : "error"}`);
     }
+    return { captionsMode, copyMode, thumbApplied };
   }
 
   private async runIllustratedEdition(
@@ -1220,7 +1246,20 @@ export class VideoAiEditService implements OnModuleInit {
     }
 
     const listPath = path.join(dir, "scenes.txt");
-    await writeFile(listPath, buildConcatDemuxerList(entries), "utf8");
+    let concatEntries = entries;
+    try {
+      const kenBurnsEntries: Array<{ file: string; durationSec: number }> = [];
+      for (const [index, entry] of entries.entries()) {
+        const clip = path.join(dir, `kenburns-${index}.mp4`);
+        await this.execFfmpeg(kenBurnsStillArgs(entry.file, clip, entry.durationSec));
+        kenBurnsEntries.push({ file: clip, durationSec: entry.durationSec });
+      }
+      concatEntries = kenBurnsEntries;
+      note = `${note} Ken Burns nhẹ trên still gốc.`;
+    } catch (err) {
+      this.log.warn(`ken burns skipped: ${err instanceof Error ? err.message : "error"}`);
+    }
+    await writeFile(listPath, buildConcatDemuxerList(concatEntries), "utf8");
     const outputPath = path.join(dir, "illustrated-out.mp4");
     await this.execFfmpeg(illustratedConcatArgs(listPath, audioPath, outputPath));
     const out = await readFile(outputPath);
@@ -1355,5 +1394,26 @@ function asOutput(value: Prisma.JsonValue | null): VideoAiEditOutput | null {
     progress: typeof rec.progress === "number" && Number.isFinite(rec.progress) ? rec.progress : undefined,
     step: typeof rec.step === "string" ? rec.step : undefined,
     stepLabel: typeof rec.stepLabel === "string" ? rec.stepLabel : undefined,
+    recipeId: typeof rec.recipeId === "string" ? rec.recipeId : undefined,
+    techniques: parseTechniques(rec.techniques),
   };
+}
+
+function parseTechniques(value: unknown): RecipeTechnique[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const rows: RecipeTechnique[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const rec = item as Record<string, unknown>;
+    if (typeof rec.id !== "string" || typeof rec.source !== "string" || typeof rec.label !== "string") continue;
+    if (rec.status !== "applied" && rec.status !== "skipped" && rec.status !== "refused") continue;
+    rows.push({
+      id: rec.id,
+      source: rec.source,
+      status: rec.status,
+      label: rec.label,
+      note: typeof rec.note === "string" ? rec.note : undefined,
+    });
+  }
+  return rows.length > 0 ? rows : undefined;
 }

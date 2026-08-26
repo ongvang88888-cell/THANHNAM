@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   assertOwnedAbcReady,
+  describeRecipe,
+  isAiEditStepId,
   isAiEditToolId,
   parseAiEditOptions,
   progressFields,
@@ -41,15 +43,22 @@ describe("video AI edit contract", () => {
         autoApply: true,
         lessonId: "clxxxxxxxxxxxxxxxxxxx1",
         courseId: "clxxxxxxxxxxxxxxxxxxx2",
+        recipeId: "lecture_expert_v1",
       }),
     ).toEqual({
       autoApply: true,
       lessonId: "clxxxxxxxxxxxxxxxxxxx1",
       courseId: "clxxxxxxxxxxxxxxxxxxx2",
+      recipeId: "lecture_expert_v1",
     });
     expect(() => parseAiEditOptions({ seekSeconds: 90_000 })).toThrow(/seekSeconds/);
     expect(() => assertOwnedAbcReady("owned_abc", { region: "pip_br" })).toThrow(/confirmOwned/);
     expect(progressFields("apply")).toMatchObject({ progress: 92, step: "apply" });
     expect(progressFields("done").stepLabel).toMatch(/sẵn sàng lưu/i);
+    expect(progressFields("enhance").progress).toBe(40);
+    expect(isAiEditStepId("toon")).toBe(false);
+    const recipe = describeRecipe({ speech: false, imageGen: false, llm: false });
+    expect(recipe.recipeId).toBe("lecture_expert_v1");
+    expect(recipe.techniques.some((row) => row.id === "content_id_dodge" && row.status === "refused")).toBe(true);
   });
 });

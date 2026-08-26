@@ -1,3 +1,4 @@
+import { LECTURE_ENHANCE_VF, LECTURE_SILENCE_AF, LECTURE_SPEECH_AF } from "./expert-recipe";
 import type { FaceRegion, VisualStyle } from "./options";
 
 export function sanitizeDrawText(title: string): string {
@@ -78,7 +79,7 @@ export function studioSoundArgs(inputPath: string, outputPath: string): string[]
     "-i",
     inputPath,
     "-af",
-    "highpass=f=80,lowpass=f=12000,afftdn=nf=-25,loudnorm=I=-16:TP=-1.5:LRA=11",
+    LECTURE_SPEECH_AF,
     "-c:v",
     "copy",
     "-movflags",
@@ -112,7 +113,7 @@ export function silenceTrimArgs(inputPath: string, outputPath: string): string[]
     "-i",
     inputPath,
     "-af",
-    "silenceremove=start_periods=1:start_threshold=-40dB:start_silence=0.5:stop_periods=-1:stop_threshold=-40dB:stop_silence=0.8",
+    LECTURE_SILENCE_AF,
     "-c:v",
     "libx264",
     "-preset",
@@ -168,10 +169,9 @@ export function titlePosterArgs(
   ];
 }
 
-export const COURSE_ENHANCE_VF =
-  "hqdn3d=1.2:1.0:4:4,unsharp=3:3:0.35:3:3:0.0,eq=contrast=1.04:brightness=0.01:saturation=1.03";
+export const COURSE_ENHANCE_VF = LECTURE_ENHANCE_VF;
 
-export const SPEECH_FOCUS_AF = "highpass=f=140,lowpass=f=3800,afftdn=nf=-22,loudnorm=I=-16:TP=-1.5:LRA=11";
+export const SPEECH_FOCUS_AF = LECTURE_SPEECH_AF;
 
 export function courseEnhanceArgs(inputPath: string, outputPath: string): string[] {
   return [
@@ -220,6 +220,8 @@ export function enhanceAndSpeechArgs(inputPath: string, outputPath: string): str
     "veryfast",
     "-crf",
     "22",
+    "-pix_fmt",
+    "yuv420p",
     "-movflags",
     "+faststart",
     outputPath,
@@ -300,6 +302,33 @@ export function captionStillArgs(
 
 export function extractLessonAudioArgs(inputPath: string, outputPath: string): string[] {
   return ["-y", "-i", inputPath, "-vn", "-c:a", "aac", "-b:a", "128k", outputPath];
+}
+
+/** Slow Ken Burns over a still — Pictory-safe, no third-party stock. Fail-soft if zoompan is missing. */
+export function kenBurnsStillArgs(poster: string, outputPath: string, durationSec: number): string[] {
+  const seconds = Math.max(0.8, Math.min(30, durationSec));
+  const frames = Math.max(20, Math.round(seconds * 25));
+  return [
+    "-y",
+    "-loop",
+    "1",
+    "-i",
+    poster,
+    "-vf",
+    `scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,zoompan=z='min(zoom+0.0004,1.08)':d=${frames}:s=1280x720:fps=25,format=yuv420p`,
+    "-t",
+    String(seconds),
+    "-an",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "23",
+    "-pix_fmt",
+    "yuv420p",
+    outputPath,
+  ];
 }
 
 export function illustratedConcatArgs(listPath: string, audioPath: string, outputPath: string): string[] {

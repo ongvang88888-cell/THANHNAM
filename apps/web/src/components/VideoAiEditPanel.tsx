@@ -155,7 +155,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
       );
       setMsg(
         toolId === "owned_abc"
-          ? "Đã xếp gói A+C. Đợi bài học (làm nét + biến người thành hoạt hình) xong rồi duyệt."
+          ? "Đã xếp gói A+C theo công thức chuyên gia. Đợi làm nét + tiếng xong rồi duyệt."
           : "Đã xếp lệnh chỉnh. Đợi vài giây rồi xem kết quả bên dưới.",
       );
       await refresh();
@@ -211,7 +211,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
       <p className="muted">
         {props.variant === "advanced"
           ? "Chỉ dùng khi muốn chạy từng công cụ riêng. Luồng tải video đã tự chỉnh và gắn vào bài."
-          : "Gói A+C chạy một lần: làm nét + giảm nhạc + biến người trong video thành hoạt hình. Giữ camera giáo viên, không thay bằng thẻ chữ."}
+          : "Gói A+C chạy công thức chuyên gia v1: làm nét nhẹ + lọc tiếng giảng, cắt im lặng, phụ đề và ảnh bìa. Giữ camera giáo viên. Tô hoạt hình chỉ có trong công cụ thủ công bên dưới."}
       </p>
       <p className="ai-edit-legal muted">
         {catalog.ownershipDisclaimer ??

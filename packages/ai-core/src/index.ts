@@ -14,10 +14,16 @@ export {
   type AiEditToolId,
 } from "./catalog";
 export {
+  CAPTION_MAX_CHARS,
+  CAPTION_MAX_LINES,
+  CUE_MAX_MS,
+  CUE_MIN_MS,
   cuesFromWhisperSegments,
   formatVttTimestamp,
   heuristicCuesFromTitle,
+  normalizeCaptionCues,
   toVtt,
+  wrapCaptionText,
   type CaptionCue,
 } from "./vtt";
 export {
@@ -28,6 +34,19 @@ export {
   timeSliceCues,
 } from "./scenes";
 export {
+  LECTURE_ENHANCE_VF,
+  LECTURE_EXPERT_RECIPE_ID,
+  LECTURE_SILENCE_AF,
+  LECTURE_SPEECH_AF,
+  describeRecipe,
+  isLectureExpertRecipeId,
+  thumbnailSeekSeconds,
+  type LectureExpertRecipe,
+  type RecipeOutcome,
+  type RecipeTechnique,
+  type RecipeTechniqueStatus,
+} from "./expert-recipe";
+export {
   captionStillArgs,
   cartoonPersonGraph,
   COURSE_ENHANCE_VF,
@@ -37,6 +56,7 @@ export {
   extractSpeechAudioArgs,
   FFMPEG_FONT_CANDIDATES,
   illustratedConcatArgs,
+  kenBurnsStillArgs,
   SPEECH_FOCUS_AF,
   pictureEnhanceArgs,
   pipGeometry,

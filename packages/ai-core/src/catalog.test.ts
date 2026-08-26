@@ -45,6 +45,8 @@ describe("AI edit catalog", () => {
     const avail = toolAvailability(tool, caps, true);
     expect(avail.available).toBe(true);
     expect(avail.mode).toBe("fallback");
+    expect(tool.description).toMatch(/lecture_expert_v1/);
+    expect(tool.description).not.toMatch(/tô kiểu anime|biến người trong khung/);
   });
 
   it("keeps illustrated edition available without Whisper or image gen", () => {
