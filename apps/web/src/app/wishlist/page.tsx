@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiDelete, apiGet, formatVnd } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
+import { coverStyle } from "@/lib/catalog";
 
 type Row = {
   productId: string;
@@ -35,37 +36,43 @@ export default function WishlistPage() {
   }, [ready, token]);
 
   return (
-    <section>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Yêu thích</h1>
+    <div className="u-wrap">
+      <div className="u-page-head">
+        <h1>Khóa học yêu thích</h1>
+      </div>
       {error && <p className="error">{error}</p>}
-      <div className="grid">
+      <div className="u-grid">
         {!error && items.length === 0 && <p className="muted">Chưa có sản phẩm yêu thích.</p>}
         {items.map((row) => (
-          <div className="product" key={row.productId}>
-            <div className="type">{row.product.type}</div>
-            <h3>
-              <a href={`/products/${row.product.slug}`}>{row.product.name}</a>
-            </h3>
-            <p className="price">
-              {row.product.prices[0] ? formatVnd(row.product.prices[0].amountMinor) : "—"}
-            </p>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => {
-                if (!token) return;
-                apiDelete(`/wishlist/${row.productId}`, token)
-                  .then(load)
-                  .catch((e: unknown) => {
-                    setError(e instanceof Error ? e.message : "Không bỏ được yêu thích");
-                  });
-              }}
-            >
-              Bỏ yêu thích
-            </button>
+          <div className="u-card" key={row.productId}>
+            <div className="u-card-cover" style={coverStyle(row.product.slug)}>
+              {row.product.name.slice(0, 1)}
+            </div>
+            <div className="u-card-body">
+              <h3>
+                <a href={`/products/${row.product.slug}`}>{row.product.name}</a>
+              </h3>
+              <p className="u-price">
+                <strong>{row.product.prices[0] ? formatVnd(row.product.prices[0].amountMinor) : "—"}</strong>
+              </p>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  if (!token) return;
+                  apiDelete(`/wishlist/${row.productId}`, token)
+                    .then(load)
+                    .catch((e: unknown) => {
+                      setError(e instanceof Error ? e.message : "Không bỏ được yêu thích");
+                    });
+                }}
+              >
+                Bỏ yêu thích
+              </button>
+            </div>
           </div>
         ))}
       </div>
-    </section>
+    </div>
   );
 }

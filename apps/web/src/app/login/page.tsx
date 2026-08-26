@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { UnicaLogo } from "@/components/UnicaLogo";
 import { apiGet, apiPost } from "@/lib/api";
 import { safeNextPath, useAuth, type User } from "@/lib/auth";
 
@@ -46,9 +47,10 @@ export default function LoginPage() {
   }
 
   return (
-    <section className="panel auth-card">
-      <h1 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>Đăng nhập</h1>
-      <p className="muted">Vào thư viện, studio giảng viên hoặc trang quản trị.</p>
+    <section className="u-auth">
+      <UnicaLogo />
+      <h1>Đăng nhập</h1>
+      <p className="muted">Hội viên Unica — vào khóa học của tôi, giỏ hàng và studio giảng viên.</p>
       <form onSubmit={onSubmit}>
         <label>Email</label>
         <input value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
@@ -65,11 +67,10 @@ export default function LoginPage() {
         </button>
       </form>
       <p className="muted">
-        Thử nhanh: student@edu.local · teacher@edu.local · admin@edu.local — Password123!
+        <a href="/register">Đăng ký</a> · <a href="/forgot-password">Quên mật khẩu</a> ·{" "}
+        <a href="/kich-hoat">Kích hoạt khóa học</a>
       </p>
-      <p className="muted">
-        <a href="/register">Tạo tài khoản</a> · <a href="/forgot-password">Quên mật khẩu</a>
-      </p>
+      <p className="muted">Học viên / giảng viên / admin demo: student@edu.local · teacher@edu.local · admin@edu.local</p>
     </section>
   );
 }

@@ -194,7 +194,7 @@ export default function TeacherPage() {
   }
 
   return (
-    <section>
+    <section className="u-wrap">
       <div className="page-head">
         <h1>Studio giảng viên</h1>
         <p className="muted">

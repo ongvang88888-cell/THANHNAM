@@ -56,8 +56,8 @@ function PayInner() {
   }, [clientSecret, orderId, router]);
 
   return (
-    <section className="panel">
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Thanh toán Stripe</h1>
+    <section className="u-wrap panel">
+      <h1>Thanh toán Stripe</h1>
       {error ? <p className="error">{error}</p> : <p className="muted">{msg}</p>}
       {orderId && <a href={`/checkout/return?orderId=${orderId}`}>Xem trạng thái đơn</a>}
     </section>

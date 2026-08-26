@@ -65,8 +65,8 @@ function ReturnInner() {
 
   if (error) {
     return (
-      <section>
-        <h1 style={{ fontFamily: "var(--font-display)" }}>Thanh toán</h1>
+      <section className="u-wrap">
+        <h1>Thanh toán</h1>
         <p className="error">{error}</p>
         <a href="/login">Đăng nhập</a> · <a href="/">Cửa hàng</a>
       </section>
@@ -78,8 +78,8 @@ function ReturnInner() {
   const paid = order.status === "PAID" || order.status === "FULFILLED";
 
   return (
-    <section>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>
+    <section className="u-wrap">
+      <h1>
         {paid ? "Thanh toán thành công" : `Đơn ${order.status}`}
       </h1>
       <p className="muted">
@@ -88,7 +88,7 @@ function ReturnInner() {
       </p>
 
       <div className="panel">
-        <h2 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>Sản phẩm</h2>
+        <h2 style={{ marginTop: 0 }}>Sản phẩm</h2>
         <ul className="lesson-list">
           {order.items.map((item) => (
             <li key={item.productId}>

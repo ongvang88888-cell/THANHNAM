@@ -25,8 +25,8 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <section className="panel stack">
-      <h1 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>Quên mật khẩu</h1>
+    <section className="u-auth">
+      <h1 style={{ marginTop: 0 }}>Quên mật khẩu</h1>
       <form onSubmit={onSubmit}>
         <label>Email</label>
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />

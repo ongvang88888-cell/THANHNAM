@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiGet } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
+import { coverStyle } from "@/lib/catalog";
 import { productTypeLabel } from "@/lib/labels";
 
 type LibraryProduct = {
@@ -16,19 +17,9 @@ type LibraryProduct = {
 };
 
 function hrefFor(p: LibraryProduct): string {
-  if (p.type === "DIGITAL_DOCUMENT" && p.document?.id) {
-    return `/documents/${p.document.id}`;
-  }
-  if (p.type === "VIDEO_COURSE" && p.firstLessonId) {
-    return `/learn/${p.firstLessonId}`;
-  }
+  if (p.type === "DIGITAL_DOCUMENT" && p.document?.id) return `/documents/${p.document.id}`;
+  if (p.type === "VIDEO_COURSE" && p.firstLessonId) return `/learn/${p.firstLessonId}`;
   return `/products/${p.slug}`;
-}
-
-function actionLabel(type: string): string {
-  if (type === "DIGITAL_DOCUMENT") return "Mở tài liệu";
-  if (type.includes("BUNDLE")) return "Mở combo";
-  return "Tiếp tục học";
 }
 
 export default function LibraryPage() {
@@ -55,45 +46,62 @@ export default function LibraryPage() {
       });
   }, [ready, token]);
 
-  if (!ready || !user) return <p className="muted">Đang mở thư viện…</p>;
+  if (!ready || !user) return <p className="u-wrap muted">Đang mở khóa học của tôi…</p>;
 
   return (
-    <section>
-      <div className="page-head">
-        <h1>Thư viện của tôi</h1>
+    <div className="u-wrap">
+      <div className="u-page-head">
+        <h1>Khóa học của tôi</h1>
         <p className="muted">{user.displayName || user.email}</p>
       </div>
-
       {error && <p className="toast error">{error}</p>}
 
-      <h2 style={{ fontFamily: "var(--font-display)", color: "var(--brand)" }}>Tiếp tục học</h2>
-      <div className="grid" style={{ marginBottom: 28 }}>
-        {(data?.continueLearning?.length ?? 0) === 0 && (
-          <div className="panel">
-            <p className="muted">Chưa có tiến độ. Mua một khóa hoặc mở bài xem trước để bắt đầu.</p>
-          </div>
-        )}
-        {data?.continueLearning?.map((c) => (
-          <a className="product" key={c.lessonId} href={`/learn/${c.lessonId}`}>
-            <div className="type">Đang học</div>
-            <h3>{c.courseTitle}</h3>
-            <p className="muted">{c.lessonTitle}</p>
-            <div className="price">Vào bài →</div>
-          </a>
-        ))}
-      </div>
+      <section className="u-rail">
+        <div className="u-rail-head">
+          <h2>Tiếp tục học</h2>
+        </div>
+        <div className="u-grid">
+          {(data?.continueLearning?.length ?? 0) === 0 && (
+            <p className="muted">Chưa có tiến độ. Mua một khóa hoặc mở bài học thử để bắt đầu.</p>
+          )}
+          {data?.continueLearning?.map((row) => (
+            <a className="u-card" key={row.lessonId} href={`/learn/${row.lessonId}`}>
+              <div className="u-card-cover" style={coverStyle(row.courseTitle)}>
+                {row.courseTitle.slice(0, 1)}
+              </div>
+              <div className="u-card-body">
+                <h3>{row.courseTitle}</h3>
+                <p className="u-card-teacher">{row.lessonTitle}</p>
+                <div className="u-price">
+                  <strong>Vào bài →</strong>
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
 
-      <h2 style={{ fontFamily: "var(--font-display)", color: "var(--brand)" }}>Đã sở hữu</h2>
-      <div className="grid">
-        {data?.products.map((p) => (
-          <a className="product" key={p.id} href={hrefFor(p)}>
-            <div className="cover" />
-            <div className="type">{productTypeLabel(p.type)}</div>
-            <h3>{p.name}</h3>
-            <p className="muted">{actionLabel(p.type)}</p>
-          </a>
-        ))}
-      </div>
-    </section>
+      <section className="u-rail">
+        <div className="u-rail-head">
+          <h2>Đã sở hữu</h2>
+        </div>
+        <div className="u-grid">
+          {data?.products.map((p) => (
+            <a className="u-card" key={p.id} href={hrefFor(p)}>
+              <div className="u-card-cover" style={coverStyle(p.slug)}>
+                {p.name.slice(0, 1)}
+              </div>
+              <div className="u-card-body">
+                <h3>{p.name}</h3>
+                <p className="u-card-teacher">{productTypeLabel(p.type)}</p>
+                <div className="u-price">
+                  <strong>Tiếp tục học</strong>
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }

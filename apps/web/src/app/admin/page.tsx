@@ -88,9 +88,9 @@ export default function AdminPage() {
   }
 
   return (
-    <section>
+    <section className="u-wrap">
       <div className="page-head">
-        <h1>Quản trị trường</h1>
+        <h1>Quản trị</h1>
         <p className="muted">Duyệt khóa, theo dõi đơn, cấp quyền và hoa hồng.</p>
       </div>
       {error && <p className="toast error">{error}</p>}

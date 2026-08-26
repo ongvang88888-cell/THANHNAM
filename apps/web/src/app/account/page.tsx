@@ -14,8 +14,8 @@ export default function AccountPage() {
   if (!ready || !user) return <p className="muted">Loading…</p>;
 
   return (
-    <section className="panel stack" style={{ maxWidth: 640 }}>
-      <h1 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>Tài khoản</h1>
+    <section className="u-wrap panel stack" style={{ maxWidth: 640, margin: "28px auto" }}>
+      <h1 style={{ marginTop: 0 }}>Tài khoản</h1>
       <p>
         {user.displayName || user.email}
         <br />

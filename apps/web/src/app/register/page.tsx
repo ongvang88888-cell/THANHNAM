@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { UnicaLogo } from "@/components/UnicaLogo";
 import { apiGet, apiPost } from "@/lib/api";
 import { safeNextPath, useAuth, type User } from "@/lib/auth";
 
@@ -53,11 +54,12 @@ export default function RegisterPage() {
   }
 
   return (
-    <section className="panel auth-card">
-      <h1 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>Tạo tài khoản</h1>
-      <p className="muted">Đăng ký học viên. Chúng tôi sẽ gửi email xác minh (hoặc hiện token ở môi trường dev).</p>
+    <section className="u-auth">
+      <UnicaLogo />
+      <h1>Đăng ký</h1>
+      <p className="muted">Tạo tài khoản hội viên để học online mọi kỹ năng từ chuyên gia hàng đầu.</p>
       <form onSubmit={onSubmit}>
-        <label>Tên hiển thị</label>
+        <label>Họ và tên</label>
         <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} required />
         <label>Email</label>
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
