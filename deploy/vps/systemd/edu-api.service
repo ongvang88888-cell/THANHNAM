@@ -8,10 +8,16 @@ Type=simple
 WorkingDirectory=/opt/edu-commerce/apps/api
 EnvironmentFile=/opt/edu-commerce/.env
 Environment=NODE_ENV=production
+Environment=NODE_OPTIONS=--max-old-space-size=3072
+Environment=FFMPEG_THREADS=2
+Environment=FFMPEG_MAX_CONCURRENT=2
 ExecStart=/usr/bin/node dist/main.js
-Restart=on-failure
+Restart=always
 RestartSec=5
 LimitNOFILE=65535
+MemoryHigh=5G
+MemoryMax=6G
+OOMPolicy=stop
 
 [Install]
 WantedBy=multi-user.target

@@ -1,8 +1,14 @@
 import { LECTURE_ENHANCE_VF, LECTURE_ONE_PASS_AF, LECTURE_SILENCE_AF, LECTURE_SPEECH_AF } from "./expert-recipe";
 import type { FaceRegion, VisualStyle } from "./options";
 
+export function ffmpegThreadCount(): number {
+  const raw = Number(process.env.FFMPEG_THREADS);
+  if (Number.isFinite(raw) && raw >= 1 && raw <= 16) return Math.floor(raw);
+  return 2;
+}
+
 export function ffmpegThreadArgs(): string[] {
-  return ["-threads", "0"];
+  return ["-threads", String(ffmpegThreadCount())];
 }
 
 export function clampQuickTrim(
@@ -116,6 +122,7 @@ export function pictureEnhanceArgs(inputPath: string, outputPath: string): strin
     "veryfast",
     "-crf",
     "23",
+    ...ffmpegThreadArgs(),
     "-movflags",
     "+faststart",
     outputPath,
@@ -135,6 +142,7 @@ export function silenceTrimArgs(inputPath: string, outputPath: string): string[]
     "veryfast",
     "-crf",
     "23",
+    ...ffmpegThreadArgs(),
     "-movflags",
     "+faststart",
     outputPath,
@@ -201,6 +209,7 @@ export function courseEnhanceArgs(inputPath: string, outputPath: string): string
     "veryfast",
     "-crf",
     "22",
+    ...ffmpegThreadArgs(),
     "-movflags",
     "+faststart",
     outputPath,
@@ -348,6 +357,7 @@ export function toonTalkingHeadArgs(
       "veryfast",
       "-crf",
       "23",
+      ...ffmpegThreadArgs(),
       "-movflags",
       "+faststart",
       outputPath,
@@ -370,6 +380,7 @@ export function toonTalkingHeadArgs(
     "veryfast",
     "-crf",
     "23",
+    ...ffmpegThreadArgs(),
     "-movflags",
     "+faststart",
     outputPath,
@@ -423,6 +434,7 @@ export function kenBurnsStillArgs(poster: string, outputPath: string, durationSe
     "23",
     "-pix_fmt",
     "yuv420p",
+    ...ffmpegThreadArgs(),
     outputPath,
   ];
 }
@@ -450,6 +462,7 @@ export function illustratedConcatArgs(listPath: string, audioPath: string, outpu
     "23",
     "-pix_fmt",
     "yuv420p",
+    ...ffmpegThreadArgs(),
     "-c:a",
     "aac",
     "-shortest",

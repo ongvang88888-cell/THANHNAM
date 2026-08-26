@@ -85,6 +85,13 @@ describe("runtime gates", () => {
     expect(() => assertProductionSecrets()).toThrow(/VNPAY_HASH_SECRET/);
   });
 
+  it("allows disk storage in production without S3", () => {
+    withProdBase();
+    process.env.STORAGE_DRIVER = "disk";
+    delete process.env.ALLOW_LOCAL_MEDIA;
+    expect(() => assertProductionSecrets()).not.toThrow();
+  });
+
   it("requires a public https PUBLIC_WEB_URL", () => {
     withProdBase();
     delete process.env.PUBLIC_WEB_URL;

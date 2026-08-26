@@ -15,6 +15,10 @@ import {
   Inject,
 } from "@nestjs/common";
 import type { IncomingMessage } from "node:http";
+import { createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
+import { pipeline } from "node:stream/promises";
+import type { Request, Response } from "express";
 import { SkipThrottle } from "@nestjs/throttler";
 import { IsInt, IsOptional, IsString, Min } from "class-validator";
 import {
@@ -22,7 +26,6 @@ import {
   createTranscodeFromEnv,
   assertAllowedMime,
   buildObjectKey,
-  getSharedMemoryStorage,
   verifyLocalMedia,
   type IStorageProvider,
   type TranscodePort,
@@ -370,21 +373,39 @@ export class MediaService {
   }
 }
 
-async function readUploadedBytes(
-  req: IncomingMessage & { body?: unknown; rawBody?: Buffer },
-): Promise<Buffer> {
-  if (Buffer.isBuffer(req.rawBody) && req.rawBody.length > 0) return req.rawBody;
-  if (Buffer.isBuffer(req.body) && req.body.length > 0) return req.body;
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+function parseByteRange(
+  header: string | undefined,
+  size: number,
+): { start: number; end: number } | null {
+  if (!header || size <= 0) return null;
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(header.trim());
+  if (!match) return null;
+  const rawStart = match[1];
+  const rawEnd = match[2];
+  let start = rawStart ? Number(rawStart) : 0;
+  let end = rawEnd ? Number(rawEnd) : size - 1;
+  if (!rawStart && rawEnd) {
+    const suffix = Number(rawEnd);
+    if (!Number.isFinite(suffix) || suffix <= 0) return null;
+    start = Math.max(0, size - suffix);
+    end = size - 1;
   }
-  return Buffer.concat(chunks);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || start > end || start >= size) {
+    return null;
+  }
+  return { start, end: Math.min(end, size - 1) };
+}
+
+function mediaCacheControl(key: string): string {
+  if (/\.(jpe?g|png|webp|vtt)$/i.test(key)) return "private, max-age=600";
+  return "private, max-age=120";
 }
 
 @SkipThrottle()
 @Controller("media/local")
 export class LocalMediaController {
+  private readonly storage = createStorageFromEnv();
+
   private assertSigned(key: string, exp: string | undefined, sig: string | undefined) {
     if (!allowLocalMedia()) {
       throw new AppError(ErrorCodes.NOT_FOUND, "Local media disabled", 404);
@@ -403,22 +424,29 @@ export class LocalMediaController {
   ) {
     if (!key) throw new AppError(ErrorCodes.VALIDATION, "Missing key", 400);
     this.assertSigned(key, exp, sig);
-    const storage = getSharedMemoryStorage();
-    const bytes = await readUploadedBytes(req);
-    storage.put(key, bytes, String(req.headers["content-type"] || "application/octet-stream"));
-    return { ok: true, key, sizeBytes: bytes.length };
+    const contentType = String(req.headers["content-type"] || "application/octet-stream");
+    if (Buffer.isBuffer(req.rawBody) && req.rawBody.length > 0) {
+      await this.storage.putObject(key, req.rawBody, contentType);
+      return { ok: true, key, sizeBytes: req.rawBody.length };
+    }
+    if (Buffer.isBuffer(req.body) && req.body.length > 0) {
+      await this.storage.putObject(key, req.body, contentType);
+      return { ok: true, key, sizeBytes: req.body.length };
+    }
+    if (this.storage.writeFromStream) {
+      const sizeBytes = await this.storage.writeFromStream(key, req, contentType);
+      return { ok: true, key, sizeBytes };
+    }
+    throw new AppError(ErrorCodes.VALIDATION, "Empty media upload", 400);
   }
 
   @Get()
-  get(
+  async get(
     @Query("key") key: string,
     @Query("exp") exp: string | undefined,
     @Query("sig") sig: string | undefined,
-    @Res()
-    res: {
-      setHeader: (k: string, v: string) => void;
-      status: (n: number) => { send: (b: Buffer | string) => void };
-    },
+    @Req() req: Request,
+    @Res() res: Response,
   ) {
     try {
       if (!key) throw new AppError(ErrorCodes.VALIDATION, "Missing key", 400);
@@ -428,14 +456,50 @@ export class LocalMediaController {
       res.status(status).send(e instanceof Error ? e.message : "Forbidden");
       return;
     }
-    const storage = getSharedMemoryStorage();
-    const obj = storage.get(key);
+    const localPath = this.storage.localPath?.(key);
+    if (localPath) {
+      try {
+        const info = await stat(localPath);
+        if (!info.isFile()) {
+          res.status(404).send("Not found");
+          return;
+        }
+        const head = await this.storage.head(key);
+        const contentType = head?.contentType || "application/octet-stream";
+        const range = parseByteRange(req.headers.range, info.size);
+        res.setHeader("Accept-Ranges", "bytes");
+        res.setHeader("Content-Type", contentType);
+        res.setHeader("Cache-Control", mediaCacheControl(key));
+        if (range) {
+          res.status(206);
+          res.setHeader("Content-Range", `bytes ${range.start}-${range.end}/${info.size}`);
+          res.setHeader("Content-Length", String(range.end - range.start + 1));
+          try {
+            await pipeline(createReadStream(localPath, { start: range.start, end: range.end }), res);
+          } catch {
+            return;
+          }
+          return;
+        }
+        res.setHeader("Content-Length", String(info.size));
+        try {
+          await pipeline(createReadStream(localPath), res);
+        } catch {
+          return;
+        }
+        return;
+      } catch {
+        res.status(404).send("Not found");
+        return;
+      }
+    }
+    const obj = await this.storage.getObject(key);
     if (!obj) {
       res.status(404).send("Not found");
       return;
     }
     res.setHeader("Content-Type", obj.contentType);
-    res.setHeader("Cache-Control", "private, max-age=60");
+    res.setHeader("Cache-Control", mediaCacheControl(key));
     res.status(200).send(obj.bytes);
   }
 }

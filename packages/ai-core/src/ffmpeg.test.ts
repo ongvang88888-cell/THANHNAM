@@ -8,6 +8,8 @@ import {
   kenBurnsStillArgs,
   quickTrimCopyArgs,
   extractSpeechAudioArgs,
+  ffmpegThreadArgs,
+  ffmpegThreadCount,
   illustratedConcatArgs,
   pictureEnhanceArgs,
   silenceTrimArgs,
@@ -70,6 +72,17 @@ describe("ffmpeg arg builders", () => {
     const pip = toonTalkingHeadArgs("in.mp4", "out.mp4", "pip_br", "anime");
     expect(pip.join(" ")).toContain("overlay=W-w-20:H-h-20");
     expect(pip).toContain("-c:a");
+  });
+
+  it("caps ffmpeg threads so two lecture jobs cannot pin every vCPU", () => {
+    const previous = process.env.FFMPEG_THREADS;
+    delete process.env.FFMPEG_THREADS;
+    expect(ffmpegThreadCount()).toBe(2);
+    expect(ffmpegThreadArgs()).toEqual(["-threads", "2"]);
+    process.env.FFMPEG_THREADS = "3";
+    expect(ffmpegThreadCount()).toBe(3);
+    if (previous === undefined) delete process.env.FFMPEG_THREADS;
+    else process.env.FFMPEG_THREADS = previous;
   });
 
   it("combines slide-safe enhance with speech-focus in one encode", () => {

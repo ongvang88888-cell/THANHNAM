@@ -144,7 +144,8 @@ export function assertProductionSecrets(): void {
   if (WEAK_SECRETS.test(db)) {
     throw new Error("DATABASE_URL looks like a local/dev credential");
   }
-  if ((process.env.STORAGE_DRIVER || "memory") === "memory" && !allowLocalMedia()) {
+  const storageDriver = (process.env.STORAGE_DRIVER || "memory").trim().toLowerCase();
+  if (storageDriver === "memory" && !allowLocalMedia()) {
     throw new Error("STORAGE_DRIVER=memory is not allowed in production");
   }
   if (!process.env.CORS_ORIGINS?.trim()) {

@@ -64,6 +64,7 @@ import { AppError, ErrorCodes, assertNever, hasAnyRole } from "@edu/shared-core"
 import type { Prisma, Video, VideoAiEdit } from "@edu/database";
 import { PrismaService } from "../common/prisma.service";
 import type { RequestUser } from "../auth/auth.guard";
+import { ffmpegEncodeGate, isHeavyFfmpegEncode } from "./ffmpeg-gate";
 
 const execFileAsync = promisify(execFile);
 const MAX_SOURCE_BYTES = 400 * 1024 * 1024;
@@ -163,9 +164,67 @@ export class VideoAiEditService implements OnModuleInit {
 
   private async sourceMeta(video: Video): Promise<{ hasSource: boolean; sizeBytes: number }> {
     if (!video.storageKey) return { hasSource: false, sizeBytes: 0 };
+    const head = await this.storage.head(video.storageKey);
+    if (head) return { hasSource: head.sizeBytes > 0, sizeBytes: head.sizeBytes };
     const obj = await this.storage.getObject(video.storageKey);
     if (!obj || obj.bytes.length === 0) return { hasSource: false, sizeBytes: 0 };
     return { hasSource: true, sizeBytes: obj.bytes.length };
+  }
+
+  private async persistFile(key: string, filePath: string, contentType: string): Promise<number> {
+    if (this.storage.putFile) {
+      await this.storage.putFile(key, filePath, contentType);
+      const head = await this.storage.head(key);
+      return head?.sizeBytes ?? 0;
+    }
+    const bytes = await readFile(filePath);
+    await this.storage.putObject(key, bytes, contentType);
+    return bytes.length;
+  }
+
+  private async openStoredFile(key: string): Promise<{ path: string; cleanup: () => Promise<void> }> {
+    const local = this.storage.localPath?.(key);
+    if (local && existsSync(local)) {
+      return { path: local, cleanup: async () => undefined };
+    }
+    const obj = await this.storage.getObject(key);
+    if (!obj || obj.bytes.length === 0) {
+      throw new Error("Chưa có file video gốc. Hãy tải lại video.");
+    }
+    if (obj.bytes.length > MAX_SOURCE_BYTES) {
+      throw new Error("Video quá lớn để chỉnh trên máy chủ (tối đa 400MB)");
+    }
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-src-"));
+    const inputPath = path.join(dir, `in${path.extname(key) || ".mp4"}`);
+    await writeFile(inputPath, obj.bytes);
+    return {
+      path: inputPath,
+      cleanup: async () => {
+        await rm(dir, { recursive: true, force: true });
+      },
+    };
+  }
+
+  private async openSourceFile(video: Video): Promise<{
+    path: string;
+    ext: string;
+    contentType: string;
+    cleanup: () => Promise<void>;
+  }> {
+    if (!video.storageKey) throw new Error("Video chưa có file gốc");
+    const ext = path.extname(video.storageKey) || ".mp4";
+    const head = await this.storage.head(video.storageKey);
+    if (head && head.sizeBytes === 0) throw new Error("Chưa có file video gốc. Hãy tải lại video.");
+    if (head && head.sizeBytes > MAX_SOURCE_BYTES) {
+      throw new Error("Video quá lớn để chỉnh trên máy chủ (tối đa 400MB)");
+    }
+    const opened = await this.openStoredFile(video.storageKey);
+    return {
+      path: opened.path,
+      ext,
+      contentType: head?.contentType || "video/mp4",
+      cleanup: opened.cleanup,
+    };
   }
 
   async catalog(user: RequestUser, videoId: string) {
@@ -450,14 +509,12 @@ export class VideoAiEditService implements OnModuleInit {
     if (!wantTrim && !wantThumb) {
       throw new AppError(ErrorCodes.VALIDATION, "Chọn đoạn cắt hoặc điểm ảnh bìa", 400);
     }
-    const obj = await this.storage.getObject(output.storageKey);
-    if (!obj || obj.bytes.length === 0) {
+    const source = await this.openStoredFile(output.storageKey).catch(() => {
       throw new AppError(ErrorCodes.VALIDATION, "Không đọc được file đã chỉnh. Hãy chạy lại AI.", 400);
-    }
+    });
     const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-adjust-"));
     try {
-      const inputPath = path.join(dir, "in.mp4");
-      await writeFile(inputPath, obj.bytes);
+      const inputPath = source.path;
       const durationMs = (await this.probeDurationMs(inputPath)) ?? output.durationMs ?? 0;
       if (wantTrim) {
         const range = clampQuickTrim(body.startMs ?? 0, body.endMs ?? durationMs, durationMs);
@@ -470,16 +527,15 @@ export class VideoAiEditService implements OnModuleInit {
           } catch {
             await this.execFfmpeg(quickTrimEncodeArgs(inputPath, outPath, startSec, durSec));
           }
-          const out = await readFile(outPath);
           const key = buildObjectKey({
             appId: video.appId,
             type: "video-ai",
             id: `${edit.id}-adj`,
             filename: "quick-trim.mp4",
           });
-          await this.storage.putObject(key, out, "video/mp4");
+          const sizeBytes = await this.persistFile(key, outPath, "video/mp4");
           output.storageKey = key;
-          output.sizeBytes = out.length;
+          output.sizeBytes = sizeBytes;
           output.durationMs = (await this.probeDurationMs(outPath)) ?? range.endMs - range.startMs;
           if (output.newVideoId) {
             await this.prisma.video.update({
@@ -488,7 +544,7 @@ export class VideoAiEditService implements OnModuleInit {
             });
             await this.prisma.videoAsset.updateMany({
               where: { videoId: output.newVideoId, format: "mp4" },
-              data: { storageKey: key, sizeBytes: BigInt(out.length) },
+              data: { storageKey: key, sizeBytes: BigInt(sizeBytes) },
             });
           }
         }
@@ -525,6 +581,7 @@ export class VideoAiEditService implements OnModuleInit {
       return this.presentEdit({ ...edit, outputJson: output as unknown as Prisma.JsonValue });
     } finally {
       await rm(dir, { recursive: true, force: true });
+      await source.cleanup();
     }
   }
 
@@ -984,17 +1041,6 @@ export class VideoAiEditService implements OnModuleInit {
     }
   }
 
-  private async loadSource(video: Video): Promise<{ bytes: Buffer; ext: string; contentType: string }> {
-    if (!video.storageKey) throw new Error("Video chưa có file gốc");
-    const obj = await this.storage.getObject(video.storageKey);
-    if (!obj || obj.bytes.length === 0) throw new Error("Chưa có file video gốc. Hãy tải lại video.");
-    if (obj.bytes.length > MAX_SOURCE_BYTES) {
-      throw new Error("Video quá lớn để chỉnh trên máy chủ (tối đa 400MB)");
-    }
-    const ext = path.extname(video.storageKey) || ".mp4";
-    return { bytes: obj.bytes, ext, contentType: obj.contentType || "video/mp4" };
-  }
-
   private async runFfmpegVideo(
     video: Video,
     editId: string,
@@ -1002,44 +1048,40 @@ export class VideoAiEditService implements OnModuleInit {
     buildArgs: (input: string, output: string) => string[],
     contentType: string,
   ): Promise<VideoAiEditOutput> {
-    const source = await this.loadSource(video);
+    const source = await this.openSourceFile(video);
     const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-"));
     try {
-      const inputPath = path.join(dir, `in${source.ext}`);
       const outputPath = path.join(dir, "out.mp4");
-      await writeFile(inputPath, source.bytes);
-      await this.execFfmpeg(buildArgs(inputPath, outputPath));
-      const out = await readFile(outputPath);
+      await this.execFfmpeg(buildArgs(source.path, outputPath));
       const key = buildObjectKey({
         appId: video.appId,
         type: "video-ai",
         id: editId,
         filename: `${tool}.mp4`,
       });
-      await this.storage.putObject(key, out, contentType);
+      const sizeBytes = await this.persistFile(key, outputPath, contentType);
       const durationMs = (await this.probeDurationMs(outputPath)) ?? video.durationMs ?? undefined;
       return {
         kind: "video",
         storageKey: key,
         contentType,
-        sizeBytes: out.length,
+        sizeBytes,
         durationMs,
       };
     } finally {
       await rm(dir, { recursive: true, force: true });
+      await source.cleanup();
     }
   }
 
   private async runThumbnail(video: Video, editId: string, options: AiEditOptions): Promise<VideoAiEditOutput> {
-    const source = await this.loadSource(video);
+    const source = await this.openSourceFile(video);
     const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-"));
     try {
-      const inputPath = path.join(dir, `in${source.ext}`);
       const outputPath = path.join(dir, "thumb.jpg");
-      await writeFile(inputPath, source.bytes);
-      const durationMs = (await this.probeDurationMs(inputPath)) ?? video.durationMs ?? 0;
+      const durationMs = (await this.probeDurationMs(source.path)) ?? video.durationMs ?? 0;
       const seek = options.seekSeconds ?? thumbnailSeekSeconds(durationMs);
-      await this.execFfmpeg(thumbnailArgs(inputPath, outputPath, seek));
+      await this.execFfmpeg(thumbnailArgs(source.path, outputPath, seek));
       const out = await readFile(outputPath);
       const key = buildObjectKey({
         appId: video.appId,
@@ -1056,6 +1098,7 @@ export class VideoAiEditService implements OnModuleInit {
       };
     } finally {
       await rm(dir, { recursive: true, force: true });
+      await source.cleanup();
     }
   }
 
@@ -1113,23 +1156,29 @@ export class VideoAiEditService implements OnModuleInit {
     let providerNote: string | undefined =
       "Phụ đề nháp từ tiêu đề — thêm OPENAI_API_KEY hoặc GROQ_API_KEY để nhận transcript thật.";
     try {
-      const source = await this.loadSource(video);
-      let audio = source.bytes;
+      const source = await this.openSourceFile(video);
+      let audio: Buffer;
       let filename = `speech${source.ext}`;
       let mime = source.contentType || "video/mp4";
-      if (await this.hasFfmpeg()) {
-        const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-"));
-        try {
-          const inputPath = path.join(dir, `in${source.ext}`);
-          const outputPath = path.join(dir, "speech.mp3");
-          await writeFile(inputPath, source.bytes);
-          await this.execFfmpeg(extractSpeechAudioArgs(inputPath, outputPath));
-          audio = await readFile(outputPath);
-          filename = "speech.mp3";
-          mime = "audio/mpeg";
-        } finally {
-          await rm(dir, { recursive: true, force: true });
+      try {
+        if (await this.hasFfmpeg()) {
+          const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-"));
+          try {
+            const outputPath = path.join(dir, "speech.mp3");
+            await this.execFfmpeg(extractSpeechAudioArgs(source.path, outputPath));
+            audio = await readFile(outputPath);
+            filename = "speech.mp3";
+            mime = "audio/mpeg";
+          } finally {
+            await rm(dir, { recursive: true, force: true });
+          }
+        } else {
+          const obj = await this.storage.getObject(video.storageKey!);
+          if (!obj || obj.bytes.length === 0) throw new Error("Chưa có file video gốc. Hãy tải lại video.");
+          audio = obj.bytes;
         }
+      } finally {
+        await source.cleanup();
       }
       const speech = await ai.transcribe({ bytes: audio, filename, mime });
       if (speech.text.trim() || speech.segments.length > 0) {
@@ -1189,11 +1238,10 @@ export class VideoAiEditService implements OnModuleInit {
     options: AiEditOptions,
     ai: AiPort,
   ): Promise<VideoAiEditOutput> {
-    const source = await this.loadSource(video);
+    const source = await this.openSourceFile(video);
     const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-abc-"));
     try {
-      const inputPath = path.join(dir, `in${source.ext}`);
-      await writeFile(inputPath, source.bytes);
+      const inputPath = source.path;
       await this.markStep(editId, "source");
       if (!(await this.probeHasAudio(inputPath))) {
         throw new Error("Video không có tiếng giảng. Cần lời gốc để làm nét tiếng và giảm nhạc nền.");
@@ -1221,20 +1269,19 @@ export class VideoAiEditService implements OnModuleInit {
           this.log.warn(`silence trim skipped: ${trimErr instanceof Error ? trimErr.message : "error"}`);
         }
       }
-      const lessonBytes = await readFile(lessonPath);
       const lessonKey = buildObjectKey({
         appId: video.appId,
         type: "video-ai",
         id: editId,
         filename: "owned_abc.mp4",
       });
-      await this.storage.putObject(lessonKey, lessonBytes, "video/mp4");
+      const lessonSize = await this.persistFile(lessonKey, lessonPath, "video/mp4");
 
       const output: VideoAiEditOutput = {
         kind: "video",
         storageKey: lessonKey,
         contentType: "video/mp4",
-        sizeBytes: lessonBytes.length,
+        sizeBytes: lessonSize,
         durationMs: (await this.probeDurationMs(lessonPath)) ?? video.durationMs ?? undefined,
         providerNote: `${OWNERSHIP_DISCLAIMER} Công thức lecture_expert_v1: một lần encode hình + tiếng, cắt im lặng conservative, giữ camera giáo viên. Không tô hoạt hình mặc định.`,
       };
@@ -1258,6 +1305,7 @@ export class VideoAiEditService implements OnModuleInit {
       return output;
     } finally {
       await rm(dir, { recursive: true, force: true });
+      await source.cleanup();
     }
   }
 
@@ -1355,11 +1403,10 @@ export class VideoAiEditService implements OnModuleInit {
     options: AiEditOptions,
     ai: AiPort,
   ): Promise<VideoAiEditOutput> {
-    const source = await this.loadSource(video);
+    const source = await this.openSourceFile(video);
     const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-"));
     try {
-      const inputPath = path.join(dir, `in${source.ext}`);
-      await writeFile(inputPath, source.bytes);
+      const inputPath = source.path;
       if (!(await this.probeHasAudio(inputPath))) {
         throw new Error("Video không có tiếng giảng. Bản hoạt hình cần giữ 100% âm thanh gốc.");
       }
@@ -1382,6 +1429,7 @@ export class VideoAiEditService implements OnModuleInit {
       };
     } finally {
       await rm(dir, { recursive: true, force: true });
+      await source.cleanup();
     }
   }
 
@@ -1477,17 +1525,16 @@ export class VideoAiEditService implements OnModuleInit {
     await writeFile(listPath, buildConcatDemuxerList(concatEntries), "utf8");
     const outputPath = path.join(dir, "illustrated-out.mp4");
     await this.execFfmpeg(illustratedConcatArgs(listPath, audioPath, outputPath));
-    const out = await readFile(outputPath);
     const key = buildObjectKey({
       appId: video.appId,
       type: "video-ai",
       id: editId,
       filename,
     });
-    await this.storage.putObject(key, out, "video/mp4");
+    const sizeBytes = await this.persistFile(key, outputPath, "video/mp4");
     return {
       storageKey: key,
-      sizeBytes: out.length,
+      sizeBytes,
       durationMs: (await this.probeDurationMs(outputPath)) ?? durationMs,
       note,
     };
@@ -1507,6 +1554,8 @@ export class VideoAiEditService implements OnModuleInit {
   }
 
   private async execFfmpeg(args: string[]): Promise<void> {
+    const heavy = isHeavyFfmpegEncode(args);
+    if (heavy) await ffmpegEncodeGate.acquire();
     try {
       await execFileAsync("ffmpeg", ["-hide_banner", "-loglevel", "error", ...args], {
         timeout: 10 * 60 * 1000,
@@ -1515,6 +1564,8 @@ export class VideoAiEditService implements OnModuleInit {
     } catch (err) {
       const message = err instanceof Error ? err.message : "ffmpeg failed";
       throw new Error(`ffmpeg thất bại: ${message.slice(0, 240)}`);
+    } finally {
+      if (heavy) ffmpegEncodeGate.release();
     }
   }
 

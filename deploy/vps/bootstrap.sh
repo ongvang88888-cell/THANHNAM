@@ -150,8 +150,11 @@ EXPO_PUBLIC_API_URL=${PUBLIC_API_URL}
 EXPO_PUBLIC_APP_ID=education_app
 PUBLIC_DOMAIN=${PUBLIC_HOST}
 
-STORAGE_DRIVER=memory
+STORAGE_DRIVER=disk
+STORAGE_ROOT=/var/lib/edu-commerce/media
 ALLOW_LOCAL_MEDIA=true
+FFMPEG_THREADS=2
+FFMPEG_MAX_CONCURRENT=2
 MEDIA_SIGNING_SECRET=${media_sign}
 MEDIA_WEBHOOK_SECRET=${media_hook}
 S3_REGION=ap-southeast-1
@@ -176,6 +179,12 @@ GOOGLE_PLAY_PACKAGE_NAME=com.educommerce.student
 EOF
   chmod 600 "${env_file}"
   echo "Wrote ${env_file} (secrets stay on this server)"
+}
+
+ensure_media_root() {
+  local root="${STORAGE_ROOT:-/var/lib/edu-commerce/media}"
+  mkdir -p "${root}"
+  chmod 750 "${root}"
 }
 
 load_env_value() {
@@ -271,7 +280,13 @@ install_caddy_site() {
   local mark="# edu-commerce-platform"
   local caddyfile site
   site="${PUBLIC_HOST} {
-	encode zstd gzip
+	request_body {
+		max_size 450MB
+	}
+	@compressible {
+		not path /api/v1/media/local*
+	}
+	encode @compressible zstd gzip
 	@api path /api/*
 	reverse_proxy @api 127.0.0.1:3001
 	reverse_proxy 127.0.0.1:3000
@@ -339,6 +354,7 @@ ensure_swap
 install_packages
 sync_repo
 ensure_env
+ensure_media_root
 ensure_postgres
 ensure_redis
 build_app

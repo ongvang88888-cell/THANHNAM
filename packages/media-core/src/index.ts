@@ -1,45 +1,24 @@
-import { createHmac, createHash, timingSafeEqual } from "node:crypto";
+import { createHmac, createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import type { Readable } from "node:stream";
+import { getSharedDiskStorage } from "./disk-storage";
+import { mediaSigningSecret, signLocalMedia, signedLocalMediaUrl, verifyLocalMedia } from "./signing";
+import type {
+  IStorageProvider,
+  SignedDownload,
+  SignedUpload,
+  StoredObject,
+  TranscodePort,
+} from "./types";
 
-export interface SignedUpload {
-  url: string;
-  key: string;
-  expiresAt: Date;
-  headers?: Record<string, string>;
-}
-
-export interface SignedDownload {
-  url: string;
-  expiresAt: Date;
-}
-
-export interface StoredObject {
-  bytes: Buffer;
-  contentType: string;
-}
-
-export interface IStorageProvider {
-  createUploadUrl(input: {
-    key: string;
-    contentType: string;
-    ttlSeconds: number;
-  }): Promise<SignedUpload>;
-  createDownloadUrl(input: {
-    key: string;
-    ttlSeconds: number;
-  }): Promise<SignedDownload>;
-  head(key: string): Promise<{ sizeBytes: number; contentType?: string } | null>;
-  delete(key: string): Promise<void>;
-  getObject(key: string): Promise<StoredObject | null>;
-  putObject(key: string, bytes: Buffer, contentType: string): Promise<void>;
-}
-
-export interface TranscodePort {
-  enqueue(input: {
-    videoId: string;
-    sourceKey: string;
-    outputPrefix: string;
-  }): Promise<{ jobId: string }>;
-}
+export type { IStorageProvider, SignedDownload, SignedUpload, StoredObject, TranscodePort };
+export {
+  DiskStorageProvider,
+  assertSafeStorageKey,
+  getSharedDiskStorage,
+  storageRoot,
+} from "./disk-storage";
+export { mediaSigningSecret, signLocalMedia, verifyLocalMedia };
 
 const ALLOWED_DOC_MIME = new Set([
   "application/pdf",
@@ -78,43 +57,12 @@ export function buildObjectKey(input: {
   return `app/${input.appId}/${input.type}/${yyyy}/${mm}/${input.id}-${safe}`;
 }
 
-export function mediaSigningSecret(): string {
-  return process.env.MEDIA_SIGNING_SECRET || process.env.JWT_ACCESS_SECRET || "dev-media-signing-secret";
-}
-
-export function signLocalMedia(key: string, expMs: number): string {
-  return createHmac("sha256", mediaSigningSecret()).update(`${key}:${expMs}`).digest("hex");
-}
-
-export function verifyLocalMedia(key: string, expMs: number, sig: string | undefined): boolean {
-  if (!key || !sig || !Number.isFinite(expMs) || expMs < Date.now()) return false;
-  const expected = signLocalMedia(key, expMs);
-  const a = Buffer.from(expected);
-  const b = Buffer.from(sig);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 /** Local/dev in-memory object store with HTTP-reachable signed-style URLs. */
 export class MemoryStorageProvider implements IStorageProvider {
   private objects = new Map<string, { contentType: string; bytes: Buffer }>();
 
-  private publicBase(): string {
-    const base =
-      process.env.MEDIA_PUBLIC_BASE ||
-      process.env.API_URL ||
-      process.env.PUBLIC_WEB_URL ||
-      `http://127.0.0.1:${process.env.API_PORT || 3001}`;
-    return `${base.replace(/\/$/, "")}/api/v1/media/local`;
-  }
-
-  private signedUrl(key: string, ttlSeconds: number): { url: string; expiresAt: Date } {
-    const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
-    const exp = expiresAt.getTime();
-    const sig = signLocalMedia(key, exp);
-    return {
-      url: `${this.publicBase()}?key=${encodeURIComponent(key)}&exp=${exp}&sig=${sig}`,
-      expiresAt,
-    };
+  localPath(_key: string): string | null {
+    return null;
   }
 
   put(key: string, bytes: Buffer, contentType = "application/octet-stream") {
@@ -135,6 +83,20 @@ export class MemoryStorageProvider implements IStorageProvider {
     this.put(key, bytes, contentType);
   }
 
+  async putFile(key: string, filePath: string, contentType: string): Promise<void> {
+    this.put(key, await readFile(filePath), contentType);
+  }
+
+  async writeFromStream(key: string, stream: Readable, contentType: string): Promise<number> {
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    const bytes = Buffer.concat(chunks);
+    this.put(key, bytes, contentType);
+    return bytes.length;
+  }
+
   async createUploadUrl(input: {
     key: string;
     contentType: string;
@@ -143,7 +105,7 @@ export class MemoryStorageProvider implements IStorageProvider {
     if (!this.objects.has(input.key)) {
       this.objects.set(input.key, { contentType: input.contentType, bytes: Buffer.alloc(0) });
     }
-    const signed = this.signedUrl(input.key, input.ttlSeconds);
+    const signed = signedLocalMediaUrl(input.key, input.ttlSeconds);
     return {
       url: signed.url,
       key: input.key,
@@ -163,7 +125,7 @@ export class MemoryStorageProvider implements IStorageProvider {
         input.key.endsWith(".pdf") ? "application/pdf" : "video/mp4",
       );
     }
-    const signed = this.signedUrl(input.key, input.ttlSeconds);
+    const signed = signedLocalMediaUrl(input.key, input.ttlSeconds);
     return { url: signed.url, expiresAt: signed.expiresAt };
   }
 
@@ -324,12 +286,19 @@ export class S3CompatibleStorageProvider implements IStorageProvider {
       throw new Error(`S3 putObject failed (${res.status})`);
     }
   }
+
+  async putFile(key: string, filePath: string, contentType: string): Promise<void> {
+    await this.putObject(key, await readFile(filePath), contentType);
+  }
 }
 
 export function createStorageFromEnv(): IStorageProvider {
-  // Explicit local memory mode (stable for cloud agents without MinIO)
-  if (process.env.STORAGE_DRIVER === "memory") {
+  const driver = (process.env.STORAGE_DRIVER || "").trim().toLowerCase();
+  if (driver === "memory") {
     return getSharedMemoryStorage();
+  }
+  if (driver === "disk") {
+    return getSharedDiskStorage();
   }
   const endpoint = process.env.S3_ENDPOINT;
   const accessKey = process.env.S3_ACCESS_KEY;
@@ -344,6 +313,9 @@ export function createStorageFromEnv(): IStorageProvider {
       bucket,
       forcePathStyle: true,
     });
+  }
+  if (process.env.NODE_ENV === "production") {
+    return getSharedDiskStorage();
   }
   return getSharedMemoryStorage();
 }

@@ -61,6 +61,7 @@ export {
   illustratedConcatArgs,
   kenBurnsStillArgs,
   ffmpegThreadArgs,
+  ffmpegThreadCount,
   SPEECH_FOCUS_AF,
   pictureEnhanceArgs,
   quickTrimCopyArgs,
