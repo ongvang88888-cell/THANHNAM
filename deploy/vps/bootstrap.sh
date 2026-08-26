@@ -221,16 +221,18 @@ ensure_redis() {
 
 build_app() {
   cd "${APP_DIR}"
-  export NODE_ENV=production
   export DATABASE_URL="$(load_env_value DATABASE_URL)"
   export NEXT_PUBLIC_API_URL="${PUBLIC_API_URL}"
   export NEXT_PUBLIC_APP_ID=education_app
+  # Prisma CLI and tsc live in devDependencies — do not set NODE_ENV=production
+  # before install/generate, or pnpm skips them.
+  unset NODE_ENV || true
   pnpm install --frozen-lockfile
   pnpm db:generate
   pnpm --filter @edu/database push
   pnpm --filter @edu/database build
   pnpm --filter @edu/api build
-  pnpm --filter @edu/web build
+  NODE_ENV=production pnpm --filter @edu/web build
 
   local count
   count="$(sudo -u postgres psql -d "$(load_env_value POSTGRES_DB)" -tAc 'SELECT count(*) FROM "User"' 2>/dev/null || echo 0)"
