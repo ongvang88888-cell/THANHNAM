@@ -9,7 +9,7 @@ const PIPELINE_STEPS = [
   { id: "queue", label: "Đã nhận video — xếp hàng chỉnh", percent: 12 },
   { id: "source", label: "Đang đọc file gốc", percent: 18 },
   { id: "enhance", label: "Đang làm nét hình và giảm nhạc nền", percent: 36 },
-  { id: "toon", label: "Đang chỉnh mặt / hình PIP", percent: 50 },
+  { id: "toon", label: "Đang biến người thành hoạt hình", percent: 50 },
   { id: "trim", label: "Đang cắt đoạn im lặng", percent: 62 },
   { id: "extras", label: "Đang tạo ảnh bìa, phụ đề và mô tả", percent: 78 },
   { id: "apply", label: "Đang gắn video vào bài học", percent: 92 },
@@ -344,7 +344,7 @@ export function AutoVideoPublish(props: {
         accept="video/mp4,video/*,application/octet-stream"
         disabled={!ready}
         label="Chọn video để lên bài"
-        hint="Chọn một file. Hệ thống tự chỉnh hình + tiếng, phụ đề, ảnh bìa. Khi xong, bấm Lưu vào bài."
+        hint="Chọn một file. Hệ thống tự biến người thành hoạt hình, chỉnh tiếng, phụ đề, ảnh bìa. Khi xong, bấm Lưu vào bài."
         onFile={(file) => void handleFile(file)}
       />
       <p className="muted auto-publish-legal">

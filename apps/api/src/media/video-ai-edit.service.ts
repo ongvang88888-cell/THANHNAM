@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -60,6 +60,7 @@ const execFileAsync = promisify(execFile);
 const MAX_SOURCE_BYTES = 400 * 1024 * 1024;
 const MAX_EDITS_PER_VIDEO = 20;
 const MAX_ACTIVE_PER_USER = 3;
+const STALE_EDIT_MS = 12 * 60 * 1000;
 
 export interface VideoAiEditOutput {
   kind: "video" | "image" | "vtt" | "copy";
@@ -91,12 +92,25 @@ export interface VideoAiEditOutput {
 }
 
 @Injectable()
-export class VideoAiEditService {
+export class VideoAiEditService implements OnModuleInit {
   private readonly log = new Logger(VideoAiEditService.name);
   private readonly storage: IStorageProvider = createStorageFromEnv();
   private ffmpegKnown: boolean | null = null;
 
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    const result = await this.prisma.videoAiEdit.updateMany({
+      where: { status: { in: ["QUEUED", "PROCESSING"] } },
+      data: {
+        status: "FAILED",
+        error: "Lệnh chỉnh bị gián đoạn khi máy chủ khởi động lại. Hãy tải lại video.",
+      },
+    });
+    if (result.count > 0) {
+      this.log.warn(`Failed ${result.count} orphaned AI edits after restart`);
+    }
+  }
 
   private assertTeacher(user: RequestUser) {
     if (!hasAnyRole(user as never, ["teacher", "admin", "super_admin"])) {
@@ -225,6 +239,17 @@ export class VideoAiEditService {
     if (existing >= MAX_EDITS_PER_VIDEO) {
       throw new AppError(ErrorCodes.VALIDATION, `Mỗi video tối đa ${MAX_EDITS_PER_VIDEO} lệnh chỉnh sửa AI`, 400);
     }
+    await this.prisma.videoAiEdit.updateMany({
+      where: {
+        video: { ownerUserId: user.userId, appId: user.appId },
+        status: { in: ["QUEUED", "PROCESSING"] },
+        updatedAt: { lt: new Date(Date.now() - STALE_EDIT_MS) },
+      },
+      data: {
+        status: "FAILED",
+        error: "Lệnh chỉnh quá hạn. Hãy tải lại video.",
+      },
+    });
     const active = await this.prisma.videoAiEdit.count({
       where: {
         video: { ownerUserId: user.userId, appId: user.appId },
@@ -283,7 +308,7 @@ export class VideoAiEditService {
       autoApply: true,
       lessonId: lesson.id,
       courseId,
-      region: "pip_br",
+      region: "full",
       style: "anime",
     });
   }
@@ -723,8 +748,8 @@ export class VideoAiEditService {
         );
         output.providerNote =
           region === "full"
-            ? `${OWNERSHIP_DISCLAIMER} Đã stylize cả khung — chữ slide có thể khó đọc.`
-            : `${OWNERSHIP_DISCLAIMER} Đã stylize vùng PIP/mặt, giữ slide và tiếng gốc.`;
+            ? `${OWNERSHIP_DISCLAIMER} Đã biến người trong cả khung thành hoạt hình, giữ tiếng gốc.`
+            : `${OWNERSHIP_DISCLAIMER} Đã tô hoạt hình vùng PIP/mặt, giữ slide và tiếng gốc.`;
         return output;
       }
       case "illustrated_edition":
@@ -963,7 +988,7 @@ export class VideoAiEditService {
       await this.markStep(editId, "enhance");
       const enhancedPath = path.join(dir, "enhance-speech.mp4");
       await this.execFfmpeg(enhanceAndSpeechArgs(inputPath, enhancedPath));
-      const region = options.region ?? "pip_br";
+      const region = options.region ?? "full";
       const style = options.style ?? "anime";
       await this.markStep(editId, "toon");
       let lessonPath = path.join(dir, "owned-abc-lesson.mp4");
@@ -989,15 +1014,15 @@ export class VideoAiEditService {
 
       const pipNote =
         region === "full"
-          ? "C stylize cả khung — chữ slide có thể khó đọc."
-          : "C stylize PIP/mặt, giữ slide.";
+          ? "C biến người trong cả khung thành hoạt hình."
+          : "C tô hoạt hình vùng PIP/mặt, giữ slide.";
       const output: VideoAiEditOutput = {
         kind: "video",
         storageKey: lessonKey,
         contentType: "video/mp4",
         sizeBytes: lessonBytes.length,
         durationMs: (await this.probeDurationMs(lessonPath)) ?? video.durationMs ?? undefined,
-        providerNote: `${OWNERSHIP_DISCLAIMER} A làm nét + giảm nhạc nền. ${pipNote} Không dựng bản minh họa thẻ chữ — bài học giữ hình giáo viên.`,
+        providerNote: `${OWNERSHIP_DISCLAIMER} A làm nét + giảm nhạc nền. ${pipNote} Giữ camera giáo viên, không thay bằng thẻ chữ.`,
       };
       if (options.autoApply) {
         await this.markStep(editId, "extras");

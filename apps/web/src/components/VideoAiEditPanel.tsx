@@ -71,7 +71,7 @@ const REGION_LABEL: Record<FaceRegion, string> = {
   pip_bl: "Mặt góc trái dưới",
   pip_tr: "Mặt góc phải trên",
   pip_tl: "Mặt góc trái trên",
-  full: "Cả khung (có thể khó đọc slide)",
+  full: "Cả người / cả khung",
 };
 
 const STYLE_LABEL: Record<VisualStyle, string> = {
@@ -86,7 +86,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busyTool, setBusyTool] = useState<string | null>(null);
-  const [region, setRegion] = useState<FaceRegion>("pip_br");
+  const [region, setRegion] = useState<FaceRegion>("full");
   const [style, setStyle] = useState<VisualStyle>("anime");
   const [ownedConfirmed, setOwnedConfirmed] = useState(false);
 
@@ -155,7 +155,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
       );
       setMsg(
         toolId === "owned_abc"
-          ? "Đã xếp gói A+C. Đợi bài học (làm nét + PIP) xong rồi duyệt — hình giáo viên được giữ."
+          ? "Đã xếp gói A+C. Đợi bài học (làm nét + biến người thành hoạt hình) xong rồi duyệt."
           : "Đã xếp lệnh chỉnh. Đợi vài giây rồi xem kết quả bên dưới.",
       );
       await refresh();
@@ -211,7 +211,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
       <p className="muted">
         {props.variant === "advanced"
           ? "Chỉ dùng khi muốn chạy từng công cụ riêng. Luồng tải video đã tự chỉnh và gắn vào bài."
-          : "Gói A+C chạy một lần trên video bạn sở hữu: làm nét + giảm nhạc + PIP mặt, giữ hình giáo viên. Bản minh họa thẻ chữ chỉ chạy nếu bạn chọn riêng."}
+          : "Gói A+C chạy một lần: làm nét + giảm nhạc + biến người trong video thành hoạt hình. Giữ camera giáo viên, không thay bằng thẻ chữ."}
       </p>
       <p className="ai-edit-legal muted">
         {catalog.ownershipDisclaimer ??

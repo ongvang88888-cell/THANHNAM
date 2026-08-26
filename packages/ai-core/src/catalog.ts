@@ -39,8 +39,8 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
     group: "image",
     label: "A+C — bài của tôi",
     description:
-      "Một lệnh: A làm nét slide-an toàn + giảm nhạc nền, C stylize mặt/PIP. Giữ hình giáo viên. Không dựng bản minh họa thẻ chữ. Chỉ video bạn sở hữu.",
-    market: "Descript + CapCut restyle",
+      "Một lệnh: A làm nét + giảm nhạc nền, C biến người trong khung thành hoạt hình (giữ mặt thật, tô kiểu anime). Không thay camera bằng thẻ chữ. Chỉ video bạn sở hữu.",
+    market: "CapCut restyle / Descript enhance",
     outputKind: "video",
     needs: ["ffmpeg"],
     prefers: ["speech", "llm"],
@@ -98,8 +98,8 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
   {
     id: "toon_talking_head",
     group: "image",
-    label: "Hoạt hình phần mặt (giữ slide)",
-    description: "Stylize webcam/PIP, giữ 100% màn hình và tiếng gốc. Mặc định góc phải dưới. Full khung có thể làm khó đọc chữ.",
+    label: "Biến người thành hoạt hình",
+    description: "Tô cả người/khung kiểu hoạt hình (màu đậm, nét mực), giữ 100% tiếng gốc. Chọn full khung để cả giáo viên thành cartoon.",
     market: "CapCut restyle + Runway Aleph (mặt), overlay slide gốc",
     outputKind: "video",
     needs: ["ffmpeg"],

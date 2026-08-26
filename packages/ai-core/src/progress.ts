@@ -3,7 +3,7 @@ export const AI_EDIT_STEPS = [
   { id: "queue", label: "Đã nhận video — xếp hàng chỉnh", percent: 12 },
   { id: "source", label: "Đang đọc file gốc", percent: 18 },
   { id: "enhance", label: "Đang làm nét hình và giảm nhạc nền", percent: 36 },
-  { id: "toon", label: "Đang chỉnh mặt / hình PIP", percent: 50 },
+  { id: "toon", label: "Đang biến người thành hoạt hình", percent: 50 },
   { id: "trim", label: "Đang cắt đoạn im lặng", percent: 62 },
   { id: "extras", label: "Đang tạo ảnh bìa, phụ đề và mô tả", percent: 78 },
   { id: "apply", label: "Đang gắn video vào bài học", percent: 92 },

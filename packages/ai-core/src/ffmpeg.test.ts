@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  cartoonPersonGraph,
   courseEnhanceArgs,
   enhanceAndSpeechArgs,
   extractSpeechAudioArgs,
@@ -50,14 +51,17 @@ describe("ffmpeg arg builders", () => {
     expect(args.slice(args.indexOf("-c:v"), args.indexOf("-c:v") + 2)).toEqual(["-c:v", "copy"]);
   });
 
-  it("toons only the PIP region by default geometry", () => {
+  it("cartoons the full person frame with ink lines", () => {
+    const graph = cartoonPersonGraph("anime");
+    expect(graph).toContain("edgedetect=");
+    expect(graph).toContain("blend=all_mode=multiply");
+    const full = toonTalkingHeadArgs("in.mp4", "out.mp4", "full", "anime");
+    expect(full.join(" ")).toContain("filter_complex");
+    expect(full.join(" ")).toContain("edgedetect=");
+    expect(full).toContain("-map");
     const pip = toonTalkingHeadArgs("in.mp4", "out.mp4", "pip_br", "anime");
-    expect(pip.join(" ")).toContain("filter_complex");
     expect(pip.join(" ")).toContain("overlay=W-w-20:H-h-20");
     expect(pip).toContain("-c:a");
-    const full = toonTalkingHeadArgs("in.mp4", "out.mp4", "full", "flat");
-    expect(full).toContain("-vf");
-    expect(full.join(" ")).not.toContain("filter_complex");
   });
 
   it("combines slide-safe enhance with speech-focus in one encode", () => {

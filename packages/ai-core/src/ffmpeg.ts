@@ -27,16 +27,29 @@ export function styleBackdrop(style: VisualStyle): string {
 export function toonVf(style: VisualStyle): string {
   switch (style) {
     case "anime":
-      return "hqdn3d=4:3:6:6,eq=saturation=1.45:contrast=1.12:gamma=0.96,unsharp=5:5:1.0";
+      return "hqdn3d=12:10:18:14,eq=saturation=1.7:contrast=1.22:gamma=0.9,unsharp=7:7:1.8:5:5:0.0";
     case "watercolor":
       return "boxblur=2:1,eq=saturation=1.18:contrast=1.04,hqdn3d=6:4:8:6";
     case "flat":
-      return "hqdn3d=3:2:5:5,eq=saturation=1.55:contrast=1.15,unsharp=5:5:0.8";
+      return "hqdn3d=8:6:12:10,eq=saturation=1.6:contrast=1.2,unsharp=5:5:1.2";
     default: {
       const _never: never = style;
       return _never;
     }
   }
+}
+
+/** Full-frame cel-shade (paint + ink). ffmpeg 4.2-safe: hqdn3d, edgedetect, blend. */
+export function cartoonPersonGraph(style: VisualStyle): string {
+  if (style === "anime") {
+    return [
+      "[0:v]split=2[paint][ink]",
+      "[paint]hqdn3d=12:10:18:14,eq=saturation=1.7:contrast=1.22:gamma=0.9[c]",
+      "[ink]edgedetect=mode=colormix:high=0.14[l]",
+      "[c][l]blend=all_mode=multiply:all_opacity=0.58,format=yuv420p[v]",
+    ].join(";");
+  }
+  return `[0:v]${toonVf(style)},format=yuv420p[v]`;
 }
 
 export function pipGeometry(region: Exclude<FaceRegion, "full">): { crop: string; overlay: string } {
@@ -225,8 +238,12 @@ export function toonTalkingHeadArgs(
       "-y",
       "-i",
       inputPath,
-      "-vf",
-      look,
+      "-filter_complex",
+      cartoonPersonGraph(style),
+      "-map",
+      "[v]",
+      "-map",
+      "0:a?",
       "-c:a",
       "copy",
       "-preset",

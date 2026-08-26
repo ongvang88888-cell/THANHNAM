@@ -29,6 +29,7 @@ export {
 } from "./scenes";
 export {
   captionStillArgs,
+  cartoonPersonGraph,
   COURSE_ENHANCE_VF,
   courseEnhanceArgs,
   enhanceAndSpeechArgs,
