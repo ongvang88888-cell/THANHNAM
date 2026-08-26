@@ -35,6 +35,7 @@ new Worker(
       return expireEntitlements();
     }
     console.log("[worker] entitlement job", job.name, job.data);
+    return undefined;
   },
   { connection },
 );

@@ -231,8 +231,8 @@ build_app() {
   pnpm install --frozen-lockfile
   pnpm db:generate
   pnpm --filter @edu/database push
-  # turbo ^build compiles shared/media/education/monetization before api/web
-  NODE_ENV=production pnpm build
+  # Compile API + web and their workspace deps. Skip unused mobile/workers.
+  NODE_ENV=production pnpm exec turbo run build --filter=@edu/api --filter=@edu/web
 
   local count
   count="$(sudo -u postgres psql -d "$(load_env_value POSTGRES_DB)" -tAc 'SELECT count(*) FROM "User"' 2>/dev/null || echo 0)"
