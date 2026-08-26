@@ -43,9 +43,18 @@ function authHeaders(token?: string | null): Record<string, string> {
   return h;
 }
 
+export const BUSY_HTTP_MESSAGE =
+  "Đang có nhiều thao tác. Đợi vài giây rồi thử lại — không cần chọn lại video.";
+
+export function isBusyError(err: unknown): boolean {
+  if (err instanceof ApiError && err.status === 429) return true;
+  const message = err instanceof Error ? err.message : String(err);
+  return /Throttler|Too Many Requests|đang bận|nhiều thao tác/i.test(message);
+}
+
 function friendlyHttpMessage(status: number, raw?: string): string {
   if (status === 429 || /Throttler|Too Many Requests/i.test(raw || "")) {
-    return "Hệ thống đang bận. Đợi khoảng 20 giây rồi chọn lại video.";
+    return BUSY_HTTP_MESSAGE;
   }
   return raw || `Request failed (${status})`;
 }

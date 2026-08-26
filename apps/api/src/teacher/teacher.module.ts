@@ -25,6 +25,7 @@ import {
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
+import { SkipThrottle } from "@nestjs/throttler";
 import { AppError, ErrorCodes, hasAnyRole } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
 import { AuthGuard, CurrentUser, type RequestUser } from "../auth/auth.guard";
@@ -758,11 +759,13 @@ export class TeacherController {
   ) {}
 
   @Get("courses")
+  @SkipThrottle()
   list(@CurrentUser() user: RequestUser) {
     return this.teacher.myCourses(user);
   }
 
   @Get("courses/:id")
+  @SkipThrottle()
   getCourse(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.teacher.getCourse(user, id);
   }
@@ -784,11 +787,13 @@ export class TeacherController {
   }
 
   @Get("documents")
+  @SkipThrottle()
   documents(@CurrentUser() user: RequestUser) {
     return this.teacher.myDocuments(user);
   }
 
   @Get("bundles")
+  @SkipThrottle()
   bundles(@CurrentUser() user: RequestUser) {
     return this.teacher.myBundles(user);
   }

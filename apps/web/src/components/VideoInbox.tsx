@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FileDrop } from "@/components/FileDrop";
 import { LectureRecipeProgress } from "@/components/LectureRecipeProgress";
 import { VideoQuickAdjust } from "@/components/VideoQuickAdjust";
-import { ApiError, apiGet, apiPost, apiPutBinaryProgress } from "@/lib/api";
+import { ApiError, apiGet, apiPost, apiPutBinaryProgress, isBusyError } from "@/lib/api";
 import { PIPELINE_STEPS, pipelineStepById, type RecipeRow } from "@/lib/lecture-recipe";
 
 const MAX_UPLOAD_BYTES = 400 * 1024 * 1024;
@@ -70,7 +70,7 @@ function friendlyError(err: unknown): string {
   if (err instanceof ApiError) return err.message;
   if (err instanceof Error) {
     if (/Throttler|Too Many Requests/i.test(err.message)) {
-      return "Hệ thống đang bận. Đợi khoảng 20 giây rồi chọn lại video.";
+      return "Đang có nhiều thao tác. Đợi vài giây rồi thử lại — không cần chọn lại video.";
     }
     return err.message;
   }
@@ -94,7 +94,7 @@ async function withThrottleRetry<T>(fn: () => Promise<T>, attempts = 4): Promise
       throw err;
     }
   }
-  throw last instanceof Error ? last : new Error("Hệ thống đang bận.");
+  throw last instanceof Error ? last : new Error("Đang có nhiều thao tác. Đợi vài giây rồi thử lại — không cần chọn lại video.");
 }
 
 function flattenLessons(course: CourseDetail): LessonOpt[] {
@@ -159,7 +159,9 @@ export function VideoInbox(props: {
   }
 
   useEffect(() => {
-    refreshLibrary().catch((err) => setError(friendlyError(err)));
+    refreshLibrary().catch((err) => {
+      if (!isBusyError(err)) setError(friendlyError(err));
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.token]);
 
@@ -194,7 +196,7 @@ export function VideoInbox(props: {
         setLessonId((current) => (rows.some((row) => row.id === current) ? current : rows[0]?.id ?? ""));
       })
       .catch((err: Error) => {
-        if (!cancelled) setError(err.message);
+        if (!cancelled && !isBusyError(err)) setError(err.message);
       });
     return () => {
       cancelled = true;
@@ -255,7 +257,7 @@ export function VideoInbox(props: {
         });
       })
       .catch((err: Error) => {
-        if (!cancelled) setError(err.message);
+        if (!cancelled && !isBusyError(err)) setError(err.message);
       });
     return () => {
       cancelled = true;
@@ -454,16 +456,16 @@ export function VideoInbox(props: {
     <div className="video-inbox">
       <h2>Kho video hàng loạt</h2>
       <p className="muted">
-        Tải nhiều video một lúc. Mỗi file chạy đủ công thức chuyên gia như tải 1 video: làm nét, lọc tiếng, cắt im lặng,
-        tô người thành hoạt hình, ảnh bìa và phụ đề. Khi xong, bản xem trên hàng là bản hoạt hình — chỉnh thông số, chọn
-        bài rồi bấm Lưu.
+        Tải nhiều video một lúc. Mỗi file chạy công thức trên máy: làm nét, lọc tiếng, cắt im lặng, tô đậm người giữa
+        khung, ảnh bìa và phụ đề. Không đổi tóc/áo như video AI 3D trên YouTube. Khi xong, xem trên hàng, chọn bài rồi
+        bấm Lưu.
       </p>
       <FileDrop
         accept="video/mp4,video/*,application/octet-stream"
         multiple
         disabled={queue.length >= 40}
         label="Chọn nhiều video vào kho"
-        hint="Chọn hàng loạt. Mỗi video tự tô hoạt hình sau khi xử lý. Tối đa 2 lệnh AI cùng lúc. Gắn bài trên từng hàng sau khi xem lại."
+        hint="Chọn hàng loạt. Mỗi video xếp hàng tô đậm trên máy. Tối đa 2 video đang tô cùng lúc, các video khác chờ. Gắn bài trên từng hàng sau khi xem lại."
         onFile={(file) => enqueue([file])}
         onFiles={(files) => enqueue(files)}
       />

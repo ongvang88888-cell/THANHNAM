@@ -33,6 +33,8 @@ export function sanitizeDrawText(title: string): string {
 
 export function styleBackdrop(style: VisualStyle): string {
   switch (style) {
+    case "trend":
+      return "0xf59e0b";
     case "anime":
       return "0x1d4ed8";
     case "watercolor":
@@ -64,6 +66,8 @@ export function toonMixOpacity(strength: ToonStrength): number {
 /** Paint pass only. Prefer cartoonStyleGraph for the full expert look. */
 export function cartoonPaintVf(style: VisualStyle): string {
   switch (style) {
+    case "trend":
+      return "smartblur=lr=3.2:ls=-0.85:lt=20,eq=saturation=1.88:contrast=1.34:gamma=0.86,lutyuv=y='val-mod(val\\,36)':u='val-mod(val\\,24)':v='val-mod(val\\,24)'";
     case "anime":
       return "smartblur=lr=2.2:ls=-0.55:lt=16,eq=saturation=1.52:contrast=1.16:gamma=0.93,lutyuv=y='val-mod(val\\,24)':u='val-mod(val\\,16)':v='val-mod(val\\,16)'";
     case "watercolor":
@@ -83,6 +87,8 @@ export function toonVf(style: VisualStyle): string {
 
 export function cartoonInkVf(style: VisualStyle): string | null {
   switch (style) {
+    case "trend":
+      return "edgedetect=mode=colormix:low=0.05:high=0.14";
     case "anime":
       return "edgedetect=mode=colormix:low=0.04:high=0.12";
     case "flat":
@@ -98,6 +104,8 @@ export function cartoonInkVf(style: VisualStyle): string | null {
 
 export function cartoonInkOpacity(style: VisualStyle): number {
   switch (style) {
+    case "trend":
+      return 0.42;
     case "anime":
       return 0.52;
     case "flat":
@@ -121,7 +129,7 @@ export function cartoonStyleGraph(
   style: VisualStyle,
   strength: ToonStrength = "high",
 ): string {
-  const mix = toonMixOpacity(strength);
+  const mix = style === "trend" && strength === "high" ? 1 : toonMixOpacity(strength);
   const paint = cartoonPaintVf(style);
   const ink = cartoonInkVf(style);
   const inkOp = cartoonInkOpacity(style);
@@ -156,7 +164,7 @@ export function cartoonPersonGraph(style: VisualStyle, strength: ToonStrength = 
 
 export function speakerGeometry(): { crop: string; overlay: string } {
   return {
-    crop: "crop=iw*0.52:ih*0.80:(iw-ow)/2:ih*0.03",
+    crop: "crop=iw*0.64:ih*0.88:(iw-ow)/2:ih*0.02",
     overlay: "overlay=(W-w)/2:H*0.03",
   };
 }

@@ -34,7 +34,7 @@ describe("AI edit progress steps", () => {
     expect(progressFields("toon")).toEqual({
       progress: 68,
       step: "toon",
-      stepLabel: "Đang tô người thành hoạt hình",
+      stepLabel: "Đang tô đậm người thành hoạt hình",
     });
     expect(progressFields("extras")).toEqual({
       progress: 82,

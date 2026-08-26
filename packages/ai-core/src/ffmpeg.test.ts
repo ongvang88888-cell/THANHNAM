@@ -91,9 +91,14 @@ describe("ffmpeg arg builders", () => {
     const speaker = toonTalkingHeadArgs("in.mp4", "out.mp4", "speaker", "anime");
     expect(speaker.join(" ")).toContain(speakerGeometry().crop);
     expect(speaker.join(" ")).toContain("overlay=(W-w)/2:H*0.03");
+    expect(speakerGeometry().crop).toContain("iw*0.64");
     expect(toonMixOpacity("medium")).toBe(0.78);
     expect(cartoonStyleGraph("src", "toon", "anime")).toContain("[src]");
     expect(cartoonStyleGraph("src", "toon", "anime")).toContain("[toon]");
+    const trend = cartoonPersonGraph("trend", "high");
+    expect(trend).toContain("saturation=1.88");
+    expect(trend).toContain("all_opacity=1");
+    expect(trend).toContain("edgedetect=");
   });
 
   it("caps ffmpeg threads so two lecture jobs cannot pin every vCPU", () => {

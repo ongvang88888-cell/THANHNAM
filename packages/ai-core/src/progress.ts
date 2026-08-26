@@ -4,7 +4,7 @@ export const AI_EDIT_STEPS = [
   { id: "source", label: "Đang đọc file gốc", percent: 18 },
   { id: "enhance", label: "Đang làm nét hình và giảm nhạc nền", percent: 36 },
   { id: "trim", label: "Đang cắt đoạn im lặng", percent: 48 },
-  { id: "toon", label: "Đang tô người thành hoạt hình", percent: 68 },
+  { id: "toon", label: "Đang tô đậm người thành hoạt hình", percent: 68 },
   { id: "extras", label: "Đang tạo ảnh bìa, phụ đề và mô tả", percent: 82 },
   { id: "apply", label: "Đang gắn video vào bài học", percent: 92 },
   { id: "done", label: "Xong — sẵn sàng lưu vào bài", percent: 100 },

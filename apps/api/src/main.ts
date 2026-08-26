@@ -21,6 +21,7 @@ async function bootstrap() {
   assertProductionSecrets();
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  app.set("trust proxy", 1);
   app.useBodyParser("json", { limit: "2mb" });
   app.setGlobalPrefix("api/v1");
   app.use(

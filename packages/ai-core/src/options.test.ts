@@ -13,6 +13,7 @@ describe("parseAiEditOptions", () => {
       style: "anime",
       maxScenes: 6,
     });
+    expect(parseAiEditOptions({ style: "trend" })).toEqual({ style: "trend" });
     expect(parseAiEditOptions({ region: "speaker", toonStrength: "high" })).toEqual({
       region: "speaker",
       toonStrength: "high",

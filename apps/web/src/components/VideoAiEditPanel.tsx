@@ -15,7 +15,7 @@ type VideoAiEditPanelProps = {
 
 type ToolGroup = "audio" | "image" | "copy";
 type FaceRegion = "speaker" | "full" | "pip_br" | "pip_bl" | "pip_tr" | "pip_tl";
-type VisualStyle = "anime" | "flat" | "watercolor";
+type VisualStyle = "trend" | "anime" | "flat" | "watercolor";
 type ToonStrength = "low" | "medium" | "high";
 
 type CatalogTool = {
@@ -98,6 +98,7 @@ const REGION_LABEL: Record<FaceRegion, string> = {
 };
 
 const STYLE_LABEL: Record<VisualStyle, string> = {
+  trend: "Trend đậm (trên máy)",
   anime: "Hoạt hình (cel + nét mực)",
   flat: "Phẳng / truyện tranh",
   watercolor: "Màu nước",
@@ -116,7 +117,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
   const [msg, setMsg] = useState<string | null>(null);
   const [busyTool, setBusyTool] = useState<string | null>(null);
   const [region, setRegion] = useState<FaceRegion>("speaker");
-  const [style, setStyle] = useState<VisualStyle>("anime");
+  const [style, setStyle] = useState<VisualStyle>("trend");
   const [toonStrength, setToonStrength] = useState<ToonStrength>("high");
   const [ownedConfirmed, setOwnedConfirmed] = useState(false);
   const [confirmLikeness, setConfirmLikeness] = useState(false);
@@ -301,7 +302,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
       <p className="muted">
         {props.variant === "advanced"
           ? "Chỉ dùng khi muốn chạy từng công cụ riêng. Luồng tải video đã tự chỉnh và gắn vào bài."
-          : "Gói A+C chạy công thức chuyên gia v1: làm nét + lọc tiếng, cắt im lặng, rồi tô người giữa khung thành hoạt hình. Giữ slide và tiếng gốc. Công cụ bên dưới để đổi vùng/độ đậm."}
+          : "Gói A+C: làm nét + lọc tiếng, cắt im lặng, rồi tô đậm người giữa khung trên máy. Giữ slide và tiếng gốc. Không đổi tóc/áo như video AI 3D trên YouTube. Công cụ bên dưới để đổi vùng/độ đậm."}
       </p>
       <p className="ai-edit-legal muted">
         {catalog.ownershipDisclaimer ??

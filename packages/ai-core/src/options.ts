@@ -2,7 +2,7 @@ import { isLectureExpertRecipeId } from "./expert-recipe";
 import { isTargetLanguageId, type TargetLanguageId } from "./languages";
 
 export const FACE_REGIONS = ["speaker", "full", "pip_br", "pip_bl", "pip_tr", "pip_tl"] as const;
-export const VISUAL_STYLES = ["anime", "flat", "watercolor"] as const;
+export const VISUAL_STYLES = ["trend", "anime", "flat", "watercolor"] as const;
 export const TOON_STRENGTHS = ["low", "medium", "high"] as const;
 
 export type FaceRegion = (typeof FACE_REGIONS)[number];
@@ -142,7 +142,7 @@ export function parseAiEditOptions(input: unknown): AiEditOptions {
   }
   if (rec.style !== undefined) {
     if (typeof rec.style !== "string" || !isVisualStyle(rec.style)) {
-      throw new Error("style phải là anime, flat hoặc watercolor");
+      throw new Error("style phải là trend, anime, flat hoặc watercolor");
     }
     out.style = rec.style;
   }

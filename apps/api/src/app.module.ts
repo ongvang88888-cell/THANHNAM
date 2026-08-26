@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
-import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { ThrottlerModule } from "@nestjs/throttler";
+import { AppThrottlerGuard } from "./common/app-throttler.guard";
 import { ScheduleModule } from "@nestjs/schedule";
 import { AuthModule } from "./auth/auth.module";
 import { CatalogModule } from "./catalog/catalog.module";
@@ -31,7 +32,7 @@ import { CommonModule } from "./common/common.module";
     CommonModule,
     ThrottlerModule.forRoot({
       throttlers: [
-        { name: "default", ttl: 60_000, limit: 120 },
+        { name: "default", ttl: 60_000, limit: 240 },
         { name: "auth", ttl: 60_000, limit: 20 },
       ],
     }),
@@ -59,6 +60,6 @@ import { CommonModule } from "./common/common.module";
     ScheduleModule.forRoot(),
   ],
   controllers: [HealthController],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [{ provide: APP_GUARD, useClass: AppThrottlerGuard }],
 })
 export class AppModule {}

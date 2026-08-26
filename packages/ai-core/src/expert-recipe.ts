@@ -116,11 +116,11 @@ export function describeRecipe(caps: Pick<AiCapabilities, "speech" | "imageGen" 
         id: "toon_restyle",
         source: "DomoAI / CapCut Restyle / Runway Aleph",
         status: toonStatus,
-        label: "Tô người thành hoạt hình",
+        label: "Tô đậm người thành hoạt hình (trên máy)",
         note:
           toonStatus === "skipped"
             ? "ffmpeg không tô được — giữ bản làm nét, slide và tiếng gốc."
-            : "Tô người giữa khung ngay sau khi tải lên — giữ slide và tiếng gốc.",
+            : "Tô đậm người giữa khung trên máy. Không đổi tóc/áo hay sinh nhân vật 3D kiểu Kling/Dreamina.",
       },
       {
         id: "avatar_presenter",
@@ -169,7 +169,7 @@ export function describeRecipe(caps: Pick<AiCapabilities, "speech" | "imageGen" 
         source: "Runway / Firefly / Sora",
         status: "refused",
         label: "Sinh hoặc biến hình video bằng GPU",
-        note: "Máy chủ không có GPU/key Runway.",
+        note: "Máy chủ không có khóa Kling/Dreamina/Fal/Runway — không làm được video AI trend 3D như YouTube.",
       },
       {
         id: "content_id_dodge",

@@ -5,7 +5,7 @@ import { AutoVideoPublish } from "@/components/AutoVideoPublish";
 import { FileDrop } from "@/components/FileDrop";
 import { VideoInbox } from "@/components/VideoInbox";
 import { LazyVideoAiEditPanel } from "@/components/VideoAiEditPanel";
-import { apiGet, apiPost, apiPutBinary, formatVnd } from "@/lib/api";
+import { apiGet, apiPost, apiPutBinary, formatVnd, isBusyError } from "@/lib/api";
 import { hasRole, useRequireAuth } from "@/lib/auth";
 import { productTypeLabel, statusLabel, statusTone } from "@/lib/labels";
 
@@ -102,7 +102,9 @@ export default function TeacherPage() {
 
   useEffect(() => {
     if (!ready || !token) return;
-    refresh().catch((e) => setError(e.message));
+    refresh().catch((e) => {
+      if (!isBusyError(e)) setError(e instanceof Error ? e.message : String(e));
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, token]);
 
@@ -127,7 +129,7 @@ export default function TeacherPage() {
         setAttachLessonId((current) => (rows.some((row) => row.id === current) ? current : rows[0]?.id ?? ""));
       })
       .catch((err: Error) => {
-        if (!cancelled) setError(err.message);
+        if (!cancelled && !isBusyError(err)) setError(err.message);
       });
     return () => {
       cancelled = true;

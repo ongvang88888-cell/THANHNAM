@@ -88,13 +88,13 @@ export class VideoAiEditController {
   }
 
   @Post("videos/:id/ai/auto-publish")
-  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   autoPublish(@CurrentUser() user: RequestUser, @Param("id") id: string, @Body() dto: AutoPublishDto) {
     return this.edits.startAutoPublish(user, id, dto);
   }
 
   @Post("videos/:id/ai/prepare")
-  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   prepare(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.edits.startPrepare(user, id);
   }

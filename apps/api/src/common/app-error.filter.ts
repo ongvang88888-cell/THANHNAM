@@ -10,7 +10,7 @@ import type { Response } from "express";
 
 function httpErrorMessage(status: number, body: string | object, exception: HttpException): string {
   if (status === 429) {
-    return "Hệ thống đang bận. Đợi khoảng 20 giây rồi chọn lại video.";
+    return "Đang có nhiều thao tác. Đợi vài giây rồi thử lại — không cần chọn lại video.";
   }
   if (typeof body === "string" && body.trim()) return body;
   if (body && typeof body === "object") {

@@ -65,7 +65,7 @@ describe("video AI edit contract", () => {
         courseId: "clxxxxxxxxxxxxxxxxxxx2",
         recipeId: "lecture_expert_v1",
         region: "speaker",
-        style: "anime",
+        style: "trend",
         toonStrength: "high",
       }),
     ).toEqual({
@@ -74,7 +74,7 @@ describe("video AI edit contract", () => {
       courseId: "clxxxxxxxxxxxxxxxxxxx2",
       recipeId: "lecture_expert_v1",
       region: "speaker",
-      style: "anime",
+      style: "trend",
       toonStrength: "high",
     });
     expect(() => parseAiEditOptions({ seekSeconds: 90_000 })).toThrow(/seekSeconds/);

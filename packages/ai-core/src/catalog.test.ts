@@ -68,7 +68,7 @@ describe("AI edit catalog", () => {
     expect(avail.available).toBe(true);
     expect(avail.mode).toBe("fallback");
     expect(tool.description).toMatch(/lecture_expert_v1/);
-    expect(tool.description).toMatch(/tô người giữa khung thành hoạt hình/);
+    expect(tool.description).toMatch(/tô đậm người giữa khung trên máy/);
     expect(tool.description).not.toMatch(/Không tô hoạt hình mặc định/);
   });
 
@@ -77,6 +77,7 @@ describe("AI edit catalog", () => {
     expect(tool.description).toMatch(/trên máy/i);
     expect(tool.description).toMatch(/không phải DomoAI/i);
     expect(tool.description).toMatch(/tự tô người giữa khung/);
+    expect(tool.description).toMatch(/Kling|Dreamina/);
     expect(tool.market).toMatch(/DomoAI/);
   });
 

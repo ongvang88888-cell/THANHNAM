@@ -95,7 +95,7 @@ import { ffmpegEncodeGate, ffmpegMaxConcurrent, isHeavyFfmpegEncode } from "./ff
 const execFileAsync = promisify(execFile);
 const MAX_SOURCE_BYTES = MAX_MEDIA_OBJECT_BYTES;
 const MAX_EDITS_PER_VIDEO = 20;
-const MAX_ACTIVE_PER_USER = 3;
+const MAX_ACTIVE_PER_USER = 16;
 const STALE_EDIT_MS = 12 * 60 * 1000;
 
 export interface VideoAiEditOutput {
@@ -134,21 +134,23 @@ export class VideoAiEditService implements OnModuleInit {
   private readonly log = new Logger(VideoAiEditService.name);
   private readonly storage: IStorageProvider = createStorageFromEnv();
   private ffmpegKnown: boolean | null = null;
+  private pumpTail: Promise<void> = Promise.resolve();
 
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
-    const result = await this.prisma.videoAiEdit.updateMany({
-      where: { status: { in: ["QUEUED", "PROCESSING"] } },
+    const interrupted = await this.prisma.videoAiEdit.updateMany({
+      where: { status: "PROCESSING" },
       data: {
         status: "FAILED",
         error: "Lệnh chỉnh bị gián đoạn khi máy chủ khởi động lại. Hãy tải lại video.",
       },
     });
-    if (result.count > 0) {
-      this.log.warn(`Failed ${result.count} orphaned AI edits after restart`);
+    if (interrupted.count > 0) {
+      this.log.warn(`Failed ${interrupted.count} interrupted AI edits after restart`);
     }
     await this.cleanupStaleTempDirs();
+    this.pumpQueue();
   }
 
   private async cleanupStaleTempDirs() {
@@ -380,16 +382,10 @@ export class VideoAiEditService implements OnModuleInit {
       },
     });
     if (active >= MAX_ACTIVE_PER_USER) {
-      throw new AppError(ErrorCodes.VALIDATION, "Đang có quá nhiều lệnh AI chạy. Đợi lệnh trước xong.", 400);
-    }
-    const globalActive = await this.prisma.videoAiEdit.count({
-      where: { status: { in: ["QUEUED", "PROCESSING"] } },
-    });
-    if (globalActive >= Math.max(2, ffmpegMaxConcurrent() * 2)) {
       throw new AppError(
         ErrorCodes.VALIDATION,
-        "Máy chủ đang xử lý tối đa video. Đợi lệnh trước xong.",
-        429,
+        "Đang có quá nhiều video xếp hàng. Đợi vài video xong rồi tải tiếp.",
+        400,
       );
     }
     if (this.storage.localPath?.("__quota__")) {
@@ -411,10 +407,40 @@ export class VideoAiEditService implements OnModuleInit {
         outputJson: { kind: "video", ...queued } as unknown as Prisma.InputJsonValue,
       },
     });
-    void this.processEdit(edit.id, user).catch((err) => {
-      this.log.error(`AI edit ${edit.id} crashed: ${err instanceof Error ? err.message : "unknown"}`);
-    });
+    this.pumpQueue();
     return this.presentEdit(edit);
+  }
+
+  private pumpQueue(): void {
+    this.pumpTail = this.pumpTail
+      .then(() => this.fillEncodeSlots())
+      .catch((err) => {
+        this.log.error(`AI encode queue failed: ${err instanceof Error ? err.message : "unknown"}`);
+      });
+  }
+
+  private async fillEncodeSlots(): Promise<void> {
+    const max = Math.max(1, ffmpegMaxConcurrent());
+    while (true) {
+      const processing = await this.prisma.videoAiEdit.count({
+        where: { status: "PROCESSING" },
+      });
+      if (processing >= max) return;
+      const next = await this.prisma.videoAiEdit.findFirst({
+        where: { status: "QUEUED" },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      });
+      if (!next) return;
+      const claimed = await this.prisma.videoAiEdit.updateMany({
+        where: { id: next.id, status: "QUEUED" },
+        data: { status: "PROCESSING" },
+      });
+      if (claimed.count !== 1) continue;
+      void this.runClaimedEdit(next.id).catch((err) => {
+        this.log.error(`AI edit ${next.id} crashed: ${err instanceof Error ? err.message : "unknown"}`);
+      });
+    }
   }
 
   private async markStep(
@@ -450,7 +476,7 @@ export class VideoAiEditService implements OnModuleInit {
       courseId,
       recipeId: LECTURE_EXPERT_RECIPE_ID,
       region: "speaker",
-      style: "anime",
+      style: "trend",
       toonStrength: "high",
     });
   }
@@ -461,7 +487,7 @@ export class VideoAiEditService implements OnModuleInit {
       autoApply: false,
       recipeId: LECTURE_EXPERT_RECIPE_ID,
       region: "speaker",
-      style: "anime",
+      style: "trend",
       toonStrength: "high",
     });
   }
@@ -1017,11 +1043,18 @@ export class VideoAiEditService implements OnModuleInit {
       data: { status: "PROCESSING" },
     });
     if (claimed.count !== 1) return;
+    await this.runClaimedEdit(editId, actor);
+  }
+
+  private async runClaimedEdit(editId: string, actor?: RequestUser): Promise<void> {
     const edit = await this.prisma.videoAiEdit.findUnique({
       where: { id: editId },
       include: { video: true },
     });
-    if (!edit) return;
+    if (!edit) {
+      this.pumpQueue();
+      return;
+    }
     try {
       if (!isAiEditToolId(edit.tool)) {
         throw new Error("Công cụ không hợp lệ");
@@ -1060,6 +1093,8 @@ export class VideoAiEditService implements OnModuleInit {
         where: { id: edit.id },
         data: { status: "FAILED", error: message },
       });
+    } finally {
+      this.pumpQueue();
     }
   }
 
@@ -1089,7 +1124,7 @@ export class VideoAiEditService implements OnModuleInit {
         return this.runFfmpegVideo(video, editId, tool, pictureEnhanceArgs, "video/mp4");
       case "toon_talking_head": {
         const region = options.region ?? "speaker";
-        const style = options.style ?? "anime";
+        const style = options.style ?? "trend";
         const strength = options.toonStrength ?? "high";
         const output = await this.runFfmpegVideo(
           video,
@@ -1100,9 +1135,9 @@ export class VideoAiEditService implements OnModuleInit {
         );
         output.providerNote =
           region === "full"
-            ? `${OWNERSHIP_DISCLAIMER} Bản trên máy: tô cả khung (cel + nét + chống nhấp nháy), giữ tiếng gốc. Không phải DomoAI/Runway.`
+            ? `${OWNERSHIP_DISCLAIMER} Bản trên máy: tô đậm cả khung (cel + nét). Không đổi tóc/áo như Kling/Dreamina.`
             : region === "speaker"
-              ? `${OWNERSHIP_DISCLAIMER} Bản trên máy: tô người giữa khung, giữ slide hai bên và tiếng gốc.`
+              ? `${OWNERSHIP_DISCLAIMER} Bản trên máy: tô đậm người giữa khung, giữ slide và tiếng gốc. Không sinh nhân vật 3D.`
               : `${OWNERSHIP_DISCLAIMER} Bản trên máy: tô PIP/mặt, giữ slide và tiếng gốc.`;
         return output;
       }
@@ -1367,7 +1402,7 @@ export class VideoAiEditService implements OnModuleInit {
       let toonApplied = false;
       const toonPath = path.join(dir, "owned-abc-toon.mp4");
       const region = options.region ?? "speaker";
-      const style = options.style ?? "anime";
+      const style = options.style ?? "trend";
       const strength = options.toonStrength ?? "high";
       try {
         await this.execFfmpeg(toonTalkingHeadArgs(lessonPath, toonPath, region, style, strength));
@@ -1391,7 +1426,7 @@ export class VideoAiEditService implements OnModuleInit {
         sizeBytes: lessonSize,
         durationMs: (await this.probeDurationMs(lessonPath)) ?? video.durationMs ?? undefined,
         providerNote: toonApplied
-          ? `${OWNERSHIP_DISCLAIMER} Công thức lecture_expert_v1: làm nét + lọc tiếng, cắt im lặng, rồi tô người giữa khung thành hoạt hình. Giữ slide và tiếng gốc.`
+          ? `${OWNERSHIP_DISCLAIMER} Công thức lecture_expert_v1: làm nét + lọc tiếng, cắt im lặng, rồi tô đậm người giữa khung (phong cách trend trên máy). Giữ slide và tiếng gốc. Không sinh nhân vật 3D kiểu Kling/Dreamina.`
           : `${OWNERSHIP_DISCLAIMER} Công thức lecture_expert_v1: làm nét + lọc tiếng, cắt im lặng. Tô hoạt hình lỗi — giữ bản làm nét.`,
       };
       let extras: {
@@ -1581,7 +1616,7 @@ export class VideoAiEditService implements OnModuleInit {
     }
 
     const scenes = groupScenesForEdition(cues, durationMs, sceneCount);
-    const style = options.style ?? "anime";
+    const style = options.style ?? "trend";
     const font = firstExistingFont(existsSync);
     if (!font) {
       throw new Error("Máy chủ thiếu font để dựng thẻ bài học.");
