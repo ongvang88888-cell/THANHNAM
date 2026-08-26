@@ -167,6 +167,13 @@ export default function TeacherCourseStudioPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, token, id]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || window.location.hash !== "#video") return;
+    const node = document.getElementById("video-studio");
+    if (!node) return;
+    node.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selectedLesson, course]);
+
   async function run(action: () => Promise<void>, ok?: string) {
     if (!token) return;
     setBusy(true);
@@ -415,9 +422,11 @@ export default function TeacherCourseStudioPage() {
                     />
                   </div>
 
-                  <div className="block">
-                    <h3>2. Video bài học</h3>
-                    <p className="muted">Tải lên rồi nhớ Lưu bài. Video lớn sau này sẽ chuyển sang S3.</p>
+                  <div className="block" id="video-studio">
+                    <h3>2. Tải video khóa học &amp; chỉnh sửa AI</h3>
+                    <p className="muted">
+                      Kéo video vào ô dưới. Studio AI hiện ngay sau khi tải xong. Nhớ bấm Lưu bài để gắn video vào bài học.
+                    </p>
                     <input
                       value={editVideoId}
                       onChange={(e) => setEditVideoId(e.target.value)}
@@ -446,6 +455,12 @@ export default function TeacherCourseStudioPage() {
                         }, "Đã tải video — mở chỉnh AI bên dưới rồi nhớ Lưu bài");
                       }}
                     />
+                    {!editVideoId && (
+                      <p className="note-box">
+                        Chưa có video trên bài này. Tải file MP4 ở trên — bảng công cụ AI (nâng chất, giọng nói, PIP
+                        toon, bản minh họa) sẽ mở ngay bên dưới.
+                      </p>
+                    )}
                     {editVideoId && token && (
                       <VideoAiEditPanel
                         videoId={editVideoId}

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiDelete, apiGet, apiPatch, apiPost, formatVnd } from "@/lib/api";
 import { AdminDenied } from "@/components/AdminDenied";
+import { VideoStudioHint, videoStudioHref } from "@/components/VideoStudioHint";
 import { hasRole, useRequireAuth } from "@/lib/auth";
 import { productTypeLabel, statusLabel, statusTone } from "@/lib/labels";
 
@@ -211,10 +212,13 @@ export default function AdminCoursesPage() {
         <a href="/admin">Tổng quan</a>
         <a className="is-on" href="/admin/courses">Quản lý khóa học</a>
         <a href="/admin/courses/import">Nhập hàng loạt</a>
+        <a href="/teacher?tab=upload">Tải video / AI</a>
       </nav>
 
       {error && <p className="toast error">{error}</p>}
       {msg && <p className="toast ok">{msg}</p>}
+
+      <VideoStudioHint courseId={editing?.courseId} />
 
       <div className="note-box">
         <strong>Đồng bộ Unica:</strong> không thể sao chép hợp pháp toàn bộ catalog unica.vn
@@ -331,8 +335,8 @@ export default function AdminCoursesPage() {
                   Lưu
                 </button>
                 {editing.courseId && (
-                  <a className="btn secondary" href={`/teacher/courses/${editing.courseId}`}>
-                    Sửa giáo trình
+                  <a className="btn" href={videoStudioHref(editing.courseId)}>
+                    Tải video / AI
                   </a>
                 )}
                 <button type="button" className="ghost" onClick={() => setEditing(null)}>
@@ -416,8 +420,8 @@ export default function AdminCoursesPage() {
                         Sửa
                       </button>
                       {row.courseId && (
-                        <a className="btn btn-sm secondary" href={`/teacher/courses/${row.courseId}`}>
-                          Giáo trình
+                        <a className="btn btn-sm" href={videoStudioHref(row.courseId)}>
+                          Tải video / AI
                         </a>
                       )}
                       {canMutate && row.status !== "PUBLISHED" && (

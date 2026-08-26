@@ -98,6 +98,7 @@ export default function AdminPage() {
         <a className="is-on" href="/admin">Tổng quan</a>
         <a href="/admin/courses">Quản lý khóa học</a>
         <a href="/admin/courses/import">Nhập hàng loạt</a>
+        <a href="/teacher?tab=upload">Tải video / AI</a>
       </nav>
       {error && <p className="toast error">{error}</p>}
       {msg && <p className="toast ok">{msg}</p>}
@@ -133,6 +134,7 @@ export default function AdminPage() {
         <div className="admin-actions">
           <a className="btn" href="/admin/courses">Mở quản lý khóa học</a>
           <a className="btn secondary" href="/admin/courses/import">Nhập hàng loạt</a>
+          <a className="btn secondary" href="/teacher?tab=upload">Tải video / AI</a>
         </div>
       </div>
 

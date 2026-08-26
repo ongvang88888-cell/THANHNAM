@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_URL, APP_ID, apiGet, apiPost, formatVnd } from "@/lib/api";
 import { AdminDenied } from "@/components/AdminDenied";
+import { VideoStudioHint } from "@/components/VideoStudioHint";
 import { hasRole, useRequireAuth } from "@/lib/auth";
 import { FileDrop } from "@/components/FileDrop";
 
@@ -183,10 +184,13 @@ export default function AdminCourseImportPage() {
         <a href="/admin">Tổng quan</a>
         <a href="/admin/courses">Quản lý khóa học</a>
         <a className="is-on" href="/admin/courses/import">Nhập hàng loạt</a>
+        <a href="/teacher?tab=upload">Tải video / AI</a>
       </nav>
 
       {error && <p className="toast error">{error}</p>}
       {msg && <p className="toast ok">{msg}</p>}
+
+      <VideoStudioHint />
 
       <div className="note-box">
         <strong>Để nhập đúng 100%:</strong> dùng đúng file mẫu, email giảng viên phải đã có trên hệ thống,

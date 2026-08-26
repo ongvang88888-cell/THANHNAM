@@ -37,9 +37,15 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "courses", label: "Khóa học" },
   { id: "documents", label: "Tài liệu bán" },
   { id: "bundles", label: "Combo" },
-  { id: "upload", label: "Tải file" },
+  { id: "upload", label: "Tải video / AI" },
   { id: "affiliate", label: "Affiliate" },
 ];
+
+function tabFromLocation(): Tab {
+  if (typeof window === "undefined") return "courses";
+  const raw = new URLSearchParams(window.location.search).get("tab") ?? window.location.hash.replace("#", "");
+  return TABS.some((item) => item.id === raw) ? (raw as Tab) : "courses";
+}
 
 export default function TeacherPage() {
   const { token, user, ready } = useRequireAuth();
@@ -77,10 +83,20 @@ export default function TeacherPage() {
   }
 
   useEffect(() => {
+    setTab(tabFromLocation());
+  }, []);
+
+  useEffect(() => {
     if (!ready || !token) return;
     refresh().catch((e) => setError(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, token]);
+
+  function openTab(next: Tab) {
+    setTab(next);
+    const url = next === "courses" ? "/teacher" : `/teacher?tab=${next}`;
+    window.history.replaceState(null, "", url);
+  }
 
   async function createCourse() {
     if (!token) return;
@@ -108,8 +124,8 @@ export default function TeacherPage() {
       token,
     );
     setDocUploadId(res.document.id);
-    setMsg(`Đã tạo ${res.document.title}. Hãy tải file ở tab Tải file.`);
-    setTab("upload");
+    setMsg(`Đã tạo ${res.document.title}. Hãy tải file ở tab Tải video / AI.`);
+    openTab("upload");
     await refresh();
   }
 
@@ -199,7 +215,7 @@ export default function TeacherPage() {
       <div className="page-head">
         <h1>Studio giảng viên</h1>
         <p className="muted">
-          Tạo khóa, soạn chương–bài, tải video và tài liệu nghiên cứu. Admin duyệt trước khi lên cửa hàng.
+          Tạo khóa, soạn chương–bài, tải video rồi chỉnh AI ngay dưới ô tải. Admin duyệt trước khi lên cửa hàng.
         </p>
       </div>
 
@@ -209,7 +225,7 @@ export default function TeacherPage() {
             key={item.id}
             className={tab === item.id ? "is-on" : undefined}
             type="button"
-            onClick={() => setTab(item.id)}
+            onClick={() => openTab(item.id)}
           >
             {item.label}
           </button>
@@ -355,7 +371,10 @@ export default function TeacherPage() {
 
       {tab === "upload" && (
         <div className="panel" style={{ maxWidth: 640 }}>
-          <h2>Tải video</h2>
+          <h2>Tải video khóa học</h2>
+          <p className="muted">
+            Kéo video bài học vào đây. Studio chỉnh AI (nâng chất, giọng nói, PIP, bản minh họa) hiện ngay bên dưới sau khi tải xong.
+          </p>
           <label>Tiêu đề video</label>
           <input value={videoTitle} onChange={(e) => setVideoTitle(e.target.value)} />
           <FileDrop
