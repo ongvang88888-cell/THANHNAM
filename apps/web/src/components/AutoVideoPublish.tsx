@@ -27,7 +27,7 @@ const RECIPE_CHECKLIST: RecipeRow[] = [
   { id: "thumbnail", status: "applied", label: "Ảnh bìa ở 25% thời lượng, tránh frame đen đầu clip" },
   { id: "lesson_copy", status: "skipped", label: "Gợi ý tiêu đề và mô tả bài", note: "Chưa có khóa LLM — mô tả từ tiêu đề." },
   { id: "illustrated_edition", status: "skipped", label: "Bản minh họa Ken Burns trên tiếng gốc", note: "Không tự dựng — tránh mất hình giáo viên." },
-  { id: "toon_restyle", status: "skipped", label: "Tô hoạt hình / PIP mặt", note: "Không mặc định trên bài giảng." },
+  { id: "toon_restyle", status: "skipped", label: "Tô người thành hoạt hình", note: "Không mặc định. Studio thủ công — giữ slide và tiếng gốc." },
   { id: "avatar_presenter", status: "skipped", label: "Người dẫn ảo từ kịch bản", note: "Không tự chạy. Studio thủ công — cần xác nhận người ảo." },
   { id: "video_translate", status: "skipped", label: "Dịch / lồng tiếng", note: "Không tự chạy. HeyGen lip-sync hoặc lồng tiếng trên máy." },
   { id: "eye_contact", status: "skipped", label: "Canh mắt nhìn camera", note: "Không tự chạy. Bản trên máy canh mặt, không warp ngươi." },

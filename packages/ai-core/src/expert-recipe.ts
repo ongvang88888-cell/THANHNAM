@@ -112,10 +112,10 @@ export function describeRecipe(caps: Pick<AiCapabilities, "speech" | "imageGen" 
       },
       {
         id: "toon_restyle",
-        source: "CapCut restyle",
+        source: "DomoAI / CapCut Restyle / Runway Aleph",
         status: "skipped",
-        label: "Tô hoạt hình / PIP mặt",
-        note: "Không mặc định trên bài giảng. Có trong tùy chỉnh thủ công.",
+        label: "Tô người thành hoạt hình",
+        note: "Không mặc định trên bài giảng. Studio thủ công: tô speaker, giữ slide và tiếng gốc.",
       },
       {
         id: "avatar_presenter",

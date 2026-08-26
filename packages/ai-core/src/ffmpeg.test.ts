@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   cartoonPersonGraph,
+  cartoonStyleGraph,
   courseEnhanceArgs,
   clampQuickTrim,
   enhanceAndSpeechArgs,
@@ -17,6 +18,8 @@ import {
   studioSoundArgs,
   thumbnailArgs,
   titlePosterArgs,
+  speakerGeometry,
+  toonMixOpacity,
   toonTalkingHeadArgs,
   concatAudioArgs,
   eyeContactReframeArgs,
@@ -65,17 +68,32 @@ describe("ffmpeg arg builders", () => {
     expect(args.slice(args.indexOf("-c:v"), args.indexOf("-c:v") + 2)).toEqual(["-c:v", "copy"]);
   });
 
-  it("cartoons the full person frame with ink lines", () => {
-    const graph = cartoonPersonGraph("anime");
+  it("cartoons the full person frame with ink, mix, and deflicker", () => {
+    const graph = cartoonPersonGraph("anime", "high");
+    expect(graph).toContain("hqdn3d=");
+    expect(graph).toContain("smartblur=");
     expect(graph).toContain("edgedetect=");
     expect(graph).toContain("blend=all_mode=multiply");
-    const full = toonTalkingHeadArgs("in.mp4", "out.mp4", "full", "anime");
+    expect(graph).toContain("blend=all_mode=normal:all_opacity=0.92");
+    expect(graph).toContain("deflicker=");
+    const watercolor = cartoonPersonGraph("watercolor", "low");
+    expect(watercolor).not.toContain("edgedetect=");
+    expect(watercolor).toContain("all_opacity=0.55");
+    expect(watercolor).toContain("deflicker=");
+    const full = toonTalkingHeadArgs("in.mp4", "out.mp4", "full", "anime", "high");
     expect(full.join(" ")).toContain("filter_complex");
     expect(full.join(" ")).toContain("edgedetect=");
     expect(full).toContain("-map");
-    const pip = toonTalkingHeadArgs("in.mp4", "out.mp4", "pip_br", "anime");
+    const pip = toonTalkingHeadArgs("in.mp4", "out.mp4", "pip_br", "flat", "medium");
     expect(pip.join(" ")).toContain("overlay=W-w-20:H-h-20");
+    expect(pip.join(" ")).toContain("edgedetect=");
     expect(pip).toContain("-c:a");
+    const speaker = toonTalkingHeadArgs("in.mp4", "out.mp4", "speaker", "anime");
+    expect(speaker.join(" ")).toContain(speakerGeometry().crop);
+    expect(speaker.join(" ")).toContain("overlay=(W-w)/2:H*0.03");
+    expect(toonMixOpacity("medium")).toBe(0.78);
+    expect(cartoonStyleGraph("src", "toon", "anime")).toContain("[src]");
+    expect(cartoonStyleGraph("src", "toon", "anime")).toContain("[toon]");
   });
 
   it("caps ffmpeg threads so two lecture jobs cannot pin every vCPU", () => {

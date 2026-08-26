@@ -50,6 +50,10 @@ describe("video AI edit contract", () => {
       region: "pip_br",
       style: "anime",
     });
+    expect(parseAiEditOptions({ region: "speaker", toonStrength: "medium" })).toEqual({
+      region: "speaker",
+      toonStrength: "medium",
+    });
     expect(parseAiEditOptions({ confirmOwned: true, style: "flat" })).toEqual({
       confirmOwned: true,
       style: "flat",
@@ -78,6 +82,7 @@ describe("video AI edit contract", () => {
     expect(recipe.techniques.some((row) => row.id === "content_id_dodge" && row.status === "refused")).toBe(true);
     expect(recipe.techniques.some((row) => row.id === "avatar_presenter" && row.status === "skipped")).toBe(true);
     expect(recipe.techniques.some((row) => row.id === "overdub" && row.status === "skipped")).toBe(true);
+    expect(() => assertStudioConsent("toon_talking_head", { confirmOwned: true })).toThrow(/confirmFaceEdit/);
     expect(() => assertStudioConsent("avatar_presenter", { confirmOwned: true })).toThrow(/confirmLikeness/);
     expect(() =>
       assertStudioConsent("overdub", { confirmOwned: true, confirmVoiceClone: true, script: "Xin chào" }),

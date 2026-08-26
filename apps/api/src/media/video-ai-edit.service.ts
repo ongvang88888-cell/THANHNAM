@@ -1082,19 +1082,22 @@ export class VideoAiEditService implements OnModuleInit {
       case "picture_enhance":
         return this.runFfmpegVideo(video, editId, tool, pictureEnhanceArgs, "video/mp4");
       case "toon_talking_head": {
-        const region = options.region ?? "pip_br";
+        const region = options.region ?? "speaker";
         const style = options.style ?? "anime";
+        const strength = options.toonStrength ?? "high";
         const output = await this.runFfmpegVideo(
           video,
           editId,
           tool,
-          (input, outputPath) => toonTalkingHeadArgs(input, outputPath, region, style),
+          (input, outputPath) => toonTalkingHeadArgs(input, outputPath, region, style, strength),
           "video/mp4",
         );
         output.providerNote =
           region === "full"
-            ? `${OWNERSHIP_DISCLAIMER} Đã biến người trong cả khung thành hoạt hình, giữ tiếng gốc.`
-            : `${OWNERSHIP_DISCLAIMER} Đã tô hoạt hình vùng PIP/mặt, giữ slide và tiếng gốc.`;
+            ? `${OWNERSHIP_DISCLAIMER} Bản trên máy: tô cả khung (cel + nét + chống nhấp nháy), giữ tiếng gốc. Không phải DomoAI/Runway.`
+            : region === "speaker"
+              ? `${OWNERSHIP_DISCLAIMER} Bản trên máy: tô người giữa khung, giữ slide hai bên và tiếng gốc.`
+              : `${OWNERSHIP_DISCLAIMER} Bản trên máy: tô PIP/mặt, giữ slide và tiếng gốc.`;
         return output;
       }
       case "illustrated_edition":

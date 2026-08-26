@@ -13,6 +13,10 @@ describe("parseAiEditOptions", () => {
       style: "anime",
       maxScenes: 6,
     });
+    expect(parseAiEditOptions({ region: "speaker", toonStrength: "high" })).toEqual({
+      region: "speaker",
+      toonStrength: "high",
+    });
     expect(parseAiEditOptions({ confirmOwned: true })).toEqual({ confirmOwned: true });
     expect(parseAiEditOptions({ recipeId: "lecture_expert_v1" })).toEqual({ recipeId: "lecture_expert_v1" });
     expect(
@@ -33,6 +37,7 @@ describe("parseAiEditOptions", () => {
     expect(() => parseAiEditOptions({ seekSeconds: -1 })).toThrow(/seekSeconds/);
     expect(() => parseAiEditOptions({ region: "center" })).toThrow(/region/);
     expect(() => parseAiEditOptions({ style: "oil" })).toThrow(/style/);
+    expect(() => parseAiEditOptions({ toonStrength: "ultra" })).toThrow(/toonStrength/);
     expect(() => parseAiEditOptions({ confirmOwned: "yes" })).toThrow(/confirmOwned/);
     expect(() => parseAiEditOptions({ autoApply: "yes" })).toThrow(/autoApply/);
     expect(() => parseAiEditOptions({ lessonId: "short" })).toThrow(/lessonId/);
@@ -83,6 +88,10 @@ describe("parseAiEditOptions", () => {
       assertStudioConsent("avatar_presenter", { confirmOwned: true, confirmLikeness: true }),
     ).not.toThrow();
     expect(() => assertStudioConsent("video_translate", { confirmOwned: true })).toThrow(/targetLanguage/);
+    expect(() => assertStudioConsent("toon_talking_head", { confirmOwned: true })).toThrow(/confirmFaceEdit/);
+    expect(() =>
+      assertStudioConsent("toon_talking_head", { confirmOwned: true, confirmFaceEdit: true }),
+    ).not.toThrow();
     expect(() => assertStudioConsent("eye_contact", { confirmOwned: true })).toThrow(/confirmFaceEdit/);
     expect(() => assertStudioConsent("overdub", { confirmOwned: true, confirmVoiceClone: true })).toThrow(/script/);
   });

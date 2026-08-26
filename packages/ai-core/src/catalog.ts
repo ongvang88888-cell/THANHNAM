@@ -103,8 +103,9 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
     id: "toon_talking_head",
     group: "image",
     label: "Biến người thành hoạt hình",
-    description: "Tô cả người/khung kiểu hoạt hình (màu đậm, nét mực), giữ 100% tiếng gốc. Chọn full khung để cả giáo viên thành cartoon.",
-    market: "CapCut restyle + Runway Aleph (mặt), overlay slide gốc",
+    description:
+      "Tô giáo viên thành hoạt hình (làm phẳng + bảng màu + nét mực + chống nhấp nháy), giữ 100% tiếng gốc. Chọn 'người giữa khung' để giữ slide. Bản trên máy — không phải DomoAI / Runway Aleph. Cần xác nhận sửa mặt. Không chạy tự động.",
+    market: "DomoAI + CapCut Restyle + Runway Aleph (giữ chuyển động/tiếng, tô phong cách)",
     outputKind: "video",
     needs: ["ffmpeg"],
     prefers: [],

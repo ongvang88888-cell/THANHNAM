@@ -14,8 +14,9 @@ type VideoAiEditPanelProps = {
 };
 
 type ToolGroup = "audio" | "image" | "copy";
-type FaceRegion = "full" | "pip_br" | "pip_bl" | "pip_tr" | "pip_tl";
+type FaceRegion = "speaker" | "full" | "pip_br" | "pip_bl" | "pip_tr" | "pip_tl";
 type VisualStyle = "anime" | "flat" | "watercolor";
+type ToonStrength = "low" | "medium" | "high";
 
 type CatalogTool = {
   id: string;
@@ -88,17 +89,24 @@ const GROUP_LABEL: Record<ToolGroup, string> = {
 };
 
 const REGION_LABEL: Record<FaceRegion, string> = {
+  speaker: "Người giữa khung (giữ slide)",
+  full: "Cả người / cả khung",
   pip_br: "Mặt góc phải dưới (PIP)",
   pip_bl: "Mặt góc trái dưới",
   pip_tr: "Mặt góc phải trên",
   pip_tl: "Mặt góc trái trên",
-  full: "Cả người / cả khung",
 };
 
 const STYLE_LABEL: Record<VisualStyle, string> = {
-  anime: "Hoạt hình",
-  flat: "Phẳng / vector",
+  anime: "Hoạt hình (cel + nét mực)",
+  flat: "Phẳng / truyện tranh",
   watercolor: "Màu nước",
+};
+
+const STRENGTH_LABEL: Record<ToonStrength, string> = {
+  high: "Đậm — gần hoạt hình hẳn",
+  medium: "Vừa — còn nhận ra mặt",
+  low: "Nhẹ — lớp màu hoạt hình",
 };
 
 export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
@@ -107,8 +115,9 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busyTool, setBusyTool] = useState<string | null>(null);
-  const [region, setRegion] = useState<FaceRegion>("full");
+  const [region, setRegion] = useState<FaceRegion>("speaker");
   const [style, setStyle] = useState<VisualStyle>("anime");
+  const [toonStrength, setToonStrength] = useState<ToonStrength>("high");
   const [ownedConfirmed, setOwnedConfirmed] = useState(false);
   const [confirmLikeness, setConfirmLikeness] = useState(false);
   const [confirmFaceEdit, setConfirmFaceEdit] = useState(false);
@@ -170,6 +179,11 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
       if (!ownedConfirmed) return "Xác nhận video là của bạn trước khi dịch.";
       return null;
     }
+    if (toolId === "toon_talking_head") {
+      if (!ownedConfirmed) return "Xác nhận video là của bạn trước khi tô hoạt hình.";
+      if (!confirmFaceEdit) return "Xác nhận được phép sửa mặt người thành hoạt hình.";
+      return null;
+    }
     if (toolId === "eye_contact") {
       if (!ownedConfirmed) return "Xác nhận video là của bạn.";
       if (!confirmFaceEdit) return "Xác nhận được phép sửa khuôn mặt.";
@@ -207,6 +221,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
           options: {
             region,
             style,
+            toonStrength,
             ...(script.trim() ? { script: script.trim().slice(0, 4000) } : {}),
             ...(toolId === "video_translate" || toolId === "avatar_presenter" || toolId === "overdub"
               ? { targetLanguage }
@@ -217,11 +232,12 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
             toolId === "avatar_presenter" ||
             toolId === "video_translate" ||
             toolId === "eye_contact" ||
+            toolId === "toon_talking_head" ||
             toolId === "overdub"
               ? { confirmOwned: true }
               : {}),
             ...(toolId === "avatar_presenter" ? { confirmLikeness: true } : {}),
-            ...(toolId === "eye_contact" ? { confirmFaceEdit: true } : {}),
+            ...(toolId === "eye_contact" || toolId === "toon_talking_head" ? { confirmFaceEdit: true } : {}),
             ...(toolId === "overdub" ? { confirmVoiceClone: true } : {}),
           },
         },
@@ -331,7 +347,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
           </select>
         </div>
         <div>
-          <label htmlFor="ai-edit-style">Phong cách (B/C)</label>
+          <label htmlFor="ai-edit-style">Phong cách hoạt hình</label>
           <select
             id="ai-edit-style"
             value={style}
@@ -340,6 +356,20 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
             {(Object.keys(STYLE_LABEL) as VisualStyle[]).map((value) => (
               <option key={value} value={value}>
                 {STYLE_LABEL[value]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="ai-edit-strength">Độ đậm tô hoạt hình</label>
+          <select
+            id="ai-edit-strength"
+            value={toonStrength}
+            onChange={(event) => setToonStrength(event.target.value as ToonStrength)}
+          >
+            {(Object.keys(STRENGTH_LABEL) as ToonStrength[]).map((value) => (
+              <option key={value} value={value}>
+                {STRENGTH_LABEL[value]}
               </option>
             ))}
           </select>
@@ -406,7 +436,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
             checked={confirmFaceEdit}
             onChange={(event) => setConfirmFaceEdit(event.target.checked)}
           />
-          Canh mắt: tôi cho phép sửa khung mặt trên video này (crop/zoom, không phải Descript Eye Contact đám mây).
+          Tôi cho phép tô/sửa mặt người trên video này (hoạt hình hoặc canh mắt). Chỉ mặt tôi hoặc người đã đồng ý.
         </label>
         <label className="ai-edit-owned">
           <input

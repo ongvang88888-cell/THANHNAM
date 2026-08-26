@@ -71,6 +71,14 @@ describe("AI edit catalog", () => {
     expect(tool.description).not.toMatch(/tô kiểu anime|biến người trong khung/);
   });
 
+  it("describes local expert toon without claiming cloud V2V", () => {
+    const tool = getAiEditTool("toon_talking_head")!;
+    expect(tool.description).toMatch(/trên máy/i);
+    expect(tool.description).toMatch(/không phải DomoAI/i);
+    expect(tool.description).toMatch(/Không chạy tự động/);
+    expect(tool.market).toMatch(/DomoAI/);
+  });
+
   it("keeps illustrated edition available without Whisper or image gen", () => {
     const caps = {
       enabled: true,

@@ -1,5 +1,5 @@
 import { LECTURE_ENHANCE_VF, LECTURE_ONE_PASS_AF, LECTURE_SILENCE_AF, LECTURE_SPEECH_AF } from "./expert-recipe";
-import type { FaceRegion, VisualStyle } from "./options";
+import type { FaceRegion, ToonStrength, VisualStyle } from "./options";
 
 export function ffmpegThreadCount(): number {
   const raw = Number(process.env.FFMPEG_THREADS);
@@ -46,14 +46,30 @@ export function styleBackdrop(style: VisualStyle): string {
   }
 }
 
-export function toonVf(style: VisualStyle): string {
+export function toonMixOpacity(strength: ToonStrength): number {
+  switch (strength) {
+    case "low":
+      return 0.55;
+    case "medium":
+      return 0.78;
+    case "high":
+      return 0.92;
+    default: {
+      const _never: never = strength;
+      return _never;
+    }
+  }
+}
+
+/** Paint pass only. Prefer cartoonStyleGraph for the full expert look. */
+export function cartoonPaintVf(style: VisualStyle): string {
   switch (style) {
     case "anime":
-      return "hqdn3d=12:10:18:14,eq=saturation=1.7:contrast=1.22:gamma=0.9,unsharp=7:7:1.8:5:5:0.0";
+      return "smartblur=lr=2.2:ls=-0.55:lt=16,eq=saturation=1.52:contrast=1.16:gamma=0.93,lutyuv=y='val-mod(val\\,24)':u='val-mod(val\\,16)':v='val-mod(val\\,16)'";
     case "watercolor":
-      return "boxblur=2:1,eq=saturation=1.18:contrast=1.04,hqdn3d=6:4:8:6";
+      return "boxblur=2:1,eq=saturation=1.22:contrast=1.05:gamma=1.02";
     case "flat":
-      return "hqdn3d=8:6:12:10,eq=saturation=1.6:contrast=1.2,unsharp=5:5:1.2";
+      return "smartblur=lr=2.6:ls=-0.7:lt=18,eq=saturation=1.62:contrast=1.24:gamma=0.9,lutyuv=y='val-mod(val\\,32)':u='val-mod(val\\,20)':v='val-mod(val\\,20)'";
     default: {
       const _never: never = style;
       return _never;
@@ -61,20 +77,91 @@ export function toonVf(style: VisualStyle): string {
   }
 }
 
-/** Full-frame cel-shade (paint + ink). ffmpeg 4.2-safe: hqdn3d, edgedetect, blend. */
-export function cartoonPersonGraph(style: VisualStyle): string {
-  if (style === "anime") {
-    return [
-      "[0:v]split=2[paint][ink]",
-      "[paint]hqdn3d=12:10:18:14,eq=saturation=1.7:contrast=1.22:gamma=0.9[c]",
-      "[ink]edgedetect=mode=colormix:high=0.14[l]",
-      "[c][l]blend=all_mode=multiply:all_opacity=0.58,format=yuv420p[v]",
-    ].join(";");
-  }
-  return `[0:v]${toonVf(style)},format=yuv420p[v]`;
+export function toonVf(style: VisualStyle): string {
+  return cartoonPaintVf(style);
 }
 
-export function pipGeometry(region: Exclude<FaceRegion, "full">): { crop: string; overlay: string } {
+export function cartoonInkVf(style: VisualStyle): string | null {
+  switch (style) {
+    case "anime":
+      return "edgedetect=mode=colormix:low=0.04:high=0.12";
+    case "flat":
+      return "edgedetect=mode=colormix:low=0.03:high=0.09";
+    case "watercolor":
+      return null;
+    default: {
+      const _never: never = style;
+      return _never;
+    }
+  }
+}
+
+export function cartoonInkOpacity(style: VisualStyle): number {
+  switch (style) {
+    case "anime":
+      return 0.52;
+    case "flat":
+      return 0.64;
+    case "watercolor":
+      return 0;
+    default: {
+      const _never: never = style;
+      return _never;
+    }
+  }
+}
+
+/**
+ * Expert local restyle (ffmpeg 4.2-safe): temporal stabilize → flatten/quantize →
+ * ink → mix with original → deflicker. Keeps source motion and audio mapping.
+ */
+export function cartoonStyleGraph(
+  source: string,
+  dest: string,
+  style: VisualStyle,
+  strength: ToonStrength = "high",
+): string {
+  const mix = toonMixOpacity(strength);
+  const paint = cartoonPaintVf(style);
+  const ink = cartoonInkVf(style);
+  const inkOp = cartoonInkOpacity(style);
+  const stable = `s${dest}`;
+  const keep = `k${dest}`;
+  const paintL = `p${dest}`;
+  const inkL = `i${dest}`;
+  const flat = `f${dest}`;
+  const lines = `n${dest}`;
+  const cel = `c${dest}`;
+  if (ink && inkOp > 0) {
+    return [
+      `[${source}]hqdn3d=8:6:16:12[${stable}]`,
+      `[${stable}]split=3[${keep}][${paintL}][${inkL}]`,
+      `[${paintL}]${paint}[${flat}]`,
+      `[${inkL}]${ink}[${lines}]`,
+      `[${flat}][${lines}]blend=all_mode=multiply:all_opacity=${inkOp}[${cel}]`,
+      `[${keep}][${cel}]blend=all_mode=normal:all_opacity=${mix},deflicker=mode=am:size=5,format=yuv420p[${dest}]`,
+    ].join(";");
+  }
+  return [
+    `[${source}]hqdn3d=6:4:12:10[${stable}]`,
+    `[${stable}]split=2[${keep}][${paintL}]`,
+    `[${paintL}]${paint}[${cel}]`,
+    `[${keep}][${cel}]blend=all_mode=normal:all_opacity=${mix},deflicker=mode=am:size=5,format=yuv420p[${dest}]`,
+  ].join(";");
+}
+
+export function cartoonPersonGraph(style: VisualStyle, strength: ToonStrength = "high"): string {
+  return cartoonStyleGraph("0:v", "v", style, strength);
+}
+
+export function speakerGeometry(): { crop: string; overlay: string } {
+  return {
+    crop: "crop=iw*0.52:ih*0.80:(iw-ow)/2:ih*0.03",
+    overlay: "overlay=(W-w)/2:H*0.03",
+  };
+}
+
+export function pipGeometry(region: Exclude<FaceRegion, "full" | "speaker">): { crop: string; overlay: string } {
   const w = "iw*0.32";
   const h = "ih*0.32";
   const pad = 20;
@@ -92,6 +179,11 @@ export function pipGeometry(region: Exclude<FaceRegion, "full">): { crop: string
       return _never;
     }
   }
+}
+
+export function overlayGeometry(region: Exclude<FaceRegion, "full">): { crop: string; overlay: string } {
+  if (region === "speaker") return speakerGeometry();
+  return pipGeometry(region);
 }
 
 export function studioSoundArgs(inputPath: string, outputPath: string): string[] {
@@ -338,38 +430,26 @@ export function toonTalkingHeadArgs(
   outputPath: string,
   region: FaceRegion,
   style: VisualStyle,
+  strength: ToonStrength = "high",
 ): string[] {
-  const look = toonVf(style);
-  if (region === "full") {
-    return [
-      "-y",
-      "-i",
-      inputPath,
-      "-filter_complex",
-      cartoonPersonGraph(style),
-      "-map",
-      "[v]",
-      "-map",
-      "0:a?",
-      "-c:a",
-      "copy",
-      "-preset",
-      "veryfast",
-      "-crf",
-      "23",
-      ...ffmpegThreadArgs(),
-      "-movflags",
-      "+faststart",
-      outputPath,
-    ];
-  }
-  const geometry = pipGeometry(region);
+  const graph =
+    region === "full"
+      ? cartoonPersonGraph(style, strength)
+      : (() => {
+          const geometry = overlayGeometry(region);
+          return [
+            "[0:v]split=2[base][face]",
+            `[face]${geometry.crop},scale=trunc(iw/2)*2:trunc(ih/2)*2[src]`,
+            cartoonStyleGraph("src", "toon", style, strength),
+            `[base][toon]${geometry.overlay}[v]`,
+          ].join(";");
+        })();
   return [
     "-y",
     "-i",
     inputPath,
     "-filter_complex",
-    `[0:v]split=2[base][face];[face]${geometry.crop},${look}[toon];[base][toon]${geometry.overlay}[v]`,
+    graph,
     "-map",
     "[v]",
     "-map",

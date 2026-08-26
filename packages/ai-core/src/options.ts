@@ -1,11 +1,13 @@
 import { isLectureExpertRecipeId } from "./expert-recipe";
 import { isTargetLanguageId, type TargetLanguageId } from "./languages";
 
-export const FACE_REGIONS = ["full", "pip_br", "pip_bl", "pip_tr", "pip_tl"] as const;
+export const FACE_REGIONS = ["speaker", "full", "pip_br", "pip_bl", "pip_tr", "pip_tl"] as const;
 export const VISUAL_STYLES = ["anime", "flat", "watercolor"] as const;
+export const TOON_STRENGTHS = ["low", "medium", "high"] as const;
 
 export type FaceRegion = (typeof FACE_REGIONS)[number];
 export type VisualStyle = (typeof VISUAL_STYLES)[number];
+export type ToonStrength = (typeof TOON_STRENGTHS)[number];
 
 export interface AiEditOptions {
   seekSeconds?: number;
@@ -16,6 +18,7 @@ export interface AiEditOptions {
   endMs?: number;
   region?: FaceRegion;
   style?: VisualStyle;
+  toonStrength?: ToonStrength;
   maxScenes?: number;
   confirmOwned?: boolean;
   confirmLikeness?: boolean;
@@ -36,6 +39,7 @@ const ALLOWED = new Set([
   "endMs",
   "region",
   "style",
+  "toonStrength",
   "maxScenes",
   "confirmOwned",
   "confirmLikeness",
@@ -74,6 +78,10 @@ export function isFaceRegion(value: string): value is FaceRegion {
 
 export function isVisualStyle(value: string): value is VisualStyle {
   return (VISUAL_STYLES as readonly string[]).includes(value);
+}
+
+export function isToonStrength(value: string): value is ToonStrength {
+  return (TOON_STRENGTHS as readonly string[]).includes(value);
 }
 
 export function parseAiEditOptions(input: unknown): AiEditOptions {
@@ -128,7 +136,7 @@ export function parseAiEditOptions(input: unknown): AiEditOptions {
   }
   if (rec.region !== undefined) {
     if (typeof rec.region !== "string" || !isFaceRegion(rec.region)) {
-      throw new Error("region phải là full hoặc pip_br / pip_bl / pip_tr / pip_tl");
+      throw new Error("region phải là speaker, full hoặc pip_br / pip_bl / pip_tr / pip_tl");
     }
     out.region = rec.region;
   }
@@ -137,6 +145,12 @@ export function parseAiEditOptions(input: unknown): AiEditOptions {
       throw new Error("style phải là anime, flat hoặc watercolor");
     }
     out.style = rec.style;
+  }
+  if (rec.toonStrength !== undefined) {
+    if (typeof rec.toonStrength !== "string" || !isToonStrength(rec.toonStrength)) {
+      throw new Error("toonStrength phải là low, medium hoặc high");
+    }
+    out.toonStrength = rec.toonStrength;
   }
   if (rec.maxScenes !== undefined) {
     if (typeof rec.maxScenes !== "number" || !Number.isInteger(rec.maxScenes) || rec.maxScenes < 3 || rec.maxScenes > 12) {
@@ -213,6 +227,15 @@ export function assertStudioConsent(toolId: string, options: AiEditOptions): voi
     }
     if (!options.targetLanguage) {
       throw new Error("Chọn ngôn ngữ đích (targetLanguage).");
+    }
+    return;
+  }
+  if (toolId === "toon_talking_head") {
+    if (options.confirmOwned !== true) {
+      throw new Error("Tô hoạt hình cần xác nhận video là của bạn (confirmOwned).");
+    }
+    if (options.confirmFaceEdit !== true) {
+      throw new Error("Tô hoạt hình cần xác nhận được phép sửa mặt người (confirmFaceEdit).");
     }
     return;
   }
