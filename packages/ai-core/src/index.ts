@@ -62,6 +62,15 @@ export {
   type VisualStyle,
 } from "./options";
 export {
+  AI_EDIT_STEPS,
+  getAiEditStep,
+  isAiEditStepId,
+  progressFields,
+  progressForStatus,
+  type AiEditProgress,
+  type AiEditStepId,
+} from "./progress";
+export {
   buildTitlePosterSvg,
   createAiPortFromEnv,
   escapeXml,

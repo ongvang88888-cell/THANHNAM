@@ -43,12 +43,20 @@ function authHeaders(token?: string | null): Record<string, string> {
   return h;
 }
 
+function friendlyHttpMessage(status: number, raw?: string): string {
+  if (status === 429 || /Throttler|Too Many Requests/i.test(raw || "")) {
+    return "Hệ thống đang bận. Đợi khoảng 20 giây rồi chọn lại video.";
+  }
+  return raw || `Request failed (${status})`;
+}
+
 async function parseJson<T>(res: Response): Promise<T> {
   const json = (await res.json().catch(() => ({}))) as {
     error?: { message?: string };
+    message?: string;
   } & T;
   if (!res.ok) {
-    throw new ApiError(json?.error?.message || `Request failed (${res.status})`, res.status);
+    throw new ApiError(friendlyHttpMessage(res.status, json?.error?.message || json?.message), res.status);
   }
   return json as T;
 }
@@ -74,11 +82,16 @@ async function refreshAccess(): Promise<string | null> {
   return json.accessToken;
 }
 
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function request<T>(
   path: string,
-  init: { method?: string; body?: unknown; token?: string | null } = {},
+  init: { method?: string; body?: unknown; token?: string | null; retry429?: boolean } = {},
 ): Promise<T> {
   const method = init.method ?? "GET";
+  const retry429 = init.retry429 ?? method === "GET";
   const run = (token?: string | null) =>
     fetch(`${API_URL}${path}`, {
       method,
@@ -88,20 +101,36 @@ async function request<T>(
     });
 
   const firstToken = init.token ?? tokens.accessToken;
-  let res = await run(firstToken);
-  if (res.status === 401 && tokens.refreshToken) {
-    const next = await refreshAccess();
-    if (next) res = await run(next);
+  const attempts = retry429 ? 4 : 1;
+  let last: Response | null = null;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    let res = await run(firstToken);
+    if (res.status === 401 && tokens.refreshToken) {
+      const next = await refreshAccess();
+      if (next) res = await run(next);
+    }
+    last = res;
+    if (res.status === 429 && retry429 && attempt < attempts - 1) {
+      await wait(1200 * 2 ** attempt);
+      continue;
+    }
+    return parseJson<T>(res);
   }
-  return parseJson<T>(res);
+  if (last) return parseJson<T>(last);
+  throw new ApiError(friendlyHttpMessage(429), 429);
 }
 
 export async function apiGet<T>(path: string, token?: string | null): Promise<T> {
-  return request<T>(path, { token });
+  return request<T>(path, { token, retry429: true });
 }
 
-export async function apiPost<T>(path: string, body: unknown, token?: string | null): Promise<T> {
-  return request<T>(path, { method: "POST", body, token });
+export async function apiPost<T>(
+  path: string,
+  body: unknown,
+  token?: string | null,
+  opts?: { retry429?: boolean },
+): Promise<T> {
+  return request<T>(path, { method: "POST", body, token, retry429: opts?.retry429 });
 }
 
 export async function apiPatch<T>(path: string, body: unknown, token?: string | null): Promise<T> {
@@ -126,7 +155,34 @@ export async function apiPutBinary(
     headers: { "Content-Type": contentType },
     body,
   });
-  if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+  if (!res.ok) throw new Error(`Không tải được file lên máy chủ (${res.status})`);
+}
+
+export function apiPutBinaryProgress(
+  url: string,
+  body: Blob,
+  contentType: string,
+  onProgress?: (ratio: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", contentType);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        onProgress(event.loaded / event.total);
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+        return;
+      }
+      reject(new Error(`Không tải được file lên máy chủ (${xhr.status})`));
+    };
+    xhr.onerror = () => reject(new Error("Mất kết nối khi tải video lên. Thử lại."));
+    xhr.send(body);
+  });
 }
 
 export function formatVnd(amountMinor: number): string {

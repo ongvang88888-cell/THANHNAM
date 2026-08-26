@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Inject, Param, Post, UseGuards } from "@nestjs/common";
-import { Throttle } from "@nestjs/throttler";
+import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { IsObject, IsOptional, IsString } from "class-validator";
 import { AuthGuard, CurrentUser, type RequestUser } from "../auth/auth.guard";
 import { VideoAiEditService } from "./video-ai-edit.service";
@@ -38,28 +38,31 @@ export class VideoAiEditController {
   constructor(@Inject(VideoAiEditService) private readonly edits: VideoAiEditService) {}
 
   @Get("videos/:id/ai/catalog")
+  @SkipThrottle()
   catalog(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.edits.catalog(user, id);
   }
 
   @Get("videos/:id/ai/edits")
+  @SkipThrottle()
   list(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.edits.listEdits(user, id);
   }
 
   @Post("videos/:id/ai/edits")
-  @Throttle({ default: { limit: 12, ttl: 60_000 } })
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   start(@CurrentUser() user: RequestUser, @Param("id") id: string, @Body() dto: StartAiEditDto) {
     return this.edits.startEdit(user, id, dto.tool, dto.options);
   }
 
   @Post("videos/:id/ai/auto-publish")
-  @Throttle({ default: { limit: 8, ttl: 60_000 } })
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   autoPublish(@CurrentUser() user: RequestUser, @Param("id") id: string, @Body() dto: AutoPublishDto) {
     return this.edits.startAutoPublish(user, id, dto);
   }
 
   @Get("videos/:id/ai/edits/:editId")
+  @SkipThrottle()
   get(@CurrentUser() user: RequestUser, @Param("id") id: string, @Param("editId") editId: string) {
     return this.edits.getEdit(user, id, editId);
   }

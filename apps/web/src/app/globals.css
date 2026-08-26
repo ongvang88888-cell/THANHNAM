@@ -921,7 +921,45 @@ label { display: block; font-size: 13px; color: #6b7280; margin-bottom: 6px; }
   background: #eff6ff;
   color: #1e3a8a;
 }
+.auto-publish-progress {
+  margin: 0 0 14px;
+  padding: 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eff6ff;
+}
+.auto-publish-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: #dbeafe;
+  overflow: hidden;
+}
+.auto-publish-bar > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb, #f97316);
+  transition: width .35s ease;
+}
+.auto-publish-step {
+  margin: 10px 0 8px;
+  color: #1e3a8a;
+  font-weight: 650;
+}
+.auto-publish-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.auto-publish-steps li {
+  font-size: 13px;
+  color: #64748b;
+}
+.auto-publish-steps li.is-done { color: #15803d; }
+.auto-publish-steps li.is-current { color: #1d4ed8; font-weight: 650; }
 .auto-publish-done { margin: 0 0 12px; }
+.auto-publish-save { margin-top: 12px; }
 .auto-publish-advanced { margin: 12px 0 0; }
 .auto-publish-advanced summary {
   cursor: pointer;

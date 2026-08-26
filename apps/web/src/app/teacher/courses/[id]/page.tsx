@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { FileDrop } from "@/components/FileDrop";
 import { AutoVideoPublish } from "@/components/AutoVideoPublish";
-import { VideoAiEditPanel } from "@/components/VideoAiEditPanel";
+import { LazyVideoAiEditPanel } from "@/components/VideoAiEditPanel";
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut, apiPutBinary, formatVnd } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
 import { statusLabel, statusTone } from "@/lib/labels";
@@ -457,8 +457,7 @@ export default function TeacherCourseStudioPage() {
                   <div className="block" id="video-studio">
                     <h3>2. Video bài học</h3>
                     <p className="muted">
-                      Chọn video. Hệ thống tự chỉnh hình + tiếng, tạo phụ đề, ảnh bìa và gắn vào bài đang chọn. Không cần
-                      bấm Áp dụng hay Lưu bài cho video.
+                      Chọn video. Theo dõi thanh tiến trình (hình, tiếng, phụ đề, ảnh bìa). Khi xong, bấm Lưu vào bài.
                     </p>
                     {token && (
                       <AutoVideoPublish
@@ -467,37 +466,59 @@ export default function TeacherCourseStudioPage() {
                         courseId={course.id}
                         lessonTitle={editTitle || selectedLesson.title}
                         videoTitle={editTitle || selectedLesson.title}
+                        studioHref={`/teacher/courses/${course.id}#video`}
                         disabled={busy}
-                        onDone={(next) => {
+                        onReady={(next) => {
                           setEditVideoId(next.newVideoId);
                           if (next.title) setEditTitle(next.title);
                           if (next.description) {
                             setEditBody((current) => current.trim() || next.description || "");
                           }
-                          void load(selectedLesson.id).catch((err: Error) => setError(err.message));
-                          setMsg("Video đã chỉnh và gắn vào bài.");
                         }}
+                        onSave={async (next) => {
+                          if (!token) return;
+                          setEditVideoId(next.newVideoId);
+                          const title = (editTitle || next.title || selectedLesson.title).trim();
+                          const body = editBody.trim() || next.description || "";
+                          await apiPatch(
+                            `/teacher/courses/${course.id}/lessons/${selectedLesson.id}`,
+                            { title, isPreview: editPreview },
+                            token,
+                          );
+                          const updated = await apiPut<Course>(
+                            `/teacher/courses/${course.id}/lessons/${selectedLesson.id}/content`,
+                            {
+                              body,
+                              videoId: next.newVideoId,
+                              documentIds: editDocumentIds,
+                            },
+                            token,
+                          );
+                          setCourse(updated);
+                          const refreshed = updated.sections
+                            .flatMap((section) => section.lessons)
+                            .find((lesson) => lesson.id === selectedLesson.id);
+                          if (refreshed) applyLesson(refreshed);
+                        }}
+                        onDone={() => setMsg("Đã lưu video vào bài.")}
                       />
                     )}
                     {editVideoId && (
                       <p className="muted">Mã video hiện tại: {editVideoId}</p>
                     )}
                     {editVideoId && token && (
-                      <details className="auto-publish-advanced">
-                        <summary>Tùy chỉnh thủ công</summary>
-                        <VideoAiEditPanel
-                          videoId={editVideoId}
-                          token={token}
-                          lessonId={selectedLesson.id}
-                          courseId={course.id}
-                          variant="advanced"
-                          onNewVideoId={(id) => setEditVideoId(id)}
-                          onCopy={(copy) => {
-                            setEditTitle(copy.title);
-                            setEditBody((current) => current.trim() || copy.description);
-                          }}
-                        />
-                      </details>
+                      <LazyVideoAiEditPanel
+                        videoId={editVideoId}
+                        token={token}
+                        lessonId={selectedLesson.id}
+                        courseId={course.id}
+                        variant="advanced"
+                        onNewVideoId={(id) => setEditVideoId(id)}
+                        onCopy={(copy) => {
+                          setEditTitle(copy.title);
+                          setEditBody((current) => current.trim() || copy.description);
+                        }}
+                      />
                     )}
                   </div>
 

@@ -33,6 +33,8 @@ import {
   isPlaceholderLessonTitle,
   parseAiEditOptions,
   pictureEnhanceArgs,
+  progressFields,
+  progressForStatus,
   sceneImagePrompt,
   silenceTrimArgs,
   speechFocusArgs,
@@ -45,6 +47,7 @@ import {
   toonTalkingHeadArgs,
   type AiCapabilities,
   type AiEditOptions,
+  type AiEditStepId,
   type AiEditToolId,
   type AiPort,
 } from "@edu/ai-core";
@@ -82,6 +85,9 @@ export interface VideoAiEditOutput {
   captionStorageKey?: string;
   captionSizeBytes?: number;
   autoApplyError?: string;
+  progress?: number;
+  step?: string;
+  stepLabel?: string;
 }
 
 @Injectable()
@@ -229,6 +235,7 @@ export class VideoAiEditService {
       throw new AppError(ErrorCodes.VALIDATION, "Đang có quá nhiều lệnh AI chạy. Đợi lệnh trước xong.", 400);
     }
     const ai = createAiPortFromEnv();
+    const queued = progressFields("queue");
     const edit = await this.prisma.videoAiEdit.create({
       data: {
         videoId: video.id,
@@ -236,12 +243,29 @@ export class VideoAiEditService {
         status: "QUEUED",
         provider: this.providerFor(tool.id, ai, caps),
         inputJson: options as Prisma.InputJsonValue,
+        outputJson: { kind: "video", ...queued } as unknown as Prisma.InputJsonValue,
       },
     });
     void this.processEdit(edit.id, user).catch((err) => {
       this.log.error(`AI edit ${edit.id} crashed: ${err instanceof Error ? err.message : "unknown"}`);
     });
     return this.presentEdit(edit);
+  }
+
+  private async markStep(
+    editId: string,
+    stepId: AiEditStepId,
+    extra?: Partial<VideoAiEditOutput>,
+  ): Promise<void> {
+    const fields = progressFields(stepId);
+    const current = await this.prisma.videoAiEdit.findUnique({ where: { id: editId } });
+    if (!current) return;
+    const existing = asOutput(current.outputJson) ?? { kind: "video" as const };
+    const next: VideoAiEditOutput = { ...existing, ...extra, ...fields };
+    await this.prisma.videoAiEdit.update({
+      where: { id: editId },
+      data: { outputJson: next as unknown as Prisma.InputJsonValue },
+    });
   }
 
   async startAutoPublish(user: RequestUser, videoId: string, body: { lessonId?: string; courseId?: string }) {
@@ -368,6 +392,7 @@ export class VideoAiEditService {
 
     output.appliedAt = new Date().toISOString();
     output.autoApplyError = undefined;
+    Object.assign(output, progressFields("done"));
     await this.prisma.videoAiEdit.update({
       where: { id: edit.id },
       data: { outputJson: output as unknown as Prisma.InputJsonValue },
@@ -626,12 +651,26 @@ export class VideoAiEditService {
         throw new Error("Công cụ không hợp lệ");
       }
       const options = parseAiEditOptions(edit.inputJson);
+      await this.markStep(edit.id, "source");
       const output = await this.runTool(edit.tool, edit.video, edit.id, options);
+      const latest = await this.prisma.videoAiEdit.findUnique({ where: { id: edit.id } });
+      const prior = asOutput(latest?.outputJson ?? null);
+      const merged: VideoAiEditOutput = {
+        ...output,
+        progress: prior?.progress ?? output.progress,
+        step: prior?.step ?? output.step,
+        stepLabel: prior?.stepLabel ?? output.stepLabel,
+      };
+      if (options.autoApply && options.lessonId) {
+        Object.assign(merged, progressFields("apply"));
+      } else {
+        Object.assign(merged, progressFields("done"));
+      }
       await this.prisma.videoAiEdit.update({
         where: { id: edit.id },
         data: {
           status: "READY",
-          outputJson: output as unknown as Prisma.InputJsonValue,
+          outputJson: merged as unknown as Prisma.InputJsonValue,
           error: null,
         },
       });
@@ -917,16 +956,20 @@ export class VideoAiEditService {
     try {
       const inputPath = path.join(dir, `in${source.ext}`);
       await writeFile(inputPath, source.bytes);
+      await this.markStep(editId, "source");
       if (!(await this.probeHasAudio(inputPath))) {
         throw new Error("Video không có tiếng giảng. Gói A+B+C cần giữ lời gốc cho bản minh họa.");
       }
+      await this.markStep(editId, "enhance");
       const enhancedPath = path.join(dir, "enhance-speech.mp4");
       await this.execFfmpeg(enhanceAndSpeechArgs(inputPath, enhancedPath));
       const region = options.region ?? "pip_br";
       const style = options.style ?? "anime";
+      await this.markStep(editId, "toon");
       let lessonPath = path.join(dir, "owned-abc-lesson.mp4");
       await this.execFfmpeg(toonTalkingHeadArgs(enhancedPath, lessonPath, region, style));
       if (options.autoApply) {
+        await this.markStep(editId, "trim");
         const trimmedPath = path.join(dir, "owned-abc-trim.mp4");
         try {
           await this.execFfmpeg(silenceTrimArgs(lessonPath, trimmedPath));
@@ -944,6 +987,7 @@ export class VideoAiEditService {
       });
       await this.storage.putObject(lessonKey, lessonBytes, "video/mp4");
 
+      await this.markStep(editId, "edition");
       const edition = await this.renderIllustratedFromInput(video, editId, options, ai, dir, inputPath, "owned_abc_edition.mp4");
       const pipNote =
         region === "full"
@@ -962,6 +1006,7 @@ export class VideoAiEditService {
         providerNote: `${OWNERSHIP_DISCLAIMER} A làm nét + giảm nhạc nền. ${pipNote} B là bản minh họa riêng trên 100% tiếng gốc. ${edition.note}`,
       };
       if (options.autoApply) {
+        await this.markStep(editId, "extras");
         await this.enrichOwnedAbcOutput(video, editId, ai, dir, inputPath, lessonPath, output);
       }
       return output;
@@ -1234,6 +1279,10 @@ export class VideoAiEditService {
       editionPreviewUrl = signed.url;
     }
     const tool = getAiEditTool(edit.tool);
+    const fallback = progressForStatus(edit.status);
+    const progress = output?.progress ?? fallback.progress;
+    const step = output?.step ?? fallback.step;
+    const stepLabel = output?.stepLabel ?? fallback.stepLabel;
     return {
       id: edit.id,
       videoId: edit.videoId,
@@ -1245,6 +1294,9 @@ export class VideoAiEditService {
       error: edit.error,
       createdAt: edit.createdAt,
       updatedAt: edit.updatedAt,
+      progress,
+      step,
+      stepLabel,
       output,
       previewUrl,
       editionPreviewUrl,
@@ -1281,5 +1333,8 @@ function asOutput(value: Prisma.JsonValue | null): VideoAiEditOutput | null {
     captionStorageKey: typeof rec.captionStorageKey === "string" ? rec.captionStorageKey : undefined,
     captionSizeBytes: typeof rec.captionSizeBytes === "number" ? rec.captionSizeBytes : undefined,
     autoApplyError: typeof rec.autoApplyError === "string" ? rec.autoApplyError : undefined,
+    progress: typeof rec.progress === "number" && Number.isFinite(rec.progress) ? rec.progress : undefined,
+    step: typeof rec.step === "string" ? rec.step : undefined,
+    stepLabel: typeof rec.stepLabel === "string" ? rec.stepLabel : undefined,
   };
 }

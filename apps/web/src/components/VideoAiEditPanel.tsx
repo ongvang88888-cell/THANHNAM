@@ -3,6 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiGet, apiPost } from "@/lib/api";
 
+type VideoAiEditPanelProps = {
+  videoId: string;
+  token: string;
+  lessonId?: string;
+  courseId?: string;
+  variant?: "full" | "advanced";
+  onNewVideoId?: (videoId: string) => void;
+  onCopy?: (copy: { title: string; description: string }) => void;
+};
+
 type ToolGroup = "audio" | "image" | "copy";
 type FaceRegion = "full" | "pip_br" | "pip_bl" | "pip_tr" | "pip_tl";
 type VisualStyle = "anime" | "flat" | "watercolor";
@@ -70,15 +80,7 @@ const STYLE_LABEL: Record<VisualStyle, string> = {
   watercolor: "Màu nước",
 };
 
-export function VideoAiEditPanel(props: {
-  videoId: string;
-  token: string;
-  lessonId?: string;
-  courseId?: string;
-  variant?: "full" | "advanced";
-  onNewVideoId?: (videoId: string) => void;
-  onCopy?: (copy: { title: string; description: string }) => void;
-}) {
+export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [edits, setEdits] = useState<EditRow[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -365,5 +367,22 @@ export function VideoAiEditPanel(props: {
         ))}
       </ul>
     </div>
+  );
+}
+
+export function LazyVideoAiEditPanel(props: VideoAiEditPanelProps) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details
+      className="auto-publish-advanced"
+      onToggle={(event) => setOpen((event.currentTarget as HTMLDetailsElement).open)}
+    >
+      <summary>Tùy chỉnh thủ công</summary>
+      {open ? (
+        <VideoAiEditPanel {...props} />
+      ) : (
+        <p className="muted">Mở mục này chỉ khi cần chỉnh từng công cụ. Không mở khi đang tải video tự động.</p>
+      )}
+    </details>
   );
 }

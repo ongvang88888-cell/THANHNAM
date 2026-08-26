@@ -1,8 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { FileDrop } from "@/components/FileDrop";
-import { apiGet, apiPost, apiPutBinary } from "@/lib/api";
+import { ApiError, apiGet, apiPatch, apiPost, apiPut, apiPutBinaryProgress } from "@/lib/api";
+
+const PIPELINE_STEPS = [
+  { id: "upload", label: "Đang tải video lên máy chủ", percent: 8 },
+  { id: "queue", label: "Đã nhận video — xếp hàng chỉnh", percent: 12 },
+  { id: "source", label: "Đang đọc file gốc", percent: 18 },
+  { id: "enhance", label: "Đang làm nét hình và giảm nhạc nền", percent: 32 },
+  { id: "toon", label: "Đang chỉnh mặt / hình PIP", percent: 46 },
+  { id: "trim", label: "Đang cắt đoạn im lặng", percent: 54 },
+  { id: "edition", label: "Đang dựng bản minh họa (tiếng gốc)", percent: 72 },
+  { id: "extras", label: "Đang tạo ảnh bìa, phụ đề và mô tả", percent: 84 },
+  { id: "apply", label: "Đang gắn video vào bài học", percent: 94 },
+  { id: "done", label: "Xong — sẵn sàng lưu vào bài", percent: 100 },
+] as const;
+
+type StepId = (typeof PIPELINE_STEPS)[number]["id"];
 
 type AutoEdit = {
   id: string;
@@ -10,6 +25,9 @@ type AutoEdit = {
   error: string | null;
   previewUrl: string | null;
   editionPreviewUrl?: string | null;
+  progress?: number;
+  step?: string;
+  stepLabel?: string;
   output: {
     appliedAt?: string;
     autoApplyError?: string;
@@ -18,7 +36,21 @@ type AutoEdit = {
     title?: string;
     description?: string;
     providerNote?: string;
+    progress?: number;
+    step?: string;
+    stepLabel?: string;
   } | null;
+};
+
+type LessonSnapshot = {
+  id: string;
+  title: string;
+  contents: Array<{ contentType: string; body?: string | null; refId?: string | null }>;
+};
+
+type CourseSnapshot = {
+  id: string;
+  sections: Array<{ lessons: LessonSnapshot[] }>;
 };
 
 export type AutoPublishResult = {
@@ -31,28 +63,57 @@ export type AutoPublishResult = {
   editionPreviewUrl: string | null;
 };
 
-const STATUS_COPY: Record<AutoEdit["status"], string> = {
-  QUEUED: "Đã nhận video — đang xếp chỉnh hình + tiếng…",
-  PROCESSING: "Đang chỉnh hình, tiếng, phụ đề, ảnh bìa và gắn vào bài…",
-  READY: "Đang gắn video vào bài học…",
-  FAILED: "Không chỉnh được video",
-};
+const MAX_UPLOAD_BYTES = 400 * 1024 * 1024;
 
 async function wait(ms: number) {
   await new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-async function pollEdit(videoId: string, editId: string, token: string): Promise<AutoEdit> {
-  const deadline = Date.now() + 15 * 60 * 1000;
-  while (Date.now() < deadline) {
-    const edit = await apiGet<AutoEdit>(`/videos/${videoId}/ai/edits/${editId}`, token);
-    if (edit.status === "FAILED") return edit;
-    if (edit.status === "READY" && (edit.output?.appliedAt || edit.output?.autoApplyError)) {
-      return edit;
+function stepById(id: string | undefined) {
+  return PIPELINE_STEPS.find((step) => step.id === id);
+}
+
+function friendlyError(err: unknown): string {
+  if (err instanceof ApiError) return err.message;
+  if (err instanceof Error) {
+    if (/Throttler|Too Many Requests/i.test(err.message)) {
+      return "Hệ thống đang bận. Đợi khoảng 20 giây rồi chọn lại video.";
     }
-    await wait(2500);
+    return err.message;
   }
-  throw new Error("Chỉnh video quá lâu. Thử lại với file ngắn hơn.");
+  return "Không tải và chỉnh được video";
+}
+
+async function withThrottleRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
+  let last: unknown;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      last = err;
+      const throttled =
+        (err instanceof ApiError && err.status === 429) ||
+        (err instanceof Error && /Throttler|Too Many Requests/i.test(err.message));
+      if (throttled && attempt < attempts - 1) {
+        await wait(1500 * 2 ** attempt);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw last instanceof Error ? last : new Error("Hệ thống đang bận. Đợi khoảng 20 giây rồi chọn lại video.");
+}
+
+function resultFromEdit(sourceVideoId: string, edit: AutoEdit): AutoPublishResult {
+  return {
+    sourceVideoId,
+    newVideoId: edit.output?.newVideoId || sourceVideoId,
+    editionVideoId: edit.output?.editionVideoId,
+    title: edit.output?.title,
+    description: edit.output?.description,
+    previewUrl: edit.previewUrl,
+    editionPreviewUrl: edit.editionPreviewUrl ?? null,
+  };
 }
 
 export function AutoVideoPublish(props: {
@@ -61,25 +122,114 @@ export function AutoVideoPublish(props: {
   courseId?: string;
   lessonTitle?: string;
   videoTitle?: string;
+  studioHref?: string;
   disabled?: boolean;
+  onReady?: (result: AutoPublishResult) => void;
+  onSave?: (result: AutoPublishResult) => Promise<void> | void;
   onDone?: (result: AutoPublishResult) => void;
 }) {
-  const [phase, setPhase] = useState<"idle" | "working" | "done" | "failed">("idle");
-  const [statusText, setStatusText] = useState("");
+  const [phase, setPhase] = useState<"idle" | "working" | "ready" | "saving" | "saved" | "failed">("idle");
+  const [progress, setProgress] = useState(0);
+  const [stepId, setStepId] = useState<StepId>("upload");
+  const [stepLabel, setStepLabel] = useState<string>(PIPELINE_STEPS[0].label);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AutoPublishResult | null>(null);
+  const [pendingEdit, setPendingEdit] = useState<AutoEdit | null>(null);
+  const [sourceVideoId, setSourceVideoId] = useState<string | null>(null);
 
-  const ready = Boolean(props.lessonId) && !props.disabled && phase !== "working";
+  const ready = Boolean(props.lessonId) && !props.disabled && phase !== "working" && phase !== "saving";
+  const showBar = phase === "working" || phase === "ready" || phase === "saving" || phase === "saved";
+
+  const currentIndex = useMemo(
+    () => Math.max(0, PIPELINE_STEPS.findIndex((step) => step.id === stepId)),
+    [stepId],
+  );
+
+  function applyClientStep(id: StepId, percent?: number) {
+    const step = stepById(id);
+    if (!step) return;
+    setStepId(step.id);
+    setStepLabel(step.label);
+    setProgress(percent ?? step.percent);
+  }
+
+  function applyServerEdit(edit: AutoEdit) {
+    const nextProgress = edit.output?.progress ?? edit.progress;
+    const nextStep = edit.output?.step ?? edit.step;
+    const nextLabel = edit.output?.stepLabel ?? edit.stepLabel;
+    const known = stepById(nextStep);
+    if (known) setStepId(known.id);
+    if (nextLabel) setStepLabel(nextLabel);
+    if (typeof nextProgress === "number" && Number.isFinite(nextProgress)) {
+      setProgress(Math.max(0, Math.min(100, Math.round(nextProgress))));
+    } else if (known) {
+      setProgress(known.percent);
+    }
+  }
+
+  async function pollEdit(videoId: string, editId: string): Promise<AutoEdit> {
+    const deadline = Date.now() + 15 * 60 * 1000;
+    let last: AutoEdit | null = null;
+    while (Date.now() < deadline) {
+      const edit = await withThrottleRetry(() =>
+        apiGet<AutoEdit>(`/videos/${videoId}/ai/edits/${editId}`, props.token),
+      );
+      last = edit;
+      applyServerEdit(edit);
+      if (edit.status === "FAILED" || edit.status === "READY") return edit;
+      await wait(3500);
+    }
+    throw new Error(last ? "Chỉnh video quá lâu. Thử lại với file ngắn hơn." : "Không đọc được tiến trình chỉnh video.");
+  }
+
+  async function persistLesson(next: AutoPublishResult) {
+    if (!props.courseId || !props.lessonId) {
+      throw new Error("Thiếu khóa học hoặc bài học để lưu.");
+    }
+    const course = await apiGet<CourseSnapshot>(`/teacher/courses/${props.courseId}`, props.token);
+    const lesson = course.sections.flatMap((section) => section.lessons).find((row) => row.id === props.lessonId);
+    if (!lesson) throw new Error("Không tìm thấy bài học để lưu.");
+    const existingBody = lesson.contents.find((row) => row.contentType === "TEXT")?.body?.trim() || "";
+    const documentIds = lesson.contents
+      .filter((row) => row.contentType === "DOCUMENT" && row.refId)
+      .map((row) => String(row.refId));
+    const placeholder = !lesson.title.trim() || /^(bài(\s*học)?(\s*mới)?(\s*\d+)?|lesson(\s+\d+)?|new lesson|video bài học)$/i.test(lesson.title.trim());
+    const title = (placeholder ? next.title || props.lessonTitle || lesson.title : lesson.title).trim();
+    await apiPatch(
+      `/teacher/courses/${props.courseId}/lessons/${props.lessonId}`,
+      { title },
+      props.token,
+    );
+    await apiPut(
+      `/teacher/courses/${props.courseId}/lessons/${props.lessonId}/content`,
+      {
+        body: existingBody || next.description || "",
+        videoId: next.newVideoId,
+        documentIds,
+      },
+      props.token,
+    );
+  }
 
   async function handleFile(file: File) {
     if (!props.lessonId) {
       setError("Chọn bài học trước khi tải video.");
       return;
     }
+    if (file.size < 1024) {
+      setError("File video quá nhỏ hoặc trống.");
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError("Video quá lớn (tối đa 400MB).");
+      return;
+    }
     setPhase("working");
     setError(null);
     setResult(null);
-    setStatusText("Đang tải video lên…");
+    setPendingEdit(null);
+    setSourceVideoId(null);
+    applyClientStep("upload", 2);
     try {
       const session = await apiPost<{ videoId: string; upload: { url: string } }>(
         "/videos/upload-sessions",
@@ -90,47 +240,93 @@ export function AutoVideoPublish(props: {
         },
         props.token,
       );
-      await apiPutBinary(session.upload.url, file, file.type || "video/mp4").catch(() => undefined);
-      await apiPost(`/videos/${session.videoId}/complete`, { sizeBytes: file.size }, props.token);
-      setStatusText("Đang chỉnh hình + tiếng và gắn vào bài…");
-      const started = await apiPost<AutoEdit>(
-        `/videos/${session.videoId}/ai/auto-publish`,
-        { lessonId: props.lessonId, courseId: props.courseId },
+      setSourceVideoId(session.videoId);
+      await apiPutBinaryProgress(session.upload.url, file, file.type || "video/mp4", (ratio) => {
+        applyClientStep("upload", Math.max(2, Math.round(ratio * 8)));
+      });
+      await apiPost(
+        `/videos/${session.videoId}/complete`,
+        { sizeBytes: file.size },
         props.token,
+        { retry429: true },
       );
-      setStatusText(STATUS_COPY[started.status]);
-      let edit = await pollEdit(session.videoId, started.id, props.token);
+      applyClientStep("queue");
+      const started = await withThrottleRetry(
+        () =>
+          apiPost<AutoEdit>(
+            `/videos/${session.videoId}/ai/auto-publish`,
+            { lessonId: props.lessonId, courseId: props.courseId },
+            props.token,
+            { retry429: true },
+          ),
+        4,
+      );
+      applyServerEdit(started);
+      let edit = await pollEdit(session.videoId, started.id);
       if (edit.status === "READY" && edit.output?.autoApplyError && !edit.output.appliedAt) {
-        setStatusText("Đã chỉnh xong — đang gắn lại vào bài…");
-        edit = await apiPost<AutoEdit>(
-          `/videos/${session.videoId}/ai/edits/${edit.id}/apply`,
-          { lessonId: props.lessonId, courseId: props.courseId },
-          props.token,
+        applyClientStep("apply");
+        edit = await withThrottleRetry(
+          () =>
+            apiPost<AutoEdit>(
+              `/videos/${session.videoId}/ai/edits/${edit.id}/apply`,
+              { lessonId: props.lessonId, courseId: props.courseId },
+              props.token,
+              { retry429: true },
+            ),
+          3,
         );
+        applyServerEdit(edit);
       }
       if (edit.status === "FAILED") {
         throw new Error(edit.error || "Không chỉnh được video");
       }
-      if (!edit.output?.appliedAt) {
-        throw new Error(edit.output?.autoApplyError || "Đã chỉnh video nhưng chưa gắn được vào bài.");
-      }
-      const next: AutoPublishResult = {
-        sourceVideoId: session.videoId,
-        newVideoId: edit.output.newVideoId || session.videoId,
-        editionVideoId: edit.output.editionVideoId,
-        title: edit.output.title,
-        description: edit.output.description,
-        previewUrl: edit.previewUrl,
-        editionPreviewUrl: edit.editionPreviewUrl ?? null,
-      };
+      const next = resultFromEdit(session.videoId, edit);
+      setPendingEdit(edit);
       setResult(next);
-      setPhase("done");
-      setStatusText("Xong — video đã gắn vào bài.");
-      props.onDone?.(next);
+      applyClientStep("done");
+      setPhase("ready");
+      props.onReady?.(next);
     } catch (err) {
       setPhase("failed");
-      setError(err instanceof Error ? err.message : "Không tải và gắn được video");
-      setStatusText("");
+      setError(friendlyError(err));
+    }
+  }
+
+  async function handleSave() {
+    if (!result || !props.lessonId || !sourceVideoId) return;
+    setPhase("saving");
+    setError(null);
+    applyClientStep("apply");
+    try {
+      let edit = pendingEdit;
+      if (edit && !edit.output?.appliedAt) {
+        const editId = edit.id;
+        edit = await withThrottleRetry(
+          () =>
+            apiPost<AutoEdit>(
+              `/videos/${sourceVideoId}/ai/edits/${editId}/apply`,
+              { lessonId: props.lessonId, courseId: props.courseId },
+              props.token,
+              { retry429: true },
+            ),
+          3,
+        );
+        applyServerEdit(edit);
+      }
+      const next = edit ? resultFromEdit(sourceVideoId, edit) : result;
+      setPendingEdit(edit);
+      setResult(next);
+      if (props.onSave) {
+        await props.onSave(next);
+      } else {
+        await persistLesson(next);
+      }
+      applyClientStep("done");
+      setPhase("saved");
+      props.onDone?.(next);
+    } catch (err) {
+      setPhase("ready");
+      setError(friendlyError(err));
     }
   }
 
@@ -149,16 +345,39 @@ export function AutoVideoPublish(props: {
         accept="video/mp4,video/*,application/octet-stream"
         disabled={!ready}
         label="Chọn video để lên bài"
-        hint="Hệ thống tự chỉnh hình + tiếng, phụ đề, ảnh bìa rồi gắn vào bài đã chọn"
+        hint="Chọn một file. Hệ thống tự chỉnh hình + tiếng, phụ đề, ảnh bìa. Khi xong, bấm Lưu vào bài."
         onFile={(file) => void handleFile(file)}
       />
       <p className="muted auto-publish-legal">
         Chỉ dùng video bạn sở hữu. Đổi phong cách hay giảm nhạc nền không xóa bản quyền nội dung người khác.
       </p>
-      {phase === "working" && <p className="auto-publish-status">{statusText}</p>}
-      {phase === "done" && result && (
+      {showBar && (
+        <div className="auto-publish-progress" aria-live="polite">
+          <div className="auto-publish-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+            <span style={{ width: `${progress}%` }} />
+          </div>
+          <p className="auto-publish-step">
+            {progress}% — {stepLabel}
+          </p>
+          <ol className="auto-publish-steps">
+            {PIPELINE_STEPS.map((step, index) => {
+              const state = index < currentIndex ? "is-done" : index === currentIndex ? "is-current" : "";
+              return (
+                <li key={step.id} className={state}>
+                  {index < currentIndex ? "✓" : index === currentIndex ? "→" : "·"} {step.label}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      )}
+      {(phase === "ready" || phase === "saving" || phase === "saved") && result && (
         <div className="auto-publish-done">
-          <p className="ok">{statusText}</p>
+          {phase === "ready" && (
+            <p className="ok">Đã chỉnh xong. Kiểm tra video rồi bấm Lưu vào bài.</p>
+          )}
+          {phase === "saving" && <p className="auto-publish-status">Đang lưu video vào bài học…</p>}
+          {phase === "saved" && <p className="ok">Đã lưu vào bài.</p>}
           {result.previewUrl && (
             <>
               <div className="muted">Bài học đã chỉnh</div>
@@ -170,6 +389,16 @@ export function AutoVideoPublish(props: {
               <div className="muted">Bản minh họa (tiếng gốc)</div>
               <video className="ai-edit-preview" src={result.editionPreviewUrl} controls preload="metadata" />
             </>
+          )}
+          {phase !== "saved" && (
+            <button type="button" className="auto-publish-save" disabled={phase === "saving"} onClick={() => void handleSave()}>
+              {phase === "saving" ? "Đang lưu…" : "Lưu vào bài"}
+            </button>
+          )}
+          {phase === "saved" && props.studioHref && (
+            <a className="btn secondary" href={props.studioHref}>
+              Mở studio bài học
+            </a>
           )}
         </div>
       )}

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { AutoVideoPublish } from "@/components/AutoVideoPublish";
 import { FileDrop } from "@/components/FileDrop";
-import { VideoAiEditPanel } from "@/components/VideoAiEditPanel";
+import { LazyVideoAiEditPanel } from "@/components/VideoAiEditPanel";
 import { apiGet, apiPost, apiPutBinary, formatVnd } from "@/lib/api";
 import { hasRole, useRequireAuth } from "@/lib/auth";
 import { productTypeLabel, statusLabel, statusTone } from "@/lib/labels";
@@ -393,7 +393,7 @@ export default function TeacherPage() {
         <div className="panel" style={{ maxWidth: 640 }}>
           <h2>Tải video vào bài</h2>
           <p className="muted">
-            Chọn khóa, chọn bài, rồi chọn video. Hệ thống tự chỉnh hình + tiếng và gắn vào bài đó.
+            Chọn khóa, chọn bài, rồi chọn video. Theo dõi thanh tiến trình; khi xong, bấm Lưu vào bài.
           </p>
           <label>Khóa học</label>
           <select value={attachCourseId} onChange={(e) => setAttachCourseId(e.target.value)}>
@@ -427,24 +427,23 @@ export default function TeacherPage() {
               lessonId={attachLessonId || undefined}
               lessonTitle={courseLessons.find((lesson) => lesson.id === attachLessonId)?.title}
               videoTitle={videoTitle}
+              studioHref={attachCourseId ? `/teacher/courses/${attachCourseId}#video` : undefined}
+              onReady={(next) => setLastVideoId(next.newVideoId)}
               onDone={(next) => {
                 setLastVideoId(next.newVideoId);
-                setMsg("Video đã chỉnh và gắn vào bài.");
+                setMsg("Đã lưu video vào bài.");
               }}
             />
           )}
           {lastVideoId && token && (
-            <details className="auto-publish-advanced">
-              <summary>Tùy chỉnh thủ công</summary>
-              <VideoAiEditPanel
-                videoId={lastVideoId}
-                token={token}
-                lessonId={attachLessonId || undefined}
-                courseId={attachCourseId || undefined}
-                variant="advanced"
-                onNewVideoId={setLastVideoId}
-              />
-            </details>
+            <LazyVideoAiEditPanel
+              videoId={lastVideoId}
+              token={token}
+              lessonId={attachLessonId || undefined}
+              courseId={attachCourseId || undefined}
+              variant="advanced"
+              onNewVideoId={setLastVideoId}
+            />
           )}
           {attachCourseId && (
             <a className="btn secondary" href={`/teacher/courses/${attachCourseId}#video`}>

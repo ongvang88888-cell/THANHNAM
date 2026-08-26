@@ -8,6 +8,19 @@ import {
 import { AppError } from "@edu/shared-core";
 import type { Response } from "express";
 
+function httpErrorMessage(status: number, body: string | object, exception: HttpException): string {
+  if (status === 429) {
+    return "Hệ thống đang bận. Đợi khoảng 20 giây rồi chọn lại video.";
+  }
+  if (typeof body === "string" && body.trim()) return body;
+  if (body && typeof body === "object") {
+    const message = (body as { message?: string | string[] }).message;
+    if (Array.isArray(message) && message.length > 0) return message.join("; ");
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return exception.message;
+}
+
 @Catch()
 export class AppErrorFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
@@ -32,8 +45,8 @@ export class AppErrorFilter implements ExceptionFilter {
       const body = exception.getResponse();
       res.status(status).json({
         error: {
-          code: status === 401 ? "UNAUTHENTICATED" : "HTTP_ERROR",
-          message: typeof body === "string" ? body : (body as { message?: string }).message ?? exception.message,
+          code: status === 401 ? "UNAUTHENTICATED" : status === 429 ? "TOO_MANY_REQUESTS" : "HTTP_ERROR",
+          message: httpErrorMessage(status, body, exception),
           details: typeof body === "object" ? body : undefined,
           requestId,
         },
