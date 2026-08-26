@@ -535,8 +535,8 @@ export class VideoAiEditService implements OnModuleInit {
         const output = asOutput(latest?.outputJson ?? null);
         const assigned =
           attachByRef.get(video.id) ?? (output?.newVideoId ? attachByRef.get(output.newVideoId) : undefined) ?? null;
-        const presented = latest ? await this.presentEdit(latest) : null;
-        const thumbnailKey = output?.thumbnailStorageKey || video.thumbnailKey;
+        const presented = latest ? await this.presentEdit(latest, video.storageKey) : null;
+        const thumbnailKey = await this.firstExistingKey([output?.thumbnailStorageKey, video.thumbnailKey]);
         const thumbnailUrl = thumbnailKey
           ? (await this.storage.createDownloadUrl({ key: thumbnailKey, ttlSeconds: 600 })).url
           : null;
@@ -2112,20 +2112,43 @@ export class VideoAiEditService implements OnModuleInit {
     }
   }
 
-  private async presentEdit(edit: VideoAiEdit) {
+  private async firstExistingKey(keys: Array<string | null | undefined>): Promise<string | null> {
+    for (const key of keys) {
+      if (!key) continue;
+      try {
+        const head = await this.storage.head(key);
+        if (head && head.sizeBytes > 0) return key;
+      } catch {
+        // try the next candidate
+      }
+    }
+    return null;
+  }
+
+  private async presentEdit(edit: VideoAiEdit, fallbackStorageKey?: string | null) {
     const output = asOutput(edit.outputJson);
+    let sourceKey = fallbackStorageKey ?? null;
+    if (!sourceKey) {
+      const video = await this.prisma.video.findUnique({
+        where: { id: edit.videoId },
+        select: { storageKey: true },
+      });
+      sourceKey = video?.storageKey ?? null;
+    }
+    const previewKey = await this.firstExistingKey([output?.storageKey, sourceKey]);
+    const editionKey = await this.firstExistingKey([output?.editionStorageKey]);
     let previewUrl: string | null = null;
     let editionPreviewUrl: string | null = null;
-    if (output?.storageKey) {
+    if (previewKey) {
       const signed = await this.storage.createDownloadUrl({
-        key: output.storageKey,
+        key: previewKey,
         ttlSeconds: 600,
       });
       previewUrl = signed.url;
     }
-    if (output?.editionStorageKey) {
+    if (editionKey) {
       const signed = await this.storage.createDownloadUrl({
-        key: output.editionStorageKey,
+        key: editionKey,
         ttlSeconds: 600,
       });
       editionPreviewUrl = signed.url;
