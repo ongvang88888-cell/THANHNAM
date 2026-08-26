@@ -68,6 +68,19 @@ export function buildHeygenTranslateBody(input: { videoUrl: string; title: strin
   };
 }
 
+export function isAllowedHeygenMediaUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") return false;
+    const host = parsed.hostname.toLowerCase();
+    if (host === "heygen.com" || host.endsWith(".heygen.com")) return true;
+    if (host === "heygen.ai" || host.endsWith(".heygen.ai")) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export function parseHeygenVideoId(payload: unknown): string {
   if (!payload || typeof payload !== "object") throw new Error("HeyGen trả về rỗng");
   const rec = payload as Record<string, unknown>;
@@ -92,10 +105,14 @@ export function parseHeygenStatus(payload: unknown): {
     const error = typeof data.error === "string" ? data.error : "HeyGen xử lý thất bại";
     return { status: "failed", videoUrl: null, error };
   }
-  const videoUrl =
+  const rawUrl =
     (typeof data.video_url === "string" && data.video_url) ||
     (typeof data.url === "string" && data.url) ||
     null;
+  const videoUrl = rawUrl && isAllowedHeygenMediaUrl(rawUrl) ? rawUrl : null;
+  if (rawUrl && !videoUrl) {
+    return { status: "failed", videoUrl: null, error: "HeyGen trả URL không hợp lệ" };
+  }
   if (raw === "completed" || raw === "success" || videoUrl) {
     return { status: "completed", videoUrl, error: null };
   }

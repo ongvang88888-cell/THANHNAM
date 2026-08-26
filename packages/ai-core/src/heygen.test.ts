@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildHeygenAvatarBody, buildHeygenTranslateBody, parseHeygenStatus, parseHeygenVideoId } from "./heygen";
+import {
+  buildHeygenAvatarBody,
+  buildHeygenTranslateBody,
+  isAllowedHeygenMediaUrl,
+  parseHeygenStatus,
+  parseHeygenVideoId,
+} from "./heygen";
 
 describe("heygen", () => {
   it("avatar generate body uses talking photo + voice", () => {
@@ -39,5 +45,13 @@ describe("heygen", () => {
     expect(done.status).toBe("completed");
     expect(done.videoUrl).toBe("https://cdn.heygen.com/out.mp4");
     expect(parseHeygenStatus({ data: { status: "failed", error: "bad" } }).error).toBe("bad");
+  });
+
+  it("allows only HeyGen https media hosts", () => {
+    expect(isAllowedHeygenMediaUrl("https://files2.heygen.com/out.mp4")).toBe(true);
+    expect(isAllowedHeygenMediaUrl("https://cdn.heygen.ai/out.mp4")).toBe(true);
+    expect(isAllowedHeygenMediaUrl("https://127.0.0.1/out.mp4")).toBe(false);
+    expect(isAllowedHeygenMediaUrl("http://files2.heygen.com/out.mp4")).toBe(false);
+    expect(isAllowedHeygenMediaUrl("https://evil.example/out.mp4")).toBe(false);
   });
 });

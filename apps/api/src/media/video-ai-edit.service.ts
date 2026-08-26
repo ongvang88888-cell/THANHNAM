@@ -53,6 +53,7 @@ import {
   heuristicCuesFromTitle,
   heygenApiKey,
   heygenHeaders,
+  isAllowedHeygenMediaUrl,
   illustratedConcatArgs,
   isAiEditToolId,
   isPlaceholderLessonTitle,
@@ -2030,10 +2031,13 @@ export class VideoAiEditService implements OnModuleInit {
   }
 
   private async downloadRemoteFile(url: string, dest: string): Promise<void> {
-    if (!url.startsWith("https://")) {
-      throw new Error("Chỉ tải video từ URL https");
+    if (!isAllowedHeygenMediaUrl(url)) {
+      throw new Error("Chỉ tải video từ máy chủ HeyGen (https)");
     }
     const res = await fetch(url, { signal: AbortSignal.timeout(180_000), redirect: "follow" });
+    if (!isAllowedHeygenMediaUrl(res.url)) {
+      throw new Error("HeyGen chuyển hướng tới host không hợp lệ");
+    }
     if (!res.ok || !res.body) {
       throw new Error(`Tải video remote thất bại (${res.status})`);
     }

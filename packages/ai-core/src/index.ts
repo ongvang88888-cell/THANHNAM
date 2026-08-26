@@ -30,6 +30,7 @@ export {
   buildHeygenTranslateBody,
   heygenApiKey,
   heygenHeaders,
+  isAllowedHeygenMediaUrl,
   parseHeygenStatus,
   parseHeygenVideoId,
 } from "./heygen";
