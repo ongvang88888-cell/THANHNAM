@@ -176,7 +176,7 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
     group: "image",
     label: "Người dẫn ảo (avatar)",
     description:
-      "Dựng người dẫn ảo (HeyGen Photo Avatar / avatar sẵn) rồi ghép góc màn hình bài giảng, giữ tiếng gốc. Có ảnh https thì dùng talking photo. Không có khóa thì ảnh + TTS. Không chạy tự động. Cần xác nhận người ảo / ảnh hợp lệ.",
+      "Dựng người dẫn ảo (HeyGen Photo Avatar / avatar sẵn) rồi che người trong video gốc (khung giữa), lặp clip ngắn, giữ slide ngoài khung và tiếng bài. Chọn ghép góc nếu chỉ muốn PIP. Có ảnh https thì dùng talking photo. Không chạy tự động. Cần xác nhận người ảo / ảnh hợp lệ.",
     market: "HeyGen Photo to Video / Avatar IV",
     outputKind: "video",
     needs: ["ffmpeg"],
@@ -187,7 +187,7 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
     group: "image",
     label: "Nhân vật 3D Hailuo (MiniMax)",
     description:
-      "Ảnh tĩnh (Leonardo/Ideogram/ChatGPT hoặc ảnh bạn dán) → MiniMax Hailuo chuyển động → ghép góc bài giảng. Môi kém hơn HeyGen. Có TTS thì ghép giọng Việt. Cần MINIMAX_API_KEY. Không chạy tự động.",
+      "Ảnh tĩnh (Leonardo/Ideogram/ChatGPT hoặc ảnh bạn dán) → MiniMax Hailuo chuyển động → che người trong video gốc, lặp clip, giữ tiếng bài. Môi kém hơn HeyGen. Có TTS thì ghép giọng Việt. Cần MINIMAX_API_KEY. Không chạy tự động.",
     market: "Hailuo / MiniMax H3 image-to-video + Vbee/Gemini TTS",
     outputKind: "video",
     needs: ["ffmpeg"],
@@ -198,7 +198,7 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
     group: "image",
     label: "Mở bài Veo 3 (8 giây)",
     description:
-      "Sinh clip mở bài ~8 giây có tiếng nói (Google Veo 3.1 qua Gemini API), rồi nối trước bài giảng. Mặt có thể lệch giữa các lần. Cần GEMINI_API_KEY/VEO_API_KEY gói trả phí. Không thay cả bài. Không chạy tự động.",
+      "Sinh clip ~8 giây có tiếng nói (Google Veo 3.1 qua Gemini API). Mặc định nối trước bài. Có thể chọn thay người — lúc đó clip lặp để che người gốc, miệng không khớp cả bài. Cần GEMINI_API_KEY/VEO_API_KEY gói trả phí. Không chạy tự động.",
     market: "Google Veo 3.1 / Gemini / Flow",
     outputKind: "video",
     needs: ["ffmpeg"],

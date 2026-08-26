@@ -136,6 +136,8 @@ export {
 export {
   captionStillArgs,
   characterPipOverlayArgs,
+  characterReplaceCoverArgs,
+  characterReplaceCoverGraph,
   concatNormalizedArgs,
   cartoonInkOpacity,
   cartoonInkVf,

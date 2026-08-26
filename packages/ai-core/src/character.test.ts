@@ -8,9 +8,9 @@ import {
 } from "./character";
 
 describe("character insert helpers", () => {
-  it("defaults overlay for talking inserts and intro for Veo", () => {
-    expect(defaultInsertMode("avatar_presenter")).toBe("overlay");
-    expect(defaultInsertMode("hailuo_character")).toBe("overlay");
+  it("defaults replace-person for talking inserts and intro for Veo", () => {
+    expect(defaultInsertMode("avatar_presenter")).toBe("replace");
+    expect(defaultInsertMode("hailuo_character")).toBe("replace");
     expect(defaultInsertMode("veo_intro")).toBe("intro");
     expect(overlayRegionForInsert("speaker")).toBe("pip_br");
     expect(overlayRegionForInsert("pip_tl")).toBe("pip_tl");

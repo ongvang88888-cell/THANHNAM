@@ -1,4 +1,4 @@
-export const INSERT_MODES = ["overlay", "intro", "replace"] as const;
+export const INSERT_MODES = ["replace", "overlay", "intro", "standalone"] as const;
 export const CHARACTER_LOOKS = ["teacher", "cartoon_kid", "custom"] as const;
 export const INSERT_PIP_REGIONS = ["pip_br", "pip_bl", "pip_tr", "pip_tl"] as const;
 
@@ -24,7 +24,6 @@ export function overlayRegionForInsert(region: string | undefined): InsertPipReg
 
 export function defaultInsertMode(toolId: string): InsertMode {
   if (toolId === "veo_intro") return "intro";
-  if (toolId === "avatar_presenter" || toolId === "hailuo_character") return "overlay";
   return "replace";
 }
 

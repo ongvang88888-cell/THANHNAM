@@ -17,7 +17,7 @@ type ToolGroup = "audio" | "image" | "copy";
 type FaceRegion = "speaker" | "full" | "pip_br" | "pip_bl" | "pip_tr" | "pip_tl";
 type VisualStyle = "trend" | "anime" | "flat" | "watercolor";
 type ToonStrength = "low" | "medium" | "high";
-type InsertMode = "overlay" | "intro" | "replace";
+type InsertMode = "replace" | "overlay" | "intro" | "standalone";
 type CharacterLook = "teacher" | "cartoon_kid" | "custom";
 
 type CatalogTool = {
@@ -115,9 +115,10 @@ const STRENGTH_LABEL: Record<ToonStrength, string> = {
 };
 
 const INSERT_LABEL: Record<InsertMode, string> = {
+  replace: "Thay người trong bài (che người gốc, giữ tiếng)",
   overlay: "Ghép góc màn hình (giữ tiếng bài)",
   intro: "Nối trước bài (mở bài)",
-  replace: "Chỉ clip nhân vật (không ghép)",
+  standalone: "Chỉ clip nhân vật (không ghép)",
 };
 
 const LOOK_LABEL: Record<CharacterLook, string> = {
@@ -143,7 +144,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
   const [confirmVoiceClone, setConfirmVoiceClone] = useState(false);
   const [script, setScript] = useState("");
   const [characterImageUrl, setCharacterImageUrl] = useState("");
-  const [insertMode, setInsertMode] = useState<InsertMode>("overlay");
+  const [insertMode, setInsertMode] = useState<InsertMode>("replace");
   const [characterLook, setCharacterLook] = useState<CharacterLook>("teacher");
   const [targetLanguage, setTargetLanguage] = useState<(typeof TARGET_LANGUAGES)[number]["id"]>("vi");
   const [startSec, setStartSec] = useState("");
@@ -441,7 +442,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
           />
         </div>
         <div>
-          <label htmlFor="ai-edit-insert">Cách ghép nhân vật vào bài</label>
+          <label htmlFor="ai-edit-insert">Cách đưa nhân vật vào bài</label>
           <select
             id="ai-edit-insert"
             value={insertMode}
@@ -453,6 +454,9 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
               </option>
             ))}
           </select>
+          <p className="muted">
+            Thay người: clip AI che người gốc (vùng mặt), lặp hết bài, giữ tiếng bài. Không xóa mặt từng pixel như face-swap.
+          </p>
         </div>
         <div>
           <label htmlFor="ai-edit-look">Kiểu nhân vật</label>

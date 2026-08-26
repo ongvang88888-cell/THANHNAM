@@ -225,7 +225,7 @@ export function parseAiEditOptions(input: unknown): AiEditOptions {
   }
   if (rec.insertMode !== undefined) {
     if (typeof rec.insertMode !== "string" || !isInsertMode(rec.insertMode)) {
-      throw new Error("insertMode phải là overlay, intro hoặc replace");
+      throw new Error("insertMode phải là replace, overlay, intro hoặc standalone");
     }
     out.insertMode = rec.insertMode;
   }

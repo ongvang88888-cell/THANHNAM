@@ -105,6 +105,8 @@ describe("parseAiEditOptions", () => {
     });
     expect(() => parseAiEditOptions({ characterImageUrl: "http://ideogram.ai/a.png" })).toThrow(/https/);
     expect(() => parseAiEditOptions({ insertMode: "side" })).toThrow(/insertMode/);
+    expect(parseAiEditOptions({ insertMode: "standalone" })).toEqual({ insertMode: "standalone" });
+    expect(parseAiEditOptions({ insertMode: "replace" })).toEqual({ insertMode: "replace" });
     expect(() => assertStudioConsent("video_translate", { confirmOwned: true })).toThrow(/targetLanguage/);
     expect(() => assertStudioConsent("toon_talking_head", { confirmOwned: true })).toThrow(/confirmFaceEdit/);
     expect(() =>

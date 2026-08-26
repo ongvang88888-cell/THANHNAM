@@ -560,6 +560,77 @@ export function illustratedConcatArgs(listPath: string, audioPath: string, outpu
   ];
 }
 
+/** Cover the filmed speaker with a looped AI clip. Keeps lecture audio. ffmpeg 4.2-safe. */
+export function characterReplaceCoverGraph(region: FaceRegion): string {
+  switch (region) {
+    case "full":
+      return [
+        "[1:v][0:v]scale2ref=w=main_w:h=main_h[ov][base]",
+        "[ov]scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p[ov2]",
+        "[base][ov2]overlay=0:0:shortest=1[v]",
+      ].join(";");
+    case "speaker":
+      return [
+        "[1:v][0:v]scale2ref=w=main_w*0.64:h=main_h*0.88[ov][base]",
+        "[ov]scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p[ov2]",
+        `[base][ov2]${speakerGeometry().overlay}:shortest=1[v]`,
+      ].join(";");
+    case "pip_br":
+    case "pip_bl":
+    case "pip_tr":
+    case "pip_tl":
+      return [
+        "[1:v][0:v]scale2ref=w=main_w*0.42:h=main_h*0.72[ov][base]",
+        "[ov]scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p[ov2]",
+        `[base][ov2]${pipGeometry(region).overlay}:shortest=1[v]`,
+      ].join(";");
+    default: {
+      const _never: never = region;
+      return _never;
+    }
+  }
+}
+
+export function characterReplaceCoverArgs(
+  lecturePath: string,
+  overlayPath: string,
+  outputPath: string,
+  region: FaceRegion,
+): string[] {
+  return [
+    "-y",
+    "-i",
+    lecturePath,
+    "-stream_loop",
+    "-1",
+    "-i",
+    overlayPath,
+    "-filter_complex",
+    characterReplaceCoverGraph(region),
+    "-map",
+    "[v]",
+    "-map",
+    "0:a?",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "23",
+    "-pix_fmt",
+    "yuv420p",
+    ...ffmpegThreadArgs(),
+    "-c:a",
+    "aac",
+    "-b:a",
+    "128k",
+    "-shortest",
+    "-movflags",
+    "+faststart",
+    outputPath,
+  ];
+}
+
 /** PIP a short character clip onto a lecture. Keeps lecture audio. ffmpeg 4.2-safe. */
 export function characterPipOverlayArgs(
   lecturePath: string,

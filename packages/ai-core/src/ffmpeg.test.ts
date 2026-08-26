@@ -3,6 +3,7 @@ import {
   cartoonPersonGraph,
   cartoonStyleGraph,
   characterPipOverlayArgs,
+  characterReplaceCoverArgs,
   concatNormalizedArgs,
   courseEnhanceArgs,
   clampQuickTrim,
@@ -176,6 +177,21 @@ describe("ffmpeg arg builders", () => {
     expect(args.some((a) => a.includes("crop="))).toBe(true);
     expect(args).toContain("libx264");
     expect(args.join(" ")).not.toContain("iris");
+  });
+
+  it("covers the filmed speaker with a looped character clip", () => {
+    const speaker = characterReplaceCoverArgs("lesson.mp4", "avatar.mp4", "out.mp4", "speaker");
+    expect(speaker).toContain("-stream_loop");
+    expect(speaker).toContain("-1");
+    expect(speaker.join(" ")).toContain("scale2ref=w=main_w*0.64:h=main_h*0.88");
+    expect(speaker.join(" ")).toContain("overlay=(W-w)/2:H*0.03");
+    expect(speaker).toContain("0:a?");
+    expect(speaker).toContain("-shortest");
+    const full = characterReplaceCoverArgs("lesson.mp4", "avatar.mp4", "out.mp4", "full");
+    expect(full.join(" ")).toContain("overlay=0:0");
+    const pip = characterReplaceCoverArgs("lesson.mp4", "avatar.mp4", "out.mp4", "pip_br");
+    expect(pip.join(" ")).toContain("main_w*0.42");
+    expect(pip.join(" ")).toContain("overlay=W-w-20:H-h-20");
   });
 
   it("overlays a character PIP and keeps lecture audio", () => {

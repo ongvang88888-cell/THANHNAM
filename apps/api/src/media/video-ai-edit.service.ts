@@ -32,6 +32,7 @@ import {
   buildVeoGenerateBody,
   captionStillArgs,
   characterPipOverlayArgs,
+  characterReplaceCoverArgs,
   characterStillPrompt,
   clampSceneCount,
   concatAudioArgs,
@@ -1947,7 +1948,7 @@ export class VideoAiEditService implements OnModuleInit {
     tool: "avatar_presenter" | "hailuo_character" | "veo_intro",
   ): Promise<VideoAiEditOutput> {
     const mode: InsertMode = options.insertMode ?? defaultInsertMode(tool);
-    if (mode === "replace" || !clip.storageKey || !video.storageKey) {
+    if (mode === "standalone" || !clip.storageKey || !video.storageKey) {
       return clip;
     }
     const lecture = await this.openSourceFile(video);
@@ -1958,12 +1959,16 @@ export class VideoAiEditService implements OnModuleInit {
       const overlayPath = path.join(dir, "character.mp4");
       await writeFile(overlayPath, clipObj.bytes);
       const outputPath = path.join(dir, "composed.mp4");
-      if (mode === "overlay") {
+      if (mode === "replace") {
+        await this.execFfmpeg(
+          characterReplaceCoverArgs(lecture.path, overlayPath, outputPath, options.region ?? "speaker"),
+        );
+      } else if (mode === "overlay") {
         const overlaySec = Math.max(1, Math.min(20, (clip.durationMs ?? 8000) / 1000));
         await this.execFfmpeg(
           characterPipOverlayArgs(lecture.path, overlayPath, outputPath, overlayRegionForInsert(options.region), overlaySec),
         );
-      } else {
+      } else if (mode === "intro") {
         const introNorm = path.join(dir, "intro.mp4");
         const lessonNorm = path.join(dir, "lesson.mp4");
         const introHasAudio = await this.probeHasAudio(overlayPath);
@@ -1980,6 +1985,9 @@ export class VideoAiEditService implements OnModuleInit {
           { file: lessonNorm, durationSec: ((await this.probeDurationMs(lessonNorm)) ?? 8000) / 1000 },
         ]), "utf8");
         await this.execFfmpeg(concatNormalizedArgs(listPath, outputPath));
+      } else {
+        const _never: never = mode;
+        return _never;
       }
       const key = buildObjectKey({
         appId: video.appId,
@@ -1989,9 +1997,11 @@ export class VideoAiEditService implements OnModuleInit {
       });
       const sizeBytes = await this.persistFile(key, outputPath, "video/mp4");
       const insertNote =
-        mode === "overlay"
-          ? " Đã ghép góc màn hình, giữ tiếng bài giảng gốc."
-          : " Đã nối clip trước bài giảng.";
+        mode === "replace"
+          ? " Đã che người trong bài bằng nhân vật AI (lặp clip ngắn), giữ tiếng gốc. Không phải face-swap."
+          : mode === "overlay"
+            ? " Đã ghép góc màn hình, giữ tiếng bài giảng gốc."
+            : " Đã nối clip trước bài giảng.";
       return {
         kind: "video",
         storageKey: key,
