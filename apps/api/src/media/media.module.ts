@@ -369,6 +369,12 @@ export class MediaService {
   }
 }
 
+function readUploadedBytes(req: { body?: unknown; rawBody?: Buffer }): Buffer {
+  if (Buffer.isBuffer(req.rawBody) && req.rawBody.length > 0) return req.rawBody;
+  if (Buffer.isBuffer(req.body)) return req.body;
+  return Buffer.alloc(0);
+}
+
 @SkipThrottle()
 @Controller("media/local")
 export class LocalMediaController {
@@ -386,12 +392,12 @@ export class LocalMediaController {
     @Query("key") key: string,
     @Query("exp") exp: string | undefined,
     @Query("sig") sig: string | undefined,
-    @Req() req: { headers: Record<string, string | undefined>; body?: Buffer; rawBody?: Buffer },
+    @Req() req: { headers: Record<string, string | undefined>; body?: unknown; rawBody?: Buffer },
   ) {
     if (!key) throw new AppError(ErrorCodes.VALIDATION, "Missing key", 400);
     this.assertSigned(key, exp, sig);
     const storage = getSharedMemoryStorage();
-    const bytes = req.rawBody ?? (Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0));
+    const bytes = readUploadedBytes(req);
     storage.put(key, bytes, req.headers["content-type"] || "application/octet-stream");
     return { ok: true, key, sizeBytes: bytes.length };
   }
