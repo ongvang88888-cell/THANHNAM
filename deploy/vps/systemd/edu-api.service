@@ -1,0 +1,17 @@
+[Unit]
+Description=EduCommerce API
+After=network.target postgresql.service postgresql@.service redis-server.service redis.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/edu-commerce/apps/api
+EnvironmentFile=/opt/edu-commerce/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node dist/main.js
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

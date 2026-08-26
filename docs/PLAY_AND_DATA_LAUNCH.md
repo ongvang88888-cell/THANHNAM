@@ -30,7 +30,7 @@ Không invent domain trong git.
 
 **Khuyến nghị (lock D2):** AWS RDS PostgreSQL `ap-southeast-1`, bật PITR.
 
-**Tạm VPS:** `docker compose -f docker-compose.prod.yml up -d` sau khi `.env` đạt check.
+**Tạm VPS:** trên Ubuntu, ưu tiên `bash deploy/vps/bootstrap.sh` (cài Node/Postgres/Redis/Caddy + systemd, **không** ghi đè site Caddy sẵn có). Compose: `docker compose -f docker-compose.prod.yml up -d` sau khi `.env` đạt check.
 
 ```bash
 cp .env.production.example .env

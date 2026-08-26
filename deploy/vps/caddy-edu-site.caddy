@@ -1,0 +1,11 @@
+# Appended by deploy/vps/bootstrap.sh. Do not replace the rest of Caddyfile.
+# Serves the school site on a hostname so an existing :80 app stays untouched.
+
+{$PUBLIC_HOST} {
+	encode zstd gzip
+
+	@api path /api/*
+	reverse_proxy @api 127.0.0.1:3001
+
+	reverse_proxy 127.0.0.1:3000
+}
