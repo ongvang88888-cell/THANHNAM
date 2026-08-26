@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { FileDrop } from "@/components/FileDrop";
 import { VideoAiEditPanel } from "@/components/VideoAiEditPanel";
@@ -117,6 +117,7 @@ export default function TeacherCourseStudioPage() {
   const [editBody, setEditBody] = useState("");
   const [editVideoId, setEditVideoId] = useState("");
   const [editDocumentIds, setEditDocumentIds] = useState<string[]>([]);
+  const seededVideoLesson = useRef(false);
 
   const selectedLesson = useMemo(() => {
     if (!course || !selectedLessonId) return null;
@@ -162,6 +163,7 @@ export default function TeacherCourseStudioPage() {
   }
 
   useEffect(() => {
+    seededVideoLesson.current = false;
     if (!ready || !token) return;
     load().catch((e: Error) => setError(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -169,10 +171,36 @@ export default function TeacherCourseStudioPage() {
 
   useEffect(() => {
     if (typeof window === "undefined" || window.location.hash !== "#video") return;
-    const node = document.getElementById("video-studio");
-    if (!node) return;
-    node.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [selectedLesson, course]);
+    if (!course || !token || busy) return;
+    const firstSection = course.sections[0];
+    const hasLesson = course.sections.some((section) => section.lessons.length > 0);
+    if (!hasLesson && firstSection) {
+      if (seededVideoLesson.current) return;
+      seededVideoLesson.current = true;
+      void run(async () => {
+        await addLessonTo(firstSection.id);
+      }, "Đã tạo bài đầu tiên — kéo video vào mục 2");
+      return;
+    }
+    document.getElementById("video-studio")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selectedLesson, course, token, busy]);
+
+  async function addLessonTo(sectionId: string) {
+    if (!token || !course) return;
+    const section = course.sections.find((row) => row.id === sectionId);
+    const next = await apiPost<Course>(
+      `/teacher/courses/${course.id}/sections/${sectionId}/lessons`,
+      { title: lessonTitle, isPreview: (section?.lessons.length ?? 0) === 0 },
+      token,
+    );
+    setCourse(next);
+    const created = next.sections.find((row) => row.id === sectionId)?.lessons.slice(-1)[0];
+    if (created) {
+      setSelectedLessonId(created.id);
+      applyLesson(created);
+      setTab("lesson");
+    }
+  }
 
   async function run(action: () => Promise<void>, ok?: string) {
     if (!token) return;
@@ -339,19 +367,7 @@ export default function TeacherCourseStudioPage() {
                 disabled={busy}
                 onClick={() =>
                   void run(async () => {
-                    if (!token) return;
-                    const next = await apiPost<Course>(
-                      `/teacher/courses/${course.id}/sections/${section.id}/lessons`,
-                      { title: lessonTitle, isPreview: section.lessons.length === 0 },
-                      token,
-                    );
-                    setCourse(next);
-                    const created = next.sections.find((s) => s.id === section.id)?.lessons.slice(-1)[0];
-                    if (created) {
-                      setSelectedLessonId(created.id);
-                      applyLesson(created);
-                      setTab("lesson");
-                    }
+                    await addLessonTo(section.id);
                   }, "Đã thêm bài")
                 }
               >
@@ -390,9 +406,24 @@ export default function TeacherCourseStudioPage() {
           {tab === "lesson" && (
             <>
               {!selectedLesson && (
-                <div className="panel">
-                  <h2>Chưa có bài nào</h2>
-                  <p className="muted">Thêm bài ở cột trái. Bài đầu mỗi chương mặc định là xem trước miễn phí.</p>
+                <div className="panel" id="video-studio">
+                  <h2>Chưa có bài — chưa tải được video</h2>
+                  <p className="muted">
+                    Video và studio AI gắn vào từng bài học. Thêm bài đầu tiên rồi kéo file MP4 vào mục 2.
+                  </p>
+                  {course.sections[0] && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        void run(async () => {
+                          await addLessonTo(course.sections[0]!.id);
+                        }, "Đã thêm bài — kéo video vào mục 2")
+                      }
+                    >
+                      Thêm bài đầu tiên để tải video / AI
+                    </button>
+                  )}
                 </div>
               )}
               {selectedLesson && (
