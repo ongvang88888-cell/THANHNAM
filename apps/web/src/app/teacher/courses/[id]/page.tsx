@@ -509,11 +509,26 @@ export default function TeacherCourseStudioPage() {
                       inferMime(file.name, file.type || "application/pdf"),
                     ).catch(() => undefined);
                     await apiPost(`/documents/versions/${session.versionId}/complete`, { sizeBytes: file.size }, token);
-                    setEditDocumentIds((prev) =>
-                      prev.includes(created.document.id) ? prev : [...prev, created.document.id],
+                    const nextIds = editDocumentIds.includes(created.document.id)
+                      ? editDocumentIds
+                      : [...editDocumentIds, created.document.id];
+                    setEditDocumentIds(nextIds);
+                    await apiPatch(
+                      `/teacher/courses/${course.id}/lessons/${selectedLesson.id}`,
+                      { title: editTitle, isPreview: editPreview },
+                      token,
+                    );
+                    await apiPut(
+                      `/teacher/courses/${course.id}/lessons/${selectedLesson.id}/content`,
+                      {
+                        body: editBody,
+                        videoId: editVideoId,
+                        documentIds: nextIds,
+                      },
+                      token,
                     );
                     await load(selectedLesson.id);
-                  }, "Đã tải tài liệu — nhớ Lưu bài");
+                  }, "Đã tải và gắn tài liệu vào bài");
                 }}
               />
 
