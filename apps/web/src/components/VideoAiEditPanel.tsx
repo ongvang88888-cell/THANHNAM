@@ -134,7 +134,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
 
   async function start(toolId: string) {
     if (toolId === "owned_abc" && !ownedConfirmed) {
-      setError("Hãy xác nhận video này là của bạn trước khi chạy gói A+B+C.");
+      setError("Hãy xác nhận video này là của bạn trước khi chạy gói A+C.");
       return;
     }
     setBusyTool(toolId);
@@ -155,7 +155,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
       );
       setMsg(
         toolId === "owned_abc"
-          ? "Đã xếp gói A+B+C. Đợi bài học (A+C) và bản minh họa (B) xong rồi duyệt cả hai."
+          ? "Đã xếp gói A+C. Đợi bài học (làm nét + PIP) xong rồi duyệt — hình giáo viên được giữ."
           : "Đã xếp lệnh chỉnh. Đợi vài giây rồi xem kết quả bên dưới.",
       );
       await refresh();
@@ -211,7 +211,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
       <p className="muted">
         {props.variant === "advanced"
           ? "Chỉ dùng khi muốn chạy từng công cụ riêng. Luồng tải video đã tự chỉnh và gắn vào bài."
-          : "Gói A+B+C chạy một lần trên video bạn sở hữu: bài học đã làm nét + giảm nhạc + PIP mặt, kèm bản minh họa trên tiếng gốc."}
+          : "Gói A+C chạy một lần trên video bạn sở hữu: làm nét + giảm nhạc + PIP mặt, giữ hình giáo viên. Bản minh họa thẻ chữ chỉ chạy nếu bạn chọn riêng."}
       </p>
       <p className="ai-edit-legal muted">
         {catalog.ownershipDisclaimer ??

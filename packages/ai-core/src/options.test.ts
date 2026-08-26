@@ -45,7 +45,7 @@ describe("parseAiEditOptions", () => {
     expect(isPlaceholderLessonTitle("Giới thiệu khóa học")).toBe(false);
   });
 
-  it("requires an ownership commitment for the A+B+C pack", () => {
+  it("requires an ownership commitment for the A+C pack", () => {
     expect(() => assertOwnedAbcReady("owned_abc", {})).toThrow(/confirmOwned/);
     expect(() => assertOwnedAbcReady("owned_abc", { confirmOwned: false })).toThrow(/confirmOwned/);
     expect(() => assertOwnedAbcReady("owned_abc", { confirmOwned: true })).not.toThrow();

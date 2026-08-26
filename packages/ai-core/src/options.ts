@@ -122,6 +122,6 @@ export function parseAiEditOptions(input: unknown): AiEditOptions {
 export function assertOwnedAbcReady(toolId: string, options: AiEditOptions): void {
   if (toolId !== "owned_abc") return;
   if (options.confirmOwned !== true) {
-    throw new Error("Gói A+B+C cần bạn xác nhận video là của bạn (confirmOwned).");
+    throw new Error("Gói A+C cần bạn xác nhận video là của bạn (confirmOwned).");
   }
 }

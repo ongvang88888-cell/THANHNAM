@@ -8,12 +8,11 @@ const PIPELINE_STEPS = [
   { id: "upload", label: "Đang tải video lên máy chủ", percent: 8 },
   { id: "queue", label: "Đã nhận video — xếp hàng chỉnh", percent: 12 },
   { id: "source", label: "Đang đọc file gốc", percent: 18 },
-  { id: "enhance", label: "Đang làm nét hình và giảm nhạc nền", percent: 32 },
-  { id: "toon", label: "Đang chỉnh mặt / hình PIP", percent: 46 },
-  { id: "trim", label: "Đang cắt đoạn im lặng", percent: 54 },
-  { id: "edition", label: "Đang dựng bản minh họa (tiếng gốc)", percent: 72 },
-  { id: "extras", label: "Đang tạo ảnh bìa, phụ đề và mô tả", percent: 84 },
-  { id: "apply", label: "Đang gắn video vào bài học", percent: 94 },
+  { id: "enhance", label: "Đang làm nét hình và giảm nhạc nền", percent: 36 },
+  { id: "toon", label: "Đang chỉnh mặt / hình PIP", percent: 50 },
+  { id: "trim", label: "Đang cắt đoạn im lặng", percent: 62 },
+  { id: "extras", label: "Đang tạo ảnh bìa, phụ đề và mô tả", percent: 78 },
+  { id: "apply", label: "Đang gắn video vào bài học", percent: 92 },
   { id: "done", label: "Xong — sẵn sàng lưu vào bài", percent: 100 },
 ] as const;
 
@@ -380,14 +379,8 @@ export function AutoVideoPublish(props: {
           {phase === "saved" && <p className="ok">Đã lưu vào bài.</p>}
           {result.previewUrl && (
             <>
-              <div className="muted">Bài học đã chỉnh</div>
+              <div className="muted">Bài học đã chỉnh — giữ hình giáo viên</div>
               <video className="ai-edit-preview" src={result.previewUrl} controls preload="metadata" />
-            </>
-          )}
-          {result.editionPreviewUrl && (
-            <>
-              <div className="muted">Bản minh họa (tiếng gốc)</div>
-              <video className="ai-edit-preview" src={result.editionPreviewUrl} controls preload="metadata" />
             </>
           )}
           {phase !== "saved" && (

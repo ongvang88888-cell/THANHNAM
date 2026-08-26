@@ -49,7 +49,7 @@ describe("video AI edit contract", () => {
     });
     expect(() => parseAiEditOptions({ seekSeconds: 90_000 })).toThrow(/seekSeconds/);
     expect(() => assertOwnedAbcReady("owned_abc", { region: "pip_br" })).toThrow(/confirmOwned/);
-    expect(progressFields("apply")).toMatchObject({ progress: 94, step: "apply" });
+    expect(progressFields("apply")).toMatchObject({ progress: 92, step: "apply" });
     expect(progressFields("done").stepLabel).toMatch(/sẵn sàng lưu/i);
   });
 });

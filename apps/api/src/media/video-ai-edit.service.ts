@@ -292,7 +292,7 @@ export class VideoAiEditService {
     if (tool === "captions") return caps.speech ? ai.id : "heuristic";
     if (tool === "ai_cover") return caps.imageGen ? ai.id : "poster";
     if (tool === "lesson_copy") return caps.llm ? ai.id : "heuristic";
-    if (tool === "illustrated_edition" || tool === "owned_abc") {
+    if (tool === "illustrated_edition") {
       if (caps.imageGen && caps.speech) return ai.id;
       if (caps.speech) return `${ai.id}+poster`;
       return "ffmpeg+poster";
@@ -958,7 +958,7 @@ export class VideoAiEditService {
       await writeFile(inputPath, source.bytes);
       await this.markStep(editId, "source");
       if (!(await this.probeHasAudio(inputPath))) {
-        throw new Error("Video không có tiếng giảng. Gói A+B+C cần giữ lời gốc cho bản minh họa.");
+        throw new Error("Video không có tiếng giảng. Cần lời gốc để làm nét tiếng và giảm nhạc nền.");
       }
       await this.markStep(editId, "enhance");
       const enhancedPath = path.join(dir, "enhance-speech.mp4");
@@ -987,8 +987,6 @@ export class VideoAiEditService {
       });
       await this.storage.putObject(lessonKey, lessonBytes, "video/mp4");
 
-      await this.markStep(editId, "edition");
-      const edition = await this.renderIllustratedFromInput(video, editId, options, ai, dir, inputPath, "owned_abc_edition.mp4");
       const pipNote =
         region === "full"
           ? "C stylize cả khung — chữ slide có thể khó đọc."
@@ -999,11 +997,7 @@ export class VideoAiEditService {
         contentType: "video/mp4",
         sizeBytes: lessonBytes.length,
         durationMs: (await this.probeDurationMs(lessonPath)) ?? video.durationMs ?? undefined,
-        editionStorageKey: edition.storageKey,
-        editionContentType: "video/mp4",
-        editionSizeBytes: edition.sizeBytes,
-        editionDurationMs: edition.durationMs,
-        providerNote: `${OWNERSHIP_DISCLAIMER} A làm nét + giảm nhạc nền. ${pipNote} B là bản minh họa riêng trên 100% tiếng gốc. ${edition.note}`,
+        providerNote: `${OWNERSHIP_DISCLAIMER} A làm nét + giảm nhạc nền. ${pipNote} Không dựng bản minh họa thẻ chữ — bài học giữ hình giáo viên.`,
       };
       if (options.autoApply) {
         await this.markStep(editId, "extras");

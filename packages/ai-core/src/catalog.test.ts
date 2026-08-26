@@ -39,7 +39,7 @@ describe("AI edit catalog", () => {
     expect(avail.note).toMatch(/ffmpeg/i);
   });
 
-  it("keeps the A+B+C pack available without Whisper or image gen", () => {
+  it("keeps the A+C pack available without Whisper or LLM", () => {
     const caps = { enabled: true, ffmpeg: true, speech: false, imageGen: false, llm: false };
     const tool = getAiEditTool("owned_abc")!;
     const avail = toolAvailability(tool, caps, true);

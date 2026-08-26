@@ -37,13 +37,13 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
   {
     id: "owned_abc",
     group: "image",
-    label: "A+B+C — bài của tôi",
+    label: "A+C — bài của tôi",
     description:
-      "Một lệnh: A làm nét slide-an toàn + giảm nhạc nền, C stylize mặt/PIP, B dựng bản minh họa trên 100% tiếng gốc. Chỉ video bạn sở hữu.",
-    market: "Descript + CapCut restyle + illustrated scene cards",
+      "Một lệnh: A làm nét slide-an toàn + giảm nhạc nền, C stylize mặt/PIP. Giữ hình giáo viên. Không dựng bản minh họa thẻ chữ. Chỉ video bạn sở hữu.",
+    market: "Descript + CapCut restyle",
     outputKind: "video",
     needs: ["ffmpeg"],
-    prefers: ["speech", "imageGen"],
+    prefers: ["speech", "llm"],
   },
   {
     id: "studio_sound",
