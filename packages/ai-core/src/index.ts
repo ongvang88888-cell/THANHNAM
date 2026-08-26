@@ -4,6 +4,7 @@ export {
   envAiCapabilities,
   getAiEditTool,
   isAiEditToolId,
+  OWNERSHIP_DISCLAIMER,
   toolAvailability,
   type AiCapabilities,
   type AiCapabilityName,
@@ -20,15 +21,41 @@ export {
   type CaptionCue,
 } from "./vtt";
 export {
+  buildConcatDemuxerList,
+  clampSceneCount,
+  groupScenesForEdition,
+  sceneImagePrompt,
+  timeSliceCues,
+} from "./scenes";
+export {
+  captionStillArgs,
+  courseEnhanceArgs,
+  extractLessonAudioArgs,
   extractSpeechAudioArgs,
   FFMPEG_FONT_CANDIDATES,
+  illustratedConcatArgs,
   pictureEnhanceArgs,
+  pipGeometry,
+  sanitizeDrawText,
   silenceTrimArgs,
+  speechFocusArgs,
   studioSoundArgs,
+  styleBackdrop,
   thumbnailArgs,
   titlePosterArgs,
+  toonTalkingHeadArgs,
+  toonVf,
 } from "./ffmpeg";
-export { parseAiEditOptions, type AiEditOptions } from "./options";
+export {
+  FACE_REGIONS,
+  isFaceRegion,
+  isVisualStyle,
+  parseAiEditOptions,
+  VISUAL_STYLES,
+  type AiEditOptions,
+  type FaceRegion,
+  type VisualStyle,
+} from "./options";
 export {
   buildTitlePosterSvg,
   createAiPortFromEnv,

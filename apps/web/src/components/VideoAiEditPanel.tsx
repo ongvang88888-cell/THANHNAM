@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { apiGet, apiPost } from "@/lib/api";
 
 type ToolGroup = "audio" | "image" | "copy";
+type FaceRegion = "full" | "pip_br" | "pip_bl" | "pip_tr" | "pip_tl";
+type VisualStyle = "anime" | "flat" | "watercolor";
 
 type CatalogTool = {
   id: string;
@@ -19,6 +21,7 @@ type CatalogTool = {
 
 type Catalog = {
   enabled: boolean;
+  ownershipDisclaimer?: string;
   capabilities: { ffmpeg: boolean; speech: boolean; imageGen: boolean; llm: boolean };
   video: { id: string; title: string; status: string; hasSource: boolean; thumbnailUrl: string | null };
   tools: CatalogTool[];
@@ -51,6 +54,20 @@ const GROUP_LABEL: Record<ToolGroup, string> = {
   copy: "Nội dung",
 };
 
+const REGION_LABEL: Record<FaceRegion, string> = {
+  pip_br: "Mặt góc phải dưới (PIP)",
+  pip_bl: "Mặt góc trái dưới",
+  pip_tr: "Mặt góc phải trên",
+  pip_tl: "Mặt góc trái trên",
+  full: "Cả khung (có thể khó đọc slide)",
+};
+
+const STYLE_LABEL: Record<VisualStyle, string> = {
+  anime: "Hoạt hình",
+  flat: "Phẳng / vector",
+  watercolor: "Màu nước",
+};
+
 export function VideoAiEditPanel(props: {
   videoId: string;
   token: string;
@@ -64,6 +81,8 @@ export function VideoAiEditPanel(props: {
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busyTool, setBusyTool] = useState<string | null>(null);
+  const [region, setRegion] = useState<FaceRegion>("pip_br");
+  const [style, setStyle] = useState<VisualStyle>("anime");
 
   const pending = edits.some((row) => row.status === "QUEUED" || row.status === "PROCESSING");
 
@@ -110,7 +129,11 @@ export function VideoAiEditPanel(props: {
     setError(null);
     setMsg(null);
     try {
-      await apiPost(`/videos/${props.videoId}/ai/edits`, { tool: toolId, options: {} }, props.token);
+      await apiPost(
+        `/videos/${props.videoId}/ai/edits`,
+        { tool: toolId, options: { region, style } },
+        props.token,
+      );
       setMsg("Đã xếp lệnh chỉnh. Đợi vài giây rồi xem kết quả bên dưới.");
       await refresh();
     } catch (e) {
@@ -157,8 +180,12 @@ export function VideoAiEditPanel(props: {
     <div className="ai-edit-panel">
       <h3>4. Chỉnh sửa AI (hình + tiếng)</h3>
       <p className="muted">
-        Sau khi tải video, chạy từng công cụ giống Descript / CapCut / Adobe Enhance, rồi bấm Áp dụng.
-        Phụ đề và ảnh bìa cần bạn duyệt trước khi công khai.
+        A làm nét an toàn và giảm nhạc nền. C stylize mặt/PIP, giữ slide. B dựng bản hoạt hình mới trên tiếng gốc.
+        Phụ đề, ảnh bìa và edition hoạt hình cần bạn duyệt trước khi công khai.
+      </p>
+      <p className="ai-edit-legal muted">
+        {catalog.ownershipDisclaimer ??
+          "Chỉ dùng video bạn sở hữu. Đổi phong cách hay giảm nhạc nền không xóa bản quyền nội dung người khác."}
       </p>
       {!catalog.enabled && <p className="toast error">Chỉnh sửa AI đang tắt trên máy chủ.</p>}
       <div className="ai-edit-caps">
@@ -174,6 +201,36 @@ export function VideoAiEditPanel(props: {
         <span className={`badge ${catalog.capabilities.llm ? "ok" : ""}`}>
           LLM {catalog.capabilities.llm ? "sẵn" : "gợi ý tiêu đề"}
         </span>
+      </div>
+      <div className="ai-edit-options">
+        <div>
+          <label htmlFor="ai-edit-region">Vùng mặt (C)</label>
+          <select
+            id="ai-edit-region"
+            value={region}
+            onChange={(event) => setRegion(event.target.value as FaceRegion)}
+          >
+            {(Object.keys(REGION_LABEL) as FaceRegion[]).map((value) => (
+              <option key={value} value={value}>
+                {REGION_LABEL[value]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="ai-edit-style">Phong cách (B/C)</label>
+          <select
+            id="ai-edit-style"
+            value={style}
+            onChange={(event) => setStyle(event.target.value as VisualStyle)}
+          >
+            {(Object.keys(STYLE_LABEL) as VisualStyle[]).map((value) => (
+              <option key={value} value={value}>
+                {STYLE_LABEL[value]}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       {error && <p className="toast error">{error}</p>}
       {msg && <p className="toast ok">{msg}</p>}

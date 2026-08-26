@@ -4,6 +4,10 @@ import { isAiEditToolId, parseAiEditOptions, toolAvailability, getAiEditTool } f
 describe("video AI edit contract", () => {
   it("only accepts catalog tools", () => {
     expect(isAiEditToolId("studio_sound")).toBe(true);
+    expect(isAiEditToolId("course_enhance")).toBe(true);
+    expect(isAiEditToolId("toon_talking_head")).toBe(true);
+    expect(isAiEditToolId("illustrated_edition")).toBe(true);
+    expect(isAiEditToolId("speech_focus")).toBe(true);
     expect(isAiEditToolId("elevenlabs_overdub")).toBe(false);
   });
 
@@ -16,6 +20,10 @@ describe("video AI edit contract", () => {
 
   it("parses start options the API will accept", () => {
     expect(parseAiEditOptions({})).toEqual({});
+    expect(parseAiEditOptions({ region: "pip_br", style: "anime" })).toEqual({
+      region: "pip_br",
+      style: "anime",
+    });
     expect(() => parseAiEditOptions({ seekSeconds: 90_000 })).toThrow(/seekSeconds/);
   });
 });

@@ -908,6 +908,14 @@ label { display: block; font-size: 13px; color: #6b7280; margin-bottom: 6px; }
 .ai-edit-panel { margin-top: 18px; padding-top: 8px; }
 .ai-edit-panel h3, .ai-edit-panel h4 { margin: 16px 0 8px; }
 .ai-edit-caps { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.ai-edit-legal { font-size: 13px; line-height: 1.45; }
+.ai-edit-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 0 0 14px;
+}
+.ai-edit-options label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .ai-edit-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

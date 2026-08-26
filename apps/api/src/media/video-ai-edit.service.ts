@@ -12,22 +12,34 @@ import {
 } from "@edu/media-core";
 import {
   AI_EDIT_TOOLS,
+  OWNERSHIP_DISCLAIMER,
+  buildConcatDemuxerList,
+  captionStillArgs,
+  clampSceneCount,
+  courseEnhanceArgs,
   createAiPortFromEnv,
   cuesFromWhisperSegments,
   envAiCapabilities,
+  extractLessonAudioArgs,
   extractSpeechAudioArgs,
   firstExistingFont,
   getAiEditTool,
+  groupScenesForEdition,
   heuristicCuesFromTitle,
+  illustratedConcatArgs,
   isAiEditToolId,
   parseAiEditOptions,
   pictureEnhanceArgs,
+  sceneImagePrompt,
   silenceTrimArgs,
+  speechFocusArgs,
   studioSoundArgs,
   thumbnailArgs,
+  timeSliceCues,
   titlePosterArgs,
   toVtt,
   toolAvailability,
+  toonTalkingHeadArgs,
   type AiCapabilities,
   type AiEditOptions,
   type AiEditToolId,
@@ -122,6 +134,7 @@ export class VideoAiEditService {
       : null;
     return {
       enabled: caps.enabled,
+      ownershipDisclaimer: OWNERSHIP_DISCLAIMER,
       capabilities: caps,
       video: {
         id: video.id,
@@ -222,6 +235,11 @@ export class VideoAiEditService {
     if (tool === "captions") return caps.speech ? ai.id : "heuristic";
     if (tool === "ai_cover") return caps.imageGen ? ai.id : "poster";
     if (tool === "lesson_copy") return caps.llm ? ai.id : "heuristic";
+    if (tool === "illustrated_edition") {
+      if (caps.imageGen && caps.speech) return ai.id;
+      if (caps.speech) return `${ai.id}+poster`;
+      return "poster";
+    }
     return "ffmpeg";
   }
 
@@ -426,8 +444,36 @@ export class VideoAiEditService {
     switch (tool) {
       case "studio_sound":
         return this.runFfmpegVideo(video, editId, tool, studioSoundArgs, "video/mp4");
+      case "speech_focus": {
+        const output = await this.runFfmpegVideo(video, editId, tool, speechFocusArgs, "video/mp4");
+        output.providerNote = `${OWNERSHIP_DISCLAIMER} Đã giữ hình gốc và lời giảng, thu hẹp dải nhạc nền.`;
+        return output;
+      }
+      case "course_enhance": {
+        const output = await this.runFfmpegVideo(video, editId, tool, courseEnhanceArgs, "video/mp4");
+        output.providerNote = "Làm nét nhẹ, ưu tiên chữ slide không bị vỡ. Giữ nguyên tiếng.";
+        return output;
+      }
       case "picture_enhance":
         return this.runFfmpegVideo(video, editId, tool, pictureEnhanceArgs, "video/mp4");
+      case "toon_talking_head": {
+        const region = options.region ?? "pip_br";
+        const style = options.style ?? "anime";
+        const output = await this.runFfmpegVideo(
+          video,
+          editId,
+          tool,
+          (input, outputPath) => toonTalkingHeadArgs(input, outputPath, region, style),
+          "video/mp4",
+        );
+        output.providerNote =
+          region === "full"
+            ? `${OWNERSHIP_DISCLAIMER} Đã stylize cả khung — chữ slide có thể khó đọc.`
+            : `${OWNERSHIP_DISCLAIMER} Đã stylize vùng PIP/mặt, giữ slide và tiếng gốc.`;
+        return output;
+      }
+      case "illustrated_edition":
+        return this.runIllustratedEdition(video, editId, options, ai);
       case "silence_trim":
         return this.runFfmpegVideo(video, editId, tool, silenceTrimArgs, "video/mp4");
       case "auto_thumbnail":
@@ -642,6 +688,124 @@ export class VideoAiEditService {
       text: copy.description,
       providerNote: copy.provider === "null" ? "Gợi ý từ tiêu đề — thêm khóa OpenAI/Gemini để viết từ transcript." : undefined,
     };
+  }
+
+  private async runIllustratedEdition(
+    video: Video,
+    editId: string,
+    options: AiEditOptions,
+    ai: AiPort,
+  ): Promise<VideoAiEditOutput> {
+    const source = await this.loadSource(video);
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-"));
+    try {
+      const inputPath = path.join(dir, `in${source.ext}`);
+      const audioPath = path.join(dir, "lesson.m4a");
+      await writeFile(inputPath, source.bytes);
+      if (!(await this.probeHasAudio(inputPath))) {
+        throw new Error("Video không có tiếng giảng. Bản hoạt hình cần giữ 100% âm thanh gốc.");
+      }
+      await this.execFfmpeg(extractLessonAudioArgs(inputPath, audioPath));
+      const durationMs = (await this.probeDurationMs(inputPath)) ?? video.durationMs ?? 8_000;
+      const caps = await this.capabilities();
+      const sceneCount = clampSceneCount(options.maxScenes, caps.imageGen);
+      let cues = timeSliceCues(video.title, durationMs, sceneCount);
+      let note = "Minh họa theo nhịp thời gian — thêm khóa Whisper để chia cảnh theo lời giảng.";
+
+      if (caps.speech) {
+        try {
+          const speechPath = path.join(dir, "speech.mp3");
+          await this.execFfmpeg(extractSpeechAudioArgs(inputPath, speechPath));
+          const audio = await readFile(speechPath);
+          if (audio.length <= 20 * 1024 * 1024) {
+            const speech = await ai.transcribe({ bytes: audio, filename: "speech.mp3", mime: "audio/mpeg" });
+            const fromSpeech = cuesFromWhisperSegments(speech.segments);
+            if (fromSpeech.length > 0) {
+              cues = fromSpeech;
+              note = "Minh họa theo transcript, giữ 100% tiếng gốc.";
+            }
+          } else {
+            note = "Audio dài — đã chia cảnh theo thời gian, không gửi hết file vào Whisper.";
+          }
+        } catch (err) {
+          note = `Không nhận lời nói (${err instanceof Error ? err.message : "lỗi"}). Đã dựng thẻ theo thời gian.`;
+        }
+      }
+
+      const scenes = groupScenesForEdition(cues, durationMs, sceneCount);
+      const style = options.style ?? "anime";
+      const font = firstExistingFont(existsSync);
+      if (!font) {
+        throw new Error("Máy chủ thiếu font để dựng thẻ bài học.");
+      }
+
+      const entries: Array<{ file: string; durationSec: number }> = [];
+      for (let index = 0; index < scenes.length; index += 1) {
+        const scene = scenes[index];
+        if (!scene) continue;
+        const still = path.join(dir, `scene-${index}.jpg`);
+        let usedGenerated = false;
+        if (caps.imageGen) {
+          try {
+            const cover = await ai.generateCover({
+              title: video.title,
+              prompt: options.prompt || sceneImagePrompt(video.title, scene.text, style),
+            });
+            if (!cover.contentType.includes("svg") && cover.bytes.length > 0) {
+              const raw = path.join(dir, `raw-${index}.png`);
+              await writeFile(raw, cover.bytes);
+              await this.execFfmpeg(captionStillArgs(raw, still, scene.text, font));
+              usedGenerated = true;
+            }
+          } catch {
+            usedGenerated = false;
+          }
+        }
+        if (!usedGenerated) {
+          await this.execFfmpeg(titlePosterArgs(still, scene.text, font, style));
+        }
+        entries.push({
+          file: still,
+          durationSec: Math.max(0.8, (scene.endMs - scene.startMs) / 1000),
+        });
+      }
+
+      const listPath = path.join(dir, "scenes.txt");
+      await writeFile(listPath, buildConcatDemuxerList(entries), "utf8");
+      const outputPath = path.join(dir, "out.mp4");
+      await this.execFfmpeg(illustratedConcatArgs(listPath, audioPath, outputPath));
+      const out = await readFile(outputPath);
+      const key = buildObjectKey({
+        appId: video.appId,
+        type: "video-ai",
+        id: editId,
+        filename: "illustrated_edition.mp4",
+      });
+      await this.storage.putObject(key, out, "video/mp4");
+      return {
+        kind: "video",
+        storageKey: key,
+        contentType: "video/mp4",
+        sizeBytes: out.length,
+        durationMs: (await this.probeDurationMs(outputPath)) ?? durationMs,
+        providerNote: `${OWNERSHIP_DISCLAIMER} ${note}`,
+      };
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  private async probeHasAudio(filePath: string): Promise<boolean> {
+    try {
+      const { stdout } = await execFileAsync(
+        "ffprobe",
+        ["-v", "error", "-select_streams", "a:0", "-show_entries", "stream=codec_type", "-of", "csv=p=0", filePath],
+        { timeout: 15_000 },
+      );
+      return stdout.trim().length > 0;
+    } catch {
+      return false;
+    }
   }
 
   private async execFfmpeg(args: string[]): Promise<void> {

@@ -11,8 +11,12 @@ describe("AI edit catalog", () => {
   it("covers the market tools we ship", () => {
     expect(AI_EDIT_TOOLS.map((t) => t.id)).toEqual([
       "studio_sound",
+      "speech_focus",
       "silence_trim",
+      "course_enhance",
       "picture_enhance",
+      "toon_talking_head",
+      "illustrated_edition",
       "auto_thumbnail",
       "ai_cover",
       "captions",
@@ -32,6 +36,14 @@ describe("AI edit catalog", () => {
     const avail = toolAvailability(sound!, caps, true);
     expect(avail.available).toBe(false);
     expect(avail.note).toMatch(/ffmpeg/i);
+  });
+
+  it("keeps illustrated edition available without Whisper or image gen", () => {
+    const caps = { enabled: true, ffmpeg: true, speech: false, imageGen: false, llm: false };
+    const tool = getAiEditTool("illustrated_edition")!;
+    const avail = toolAvailability(tool, caps, true);
+    expect(avail.available).toBe(true);
+    expect(avail.mode).toBe("fallback");
   });
 
   it("keeps captions available in fallback mode without Whisper", () => {

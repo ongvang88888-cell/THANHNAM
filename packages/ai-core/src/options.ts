@@ -1,9 +1,26 @@
+export const FACE_REGIONS = ["full", "pip_br", "pip_bl", "pip_tr", "pip_tl"] as const;
+export const VISUAL_STYLES = ["anime", "flat", "watercolor"] as const;
+
+export type FaceRegion = (typeof FACE_REGIONS)[number];
+export type VisualStyle = (typeof VISUAL_STYLES)[number];
+
 export interface AiEditOptions {
   seekSeconds?: number;
   prompt?: string;
+  region?: FaceRegion;
+  style?: VisualStyle;
+  maxScenes?: number;
 }
 
-const ALLOWED = new Set(["seekSeconds", "prompt"]);
+const ALLOWED = new Set(["seekSeconds", "prompt", "region", "style", "maxScenes"]);
+
+export function isFaceRegion(value: string): value is FaceRegion {
+  return (FACE_REGIONS as readonly string[]).includes(value);
+}
+
+export function isVisualStyle(value: string): value is VisualStyle {
+  return (VISUAL_STYLES as readonly string[]).includes(value);
+}
 
 export function parseAiEditOptions(input: unknown): AiEditOptions {
   if (input == null) return {};
@@ -29,6 +46,24 @@ export function parseAiEditOptions(input: unknown): AiEditOptions {
     }
     const trimmed = rec.prompt.trim();
     if (trimmed) out.prompt = trimmed;
+  }
+  if (rec.region !== undefined) {
+    if (typeof rec.region !== "string" || !isFaceRegion(rec.region)) {
+      throw new Error("region phải là full hoặc pip_br / pip_bl / pip_tr / pip_tl");
+    }
+    out.region = rec.region;
+  }
+  if (rec.style !== undefined) {
+    if (typeof rec.style !== "string" || !isVisualStyle(rec.style)) {
+      throw new Error("style phải là anime, flat hoặc watercolor");
+    }
+    out.style = rec.style;
+  }
+  if (rec.maxScenes !== undefined) {
+    if (typeof rec.maxScenes !== "number" || !Number.isInteger(rec.maxScenes) || rec.maxScenes < 3 || rec.maxScenes > 12) {
+      throw new Error("maxScenes phải từ 3 đến 12");
+    }
+    out.maxScenes = rec.maxScenes;
   }
   return out;
 }
