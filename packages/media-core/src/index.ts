@@ -12,6 +12,11 @@ export interface SignedDownload {
   expiresAt: Date;
 }
 
+export interface StoredObject {
+  bytes: Buffer;
+  contentType: string;
+}
+
 export interface IStorageProvider {
   createUploadUrl(input: {
     key: string;
@@ -24,6 +29,8 @@ export interface IStorageProvider {
   }): Promise<SignedDownload>;
   head(key: string): Promise<{ sizeBytes: number; contentType?: string } | null>;
   delete(key: string): Promise<void>;
+  getObject(key: string): Promise<StoredObject | null>;
+  putObject(key: string, bytes: Buffer, contentType: string): Promise<void>;
 }
 
 export interface TranscodePort {
@@ -116,6 +123,16 @@ export class MemoryStorageProvider implements IStorageProvider {
 
   get(key: string) {
     return this.objects.get(key) ?? null;
+  }
+
+  async getObject(key: string): Promise<StoredObject | null> {
+    const obj = this.objects.get(key);
+    if (!obj) return null;
+    return { bytes: obj.bytes, contentType: obj.contentType };
+  }
+
+  async putObject(key: string, bytes: Buffer, contentType: string): Promise<void> {
+    this.put(key, bytes, contentType);
   }
 
   async createUploadUrl(input: {
@@ -280,6 +297,32 @@ export class S3CompatibleStorageProvider implements IStorageProvider {
 
   async delete(_key: string) {
     // Production: issue DeleteObject via SDK/CLI; omitted in lightweight signer.
+  }
+
+  async getObject(key: string): Promise<StoredObject | null> {
+    const signed = await this.createDownloadUrl({ key, ttlSeconds: 120 });
+    const res = await fetch(signed.url, { signal: AbortSignal.timeout(120_000) });
+    if (res.status === 404) return null;
+    if (!res.ok) {
+      throw new Error(`S3 getObject failed (${res.status})`);
+    }
+    return {
+      bytes: Buffer.from(await res.arrayBuffer()),
+      contentType: res.headers.get("content-type") || "application/octet-stream",
+    };
+  }
+
+  async putObject(key: string, bytes: Buffer, contentType: string): Promise<void> {
+    const signed = await this.createUploadUrl({ key, contentType, ttlSeconds: 120 });
+    const res = await fetch(signed.url, {
+      method: "PUT",
+      headers: signed.headers,
+      body: new Uint8Array(bytes),
+      signal: AbortSignal.timeout(180_000),
+    });
+    if (!res.ok) {
+      throw new Error(`S3 putObject failed (${res.status})`);
+    }
   }
 }
 

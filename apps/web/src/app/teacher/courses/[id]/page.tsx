@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { FileDrop } from "@/components/FileDrop";
+import { VideoAiEditPanel } from "@/components/VideoAiEditPanel";
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut, apiPutBinary, formatVnd } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
 import { statusLabel, statusTone } from "@/lib/labels";
@@ -442,9 +443,22 @@ export default function TeacherCourseStudioPage() {
                           await apiPutBinary(session.upload.url, file, file.type || "video/mp4").catch(() => undefined);
                           await apiPost(`/videos/${session.videoId}/complete`, { sizeBytes: file.size }, token);
                           setEditVideoId(session.videoId);
-                        }, "Đã tải video — nhớ Lưu bài");
+                        }, "Đã tải video — mở chỉnh AI bên dưới rồi nhớ Lưu bài");
                       }}
                     />
+                    {editVideoId && token && (
+                      <VideoAiEditPanel
+                        videoId={editVideoId}
+                        token={token}
+                        lessonId={selectedLesson.id}
+                        courseId={course.id}
+                        onNewVideoId={(id) => setEditVideoId(id)}
+                        onCopy={(copy) => {
+                          setEditTitle(copy.title);
+                          setEditBody((current) => current.trim() || copy.description);
+                        }}
+                      />
+                    )}
                   </div>
 
                   <div className="block">

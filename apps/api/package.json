@@ -12,6 +12,7 @@
     "lint": "echo ok"
   },
   "dependencies": {
+    "@edu/ai-core": "workspace:*",
     "@edu/database": "workspace:*",
     "@edu/education-core": "workspace:*",
     "@edu/media-core": "workspace:*",

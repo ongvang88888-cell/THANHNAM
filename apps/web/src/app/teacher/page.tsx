@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FileDrop } from "@/components/FileDrop";
+import { VideoAiEditPanel } from "@/components/VideoAiEditPanel";
 import { apiGet, apiPost, apiPutBinary, formatVnd } from "@/lib/api";
 import { hasRole, useRequireAuth } from "@/lib/auth";
 import { productTypeLabel, statusLabel, statusTone } from "@/lib/labels";
@@ -364,6 +365,13 @@ export default function TeacherPage() {
             onFile={(file) => void uploadVideo(file).catch((err) => setError(err.message))}
           />
           {lastVideoId && <p className="ok">Mã video: {lastVideoId}</p>}
+          {lastVideoId && token && (
+            <VideoAiEditPanel
+              videoId={lastVideoId}
+              token={token}
+              courseId={attachCourseId || undefined}
+            />
+          )}
           <label>Gắn vào khóa</label>
           <select value={attachCourseId} onChange={(e) => setAttachCourseId(e.target.value)}>
             {courses.map((c) => (

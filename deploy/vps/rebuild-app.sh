@@ -5,6 +5,12 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/opt/edu-commerce}"
 cd "${APP_DIR}"
 
+if ! command -v ffmpeg >/dev/null 2>&1; then
+  echo "Installing ffmpeg for AI video/audio edits…"
+  apt-get update -y
+  DEBIAN_FRONTEND=noninteractive apt-get install -y ffmpeg
+fi
+
 if [[ -f "${APP_DIR}/.env" ]]; then
   while IFS= read -r line; do
     case "${line}" in

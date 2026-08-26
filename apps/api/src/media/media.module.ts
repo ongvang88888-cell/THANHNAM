@@ -33,6 +33,8 @@ import { AccessService } from "../access/access.module";
 import { AccessModule } from "../access/access.module";
 import { AuthGuard, CurrentUser, type RequestUser } from "../auth/auth.guard";
 import { AuthModule } from "../auth/auth.module";
+import { VideoAiEditController } from "./video-ai-edit.controller";
+import { VideoAiEditService } from "./video-ai-edit.service";
 
 class UploadSessionDto {
   @IsString()
@@ -524,7 +526,7 @@ export class MediaController {
 
 @Module({
   imports: [AuthModule, AccessModule],
-  controllers: [MediaController, LocalMediaController],
-  providers: [MediaService],
+  controllers: [MediaController, LocalMediaController, VideoAiEditController],
+  providers: [MediaService, VideoAiEditService],
 })
 export class MediaModule {}

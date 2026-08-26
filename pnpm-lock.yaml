@@ -20,6 +20,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@edu/ai-core':
+        specifier: workspace:*
+        version: link:../../packages/ai-core
       '@edu/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -210,6 +213,22 @@ importers:
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
+
+  packages/ai-core:
+    dependencies:
+      '@edu/shared-core':
+        specifier: workspace:*
+        version: link:../shared-core
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.20.1
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.9
+        version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.27.0)(terser@5.50.0)(tsx@4.23.12)
 
   packages/database:
     dependencies:

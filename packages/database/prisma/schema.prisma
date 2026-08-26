@@ -126,6 +126,13 @@ enum ProcessingJobStatus {
   FAILED
 }
 
+enum VideoAiEditStatus {
+  QUEUED
+  PROCESSING
+  READY
+  FAILED
+}
+
 enum SubscriptionStatus {
   INCOMPLETE
   ACTIVE
@@ -536,20 +543,22 @@ model AccessPolicy {
 }
 
 model Video {
-  id          String      @id @default(cuid())
-  appId       String
-  ownerUserId String?
-  title       String
-  status      VideoStatus @default(UPLOADING)
-  durationMs  Int?
-  storageKey  String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id           String      @id @default(cuid())
+  appId        String
+  ownerUserId  String?
+  title        String
+  status       VideoStatus @default(UPLOADING)
+  durationMs   Int?
+  storageKey   String?
+  thumbnailKey String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   app     App                   @relation(fields: [appId], references: [id])
   owner   User?                 @relation("VideoOwner", fields: [ownerUserId], references: [id])
   assets  VideoAsset[]
   jobs    VideoProcessingJob[]
+  aiEdits VideoAiEdit[]
 
   @@index([appId, status])
 }
@@ -580,6 +589,24 @@ model VideoProcessingJob {
 
   video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
+  @@index([status, createdAt])
+}
+
+model VideoAiEdit {
+  id         String            @id @default(cuid())
+  videoId    String
+  tool       String
+  status     VideoAiEditStatus @default(QUEUED)
+  provider   String
+  inputJson  Json
+  outputJson Json?
+  error      String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([videoId, createdAt])
   @@index([status, createdAt])
 }
 
