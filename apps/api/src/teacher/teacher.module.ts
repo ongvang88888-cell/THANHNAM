@@ -203,6 +203,12 @@ export class TeacherService {
     }
   }
 
+  private ownerScope(user: RequestUser) {
+    return hasAnyRole(user as never, ["admin", "super_admin"])
+      ? {}
+      : { creatorUserId: String(user.userId) };
+  }
+
   async myCourses(user: RequestUser) {
     this.assertTeacher(user);
     return this.prisma.course.findMany({
@@ -363,8 +369,8 @@ export class TeacherService {
     const course = await this.prisma.course.findFirst({
       where: {
         id: safeCourseId,
-        creatorUserId: String(user.userId),
         appId: String(user.appId),
+        ...this.ownerScope(user),
       },
       include: { product: true },
     });
@@ -481,12 +487,11 @@ export class TeacherService {
   }
 
   private async ownedCourse(user: RequestUser, courseId: string) {
-    const isAdmin = hasAnyRole(user as never, ["admin", "super_admin"]);
     const course = await this.prisma.course.findFirst({
       where: {
         id: String(courseId),
         appId: String(user.appId),
-        ...(isAdmin ? {} : { creatorUserId: String(user.userId) }),
+        ...this.ownerScope(user),
       },
       include: {
         sections: {
@@ -585,7 +590,7 @@ export class TeacherService {
   async submitReview(user: RequestUser, courseId: string) {
     this.assertTeacher(user);
     const course = await this.prisma.course.findFirst({
-      where: { id: String(courseId), creatorUserId: user.userId },
+      where: { id: String(courseId), appId: user.appId, ...this.ownerScope(user) },
     });
     if (!course) throw new AppError(ErrorCodes.NOT_FOUND, "Course not found", 404);
     await this.prisma.course.update({ where: { id: course.id }, data: { status: "IN_REVIEW" } });
@@ -599,7 +604,7 @@ export class TeacherService {
   async submitProductReview(user: RequestUser, productId: string) {
     this.assertTeacher(user);
     const product = await this.prisma.product.findFirst({
-      where: { id: String(productId), creatorUserId: user.userId, appId: user.appId },
+      where: { id: String(productId), appId: user.appId, ...this.ownerScope(user) },
       include: { document: true, course: true },
     });
     if (!product) throw new AppError(ErrorCodes.NOT_FOUND, "Product not found", 404);
@@ -644,7 +649,7 @@ export class TeacherService {
   async getCourse(user: RequestUser, courseId: string) {
     this.assertTeacher(user);
     const course = await this.prisma.course.findFirst({
-      where: { id: String(courseId), appId: user.appId, creatorUserId: user.userId },
+      where: { id: String(courseId), appId: user.appId, ...this.ownerScope(user) },
       include: {
         product: { include: { prices: true } },
         sections: {
@@ -689,7 +694,7 @@ export class TeacherService {
   ) {
     this.assertTeacher(user);
     const course = await this.prisma.course.findFirst({
-      where: { id: String(courseId), creatorUserId: user.userId, appId: user.appId },
+      where: { id: String(courseId), appId: user.appId, ...this.ownerScope(user) },
     });
     if (!course) throw new AppError(ErrorCodes.NOT_FOUND, "Course not found", 404);
     return this.prisma.quiz.create({
