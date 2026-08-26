@@ -238,7 +238,7 @@ export class VideoAiEditService {
         inputJson: options as Prisma.InputJsonValue,
       },
     });
-    void this.processEdit(edit.id).catch((err) => {
+    void this.processEdit(edit.id, user).catch((err) => {
       this.log.error(`AI edit ${edit.id} crashed: ${err instanceof Error ? err.message : "unknown"}`);
     });
     return this.presentEdit(edit);
@@ -521,23 +521,40 @@ export class VideoAiEditService {
   }
 
   private async actorFromVideo(video: Video): Promise<RequestUser> {
-    const rows = await this.prisma.userRole.findMany({
-      where: { userId: video.ownerUserId },
-      include: { role: { select: { code: true } } },
-    });
-    const roles = rows.map((row) => row.role.code as RequestUser["roles"][number]);
+    const ownerUserId = video.ownerUserId;
+    if (!ownerUserId) {
+      throw new Error("Video không có chủ sở hữu để gắn vào bài");
+    }
+    const roleIds = (
+      await this.prisma.userRole.findMany({
+        where: { userId: ownerUserId },
+        select: { roleId: true },
+      })
+    ).map((row) => row.roleId);
+    const roleRows = roleIds.length
+      ? await this.prisma.role.findMany({
+          where: { id: { in: roleIds } },
+          select: { code: true },
+        })
+      : [];
+    const roles = roleRows.map((row) => row.code as RequestUser["roles"][number]);
     return {
-      userId: video.ownerUserId,
+      userId: ownerUserId,
       appId: video.appId,
       sessionId: "ai-auto-apply",
       roles: roles.length > 0 ? roles : (["teacher"] as RequestUser["roles"]),
     };
   }
 
-  private async autoApplyReadyEdit(video: Video, editId: string, options: AiEditOptions) {
+  private async autoApplyReadyEdit(
+    video: Video,
+    editId: string,
+    options: AiEditOptions,
+    actor?: RequestUser,
+  ) {
     try {
-      const actor = await this.actorFromVideo(video);
-      await this.applyEdit(actor, video.id, editId, {
+      const applyActor = actor ?? (await this.actorFromVideo(video));
+      await this.applyEdit(applyActor, video.id, editId, {
         lessonId: options.lessonId,
         courseId: options.courseId,
       });
@@ -593,7 +610,7 @@ export class VideoAiEditService {
     });
   }
 
-  async processEdit(editId: string): Promise<void> {
+  async processEdit(editId: string, actor?: RequestUser): Promise<void> {
     const claimed = await this.prisma.videoAiEdit.updateMany({
       where: { id: editId, status: "QUEUED" },
       data: { status: "PROCESSING" },
@@ -619,7 +636,7 @@ export class VideoAiEditService {
         },
       });
       if (options.autoApply && options.lessonId) {
-        await this.autoApplyReadyEdit(edit.video, edit.id, options);
+        await this.autoApplyReadyEdit(edit.video, edit.id, options, actor);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message.slice(0, 400) : "Chỉnh sửa AI thất bại";
