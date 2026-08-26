@@ -13,7 +13,6 @@ config();
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
-import { raw as expressRaw } from "express";
 import { AppModule } from "./app.module";
 import { AppErrorFilter } from "./common/app-error.filter";
 import { assertProductionSecrets, corsOrigins, isProduction } from "./common/runtime";
@@ -22,12 +21,6 @@ async function bootstrap() {
   assertProductionSecrets();
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
-  // Memory/S3-local uploads send video/mp4 (not JSON). Capture the raw stream
-  // before Nest's JSON parser so PUT /media/local actually stores bytes.
-  app.use(
-    "/api/v1/media/local",
-    expressRaw({ type: () => true, limit: "256mb" }),
-  );
   app.useBodyParser("json", { limit: "2mb" });
   app.setGlobalPrefix("api/v1");
   app.use(

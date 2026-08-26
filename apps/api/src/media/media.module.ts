@@ -14,6 +14,7 @@ import {
   UseGuards,
   Inject,
 } from "@nestjs/common";
+import type { IncomingMessage } from "node:http";
 import { SkipThrottle } from "@nestjs/throttler";
 import { IsInt, IsOptional, IsString, Min } from "class-validator";
 import {
@@ -369,10 +370,16 @@ export class MediaService {
   }
 }
 
-function readUploadedBytes(req: { body?: unknown; rawBody?: Buffer }): Buffer {
+async function readUploadedBytes(
+  req: IncomingMessage & { body?: unknown; rawBody?: Buffer },
+): Promise<Buffer> {
   if (Buffer.isBuffer(req.rawBody) && req.rawBody.length > 0) return req.rawBody;
-  if (Buffer.isBuffer(req.body)) return req.body;
-  return Buffer.alloc(0);
+  if (Buffer.isBuffer(req.body) && req.body.length > 0) return req.body;
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
 }
 
 @SkipThrottle()
@@ -388,17 +395,17 @@ export class LocalMediaController {
   }
 
   @Put()
-  put(
+  async put(
     @Query("key") key: string,
     @Query("exp") exp: string | undefined,
     @Query("sig") sig: string | undefined,
-    @Req() req: { headers: Record<string, string | undefined>; body?: unknown; rawBody?: Buffer },
+    @Req() req: IncomingMessage & { headers: IncomingMessage["headers"]; body?: unknown; rawBody?: Buffer },
   ) {
     if (!key) throw new AppError(ErrorCodes.VALIDATION, "Missing key", 400);
     this.assertSigned(key, exp, sig);
     const storage = getSharedMemoryStorage();
-    const bytes = readUploadedBytes(req);
-    storage.put(key, bytes, req.headers["content-type"] || "application/octet-stream");
+    const bytes = await readUploadedBytes(req);
+    storage.put(key, bytes, String(req.headers["content-type"] || "application/octet-stream"));
     return { ok: true, key, sizeBytes: bytes.length };
   }
 
