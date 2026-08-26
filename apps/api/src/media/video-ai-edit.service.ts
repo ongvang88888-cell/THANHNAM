@@ -401,7 +401,9 @@ export class VideoAiEditService implements OnModuleInit {
     }
     const items = await Promise.all(
       videos.map(async (video) => {
-        const latest = video.aiEdits.find((edit) => edit.tool === "owned_abc") ?? video.aiEdits[0] ?? null;
+        const latestOwned = video.aiEdits.find((edit) => edit.tool === "owned_abc") ?? null;
+        if (!latestOwned && video.aiEdits.length > 0) return null;
+        const latest = latestOwned;
         const output = asOutput(latest?.outputJson ?? null);
         const assigned =
           attachByRef.get(video.id) ?? (output?.newVideoId ? attachByRef.get(output.newVideoId) : undefined) ?? null;
@@ -423,7 +425,7 @@ export class VideoAiEditService implements OnModuleInit {
         };
       }),
     );
-    return { videos: items.filter((item) => item.edit || item.inbox) };
+    return { videos: items.filter((item): item is NonNullable<typeof item> => Boolean(item)) };
   }
 
   async quickAdjust(

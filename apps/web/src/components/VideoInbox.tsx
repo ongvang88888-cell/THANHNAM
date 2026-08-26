@@ -103,14 +103,29 @@ export function VideoInbox(props: {
   const [lessons, setLessons] = useState<Array<{ id: string; title: string; sectionTitle: string }>>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openAdjust, setOpenAdjust] = useState<string | null>(null);
+  const [showAssigned, setShowAssigned] = useState(false);
   const filesRef = useRef(new Map<string, File>());
   const runningRef = useRef(new Set<string>());
 
-  const inboxCount = items.filter((row) => row.inbox).length;
+  const inboxItems = useMemo(() => items.filter((row) => row.inbox), [items]);
+  const assignedItems = useMemo(() => items.filter((row) => !row.inbox), [items]);
+  const visibleItems = showAssigned ? [...inboxItems, ...assignedItems] : inboxItems;
+  const inboxCount = inboxItems.length;
 
-  async function refreshLibrary() {
-    const next = await apiGet<{ videos: LibraryItem[] }>("/videos/library", props.token);
-    setItems(next.videos);
+  async function refreshLibrary(attempt = 0) {
+    try {
+      const next = await apiGet<{ videos: LibraryItem[] }>("/videos/library", props.token);
+      setItems(next.videos);
+    } catch (err) {
+      const unauthorized =
+        (err instanceof ApiError && err.status === 401) ||
+        (err instanceof Error && /Unauthorized/i.test(err.message));
+      if (unauthorized && attempt < 2) {
+        await wait(500 * (attempt + 1));
+        return refreshLibrary(attempt + 1);
+      }
+      throw err;
+    }
   }
 
   useEffect(() => {
@@ -332,16 +347,28 @@ export function VideoInbox(props: {
       </div>
       <p className="muted">
         Trong kho chưa gán: <strong>{inboxCount}</strong>
+        {assignedItems.length > 0 && (
+          <>
+            {" "}
+            · đã gán {assignedItems.length}{" "}
+            <button type="button" className="secondary" onClick={() => setShowAssigned((current) => !current)}>
+              {showAssigned ? "Ẩn video đã gán" : "Hiện video đã gán"}
+            </button>
+          </>
+        )}
       </p>
       {items.length === 0 && <p className="muted">Chưa có video trong kho. Chọn file phía trên.</p>}
+      {items.length > 0 && visibleItems.length === 0 && (
+        <p className="muted">Không còn video chưa gán. Bấm Hiện video đã gán nếu muốn chỉnh lại.</p>
+      )}
       <ul className="video-inbox-list">
-        {items.map((item) => {
+        {visibleItems.map((item) => {
           const editReady = item.edit?.status === "READY";
           const processing = item.edit?.status === "QUEUED" || item.edit?.status === "PROCESSING";
           return (
             <li key={item.id} className={item.inbox ? "is-inbox" : "is-assigned"}>
               <div className="video-inbox-meta">
-                {item.thumbnailUrl && <img src={item.thumbnailUrl} alt="" />}
+                {item.thumbnailUrl && <img src={item.thumbnailUrl} alt="" loading="lazy" />}
                 <div>
                   <strong>{item.title}</strong>
                   <div className="muted">
@@ -351,9 +378,6 @@ export function VideoInbox(props: {
                   </div>
                 </div>
               </div>
-              {item.edit?.previewUrl && editReady && (
-                <video className="ai-edit-preview" src={item.edit.previewUrl} controls preload="metadata" />
-              )}
               <div className="video-inbox-row-actions">
                 <button
                   type="button"
