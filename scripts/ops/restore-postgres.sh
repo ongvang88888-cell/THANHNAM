@@ -19,6 +19,6 @@ if [[ "${RESTORE_CONFIRM:-}" != "YES" ]]; then
 fi
 
 CLEAN_URL="${DATABASE_URL%%\?*}"
-echo "Restoring ${FILE} into ${CLEAN_URL%%@*}@…" >&2
-gzip -dc "${FILE}" | psql --dbname="${CLEAN_URL}"
+echo "Restoring ${FILE} into the DATABASE_URL target (credentials not printed)." >&2
+gzip -dc "${FILE}" | psql --dbname="${CLEAN_URL}" --quiet
 echo "Restore finished." >&2
