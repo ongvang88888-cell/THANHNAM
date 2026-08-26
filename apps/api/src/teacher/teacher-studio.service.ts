@@ -87,11 +87,12 @@ export class TeacherStudioService {
 
   private async ownedCourse(user: RequestUser, courseId: string) {
     this.assertTeacher(user);
+    const isAdmin = hasAnyRole(user as never, ["admin", "super_admin"]);
     const course = await this.prisma.course.findFirst({
       where: {
         id: String(courseId),
-        creatorUserId: String(user.userId),
         appId: String(user.appId),
+        ...(isAdmin ? {} : { creatorUserId: String(user.userId) }),
       },
       include: {
         product: { include: { prices: { orderBy: { validFrom: "desc" }, take: 1 } } },

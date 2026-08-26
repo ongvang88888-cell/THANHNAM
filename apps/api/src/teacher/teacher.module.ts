@@ -481,11 +481,12 @@ export class TeacherService {
   }
 
   private async ownedCourse(user: RequestUser, courseId: string) {
+    const isAdmin = hasAnyRole(user as never, ["admin", "super_admin"]);
     const course = await this.prisma.course.findFirst({
       where: {
         id: String(courseId),
-        creatorUserId: String(user.userId),
         appId: String(user.appId),
+        ...(isAdmin ? {} : { creatorUserId: String(user.userId) }),
       },
       include: {
         sections: {

@@ -6,6 +6,16 @@ export function statusLabel(status: string): string {
       return "Chờ duyệt";
     case "PUBLISHED":
       return "Đã xuất bản";
+    case "ARCHIVED":
+      return "Đã lưu trữ";
+    case "REJECTED":
+      return "Từ chối";
+    case "PUBLIC":
+      return "Công khai";
+    case "UNLISTED":
+      return "Không liệt kê";
+    case "PRIVATE":
+      return "Riêng tư";
     case "PAID":
       return "Đã thanh toán";
     case "FULFILLED":
@@ -40,7 +50,11 @@ export function statusTone(status: string): "draft" | "review" | "live" | "warn"
     case "REFUNDED":
       return "warn";
     case "DRAFT":
+    case "ARCHIVED":
+    case "PRIVATE":
       return "draft";
+    case "REJECTED":
+      return "warn";
     default:
       return "ok";
   }

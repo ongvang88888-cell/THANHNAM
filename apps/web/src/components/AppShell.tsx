@@ -165,6 +165,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <a href="/notifications">Thông báo</a>
                     {teacher && <a href="/teacher">Studio giảng viên</a>}
                     {admin && <a href="/admin">Quản trị</a>}
+                    {admin && <a href="/admin/courses">Quản lý khóa học</a>}
                     <button type="button" className="plain" onClick={() => void logout()}>
                       Đăng xuất
                     </button>
@@ -208,6 +209,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <a href="/app">Tải app</a>
             <a href="/khoa-hoc">Tất cả khóa học</a>
             <a href="/giang-vien">Trở thành giảng viên</a>
+            {teacher && <a href="/teacher">Studio giảng viên</a>}
+            {admin && <a href="/admin">Quản trị</a>}
+            {admin && <a href="/admin/courses">Quản lý khóa học</a>}
           </div>
         </div>
       )}
