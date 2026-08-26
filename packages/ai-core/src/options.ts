@@ -1,5 +1,12 @@
+import {
+  isCharacterLook,
+  isInsertMode,
+  type CharacterLook,
+  type InsertMode,
+} from "./character";
 import { isLectureExpertRecipeId } from "./expert-recipe";
 import { isTargetLanguageId, type TargetLanguageId } from "./languages";
+import { parsePublicHttpsUrl } from "./remote-media";
 
 export const FACE_REGIONS = ["speaker", "full", "pip_br", "pip_bl", "pip_tr", "pip_tl"] as const;
 export const VISUAL_STYLES = ["trend", "anime", "flat", "watercolor"] as const;
@@ -28,6 +35,9 @@ export interface AiEditOptions {
   lessonId?: string;
   courseId?: string;
   recipeId?: string;
+  characterImageUrl?: string;
+  insertMode?: InsertMode;
+  characterLook?: CharacterLook;
 }
 
 const ALLOWED = new Set([
@@ -49,6 +59,9 @@ const ALLOWED = new Set([
   "lessonId",
   "courseId",
   "recipeId",
+  "characterImageUrl",
+  "insertMode",
+  "characterLook",
 ]);
 
 const MAX_CLOCK_MS = 36_000_000;
@@ -200,6 +213,28 @@ export function parseAiEditOptions(input: unknown): AiEditOptions {
     }
     out.recipeId = rec.recipeId;
   }
+  if (rec.characterImageUrl !== undefined) {
+    if (typeof rec.characterImageUrl !== "string" || rec.characterImageUrl.length > 500) {
+      throw new Error("characterImageUrl tối đa 500 ký tự");
+    }
+    const trimmed = rec.characterImageUrl.trim();
+    if (trimmed) {
+      parsePublicHttpsUrl(trimmed, "characterImageUrl");
+      out.characterImageUrl = trimmed;
+    }
+  }
+  if (rec.insertMode !== undefined) {
+    if (typeof rec.insertMode !== "string" || !isInsertMode(rec.insertMode)) {
+      throw new Error("insertMode phải là overlay, intro hoặc replace");
+    }
+    out.insertMode = rec.insertMode;
+  }
+  if (rec.characterLook !== undefined) {
+    if (typeof rec.characterLook !== "string" || !isCharacterLook(rec.characterLook)) {
+      throw new Error("characterLook phải là teacher, cartoon_kid hoặc custom");
+    }
+    out.characterLook = rec.characterLook;
+  }
   return out;
 }
 
@@ -212,12 +247,12 @@ export function assertOwnedAbcReady(toolId: string, options: AiEditOptions): voi
 
 export function assertStudioConsent(toolId: string, options: AiEditOptions): void {
   assertOwnedAbcReady(toolId, options);
-  if (toolId === "avatar_presenter") {
+  if (toolId === "avatar_presenter" || toolId === "hailuo_character" || toolId === "veo_intro") {
     if (options.confirmOwned !== true) {
-      throw new Error("Avatar cần xác nhận bạn sở hữu kịch bản/ảnh (confirmOwned).");
+      throw new Error("Nhân vật ảo cần xác nhận bạn sở hữu kịch bản/ảnh (confirmOwned).");
     }
     if (options.confirmLikeness !== true) {
-      throw new Error("Avatar cần xác nhận đây là người ảo hoặc ảnh bạn có quyền (confirmLikeness).");
+      throw new Error("Nhân vật ảo cần xác nhận đây là người ảo hoặc ảnh bạn có quyền (confirmLikeness).");
     }
     return;
   }

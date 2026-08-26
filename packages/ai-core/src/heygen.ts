@@ -1,8 +1,12 @@
 import { getTargetLanguage } from "./languages";
+import { isAllowedHeygenMediaUrl } from "./remote-media";
+
+export { isAllowedHeygenMediaUrl } from "./remote-media";
 
 export const HEYGEN_GENERATE_URL = "https://api.heygen.com/v2/video/generate";
 export const HEYGEN_STATUS_URL = "https://api.heygen.com/v1/video_status.get";
 export const HEYGEN_TRANSLATE_URL = "https://api.heygen.com/v2/video_translate";
+export const HEYGEN_UPLOAD_PHOTO_URL = "https://upload.heygen.com/v1/talking_photo";
 
 const DEFAULT_AVATAR_ID = "Angela-inblackskirt-20220820";
 const DEFAULT_VOICE_ID = "1bd001e7e50f421d891986aad5158bc8";
@@ -20,25 +24,33 @@ export function heygenHeaders(apiKey: string): Record<string, string> {
   };
 }
 
-export function buildHeygenAvatarBody(input: { script: string; title: string }): {
+export type HeygenCharacter =
+  | { type: "avatar"; avatar_id: string; avatar_style: "normal" }
+  | { type: "talking_photo"; talking_photo_id: string };
+
+export function buildHeygenAvatarBody(input: { script: string; title: string; talkingPhotoId?: string }): {
   title: string;
   video_inputs: Array<{
-    character: { type: "avatar"; avatar_id: string; avatar_style: "normal" };
+    character: HeygenCharacter;
     voice: { type: "text"; input_text: string; voice_id: string };
   }>;
   dimension: { width: number; height: number };
 } {
   const script = input.script.trim().slice(0, 4000);
   if (!script) throw new Error("Kịch bản avatar trống");
+  const talkingPhotoId = input.talkingPhotoId?.trim();
+  const character: HeygenCharacter = talkingPhotoId
+    ? { type: "talking_photo", talking_photo_id: talkingPhotoId }
+    : {
+        type: "avatar",
+        avatar_id: process.env.HEYGEN_AVATAR_ID?.trim() || DEFAULT_AVATAR_ID,
+        avatar_style: "normal",
+      };
   return {
     title: input.title.trim().slice(0, 80) || "Bai hoc",
     video_inputs: [
       {
-        character: {
-          type: "avatar",
-          avatar_id: process.env.HEYGEN_AVATAR_ID?.trim() || DEFAULT_AVATAR_ID,
-          avatar_style: "normal",
-        },
+        character,
         voice: {
           type: "text",
           input_text: script,
@@ -48,6 +60,15 @@ export function buildHeygenAvatarBody(input: { script: string; title: string }):
     ],
     dimension: { width: 1280, height: 720 },
   };
+}
+
+export function parseHeygenTalkingPhotoId(payload: unknown): string {
+  if (!payload || typeof payload !== "object") throw new Error("HeyGen talking photo rỗng");
+  const rec = payload as Record<string, unknown>;
+  const data = rec.data && typeof rec.data === "object" ? (rec.data as Record<string, unknown>) : rec;
+  const id = data.talking_photo_id ?? data.talkingPhotoId ?? rec.talking_photo_id;
+  if (typeof id === "string" && id.trim()) return id.trim();
+  throw new Error("HeyGen không trả talking_photo_id");
 }
 
 export function buildHeygenTranslateBody(input: { videoUrl: string; title: string; targetLanguage: string }): {
@@ -66,19 +87,6 @@ export function buildHeygenTranslateBody(input: { videoUrl: string; title: strin
     output_language: lang.heygenName,
     title: input.title.trim().slice(0, 80) || "Translated lesson",
   };
-}
-
-export function isAllowedHeygenMediaUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "https:") return false;
-    const host = parsed.hostname.toLowerCase();
-    if (host === "heygen.com" || host.endsWith(".heygen.com")) return true;
-    if (host === "heygen.ai" || host.endsWith(".heygen.ai")) return true;
-    return false;
-  } catch {
-    return false;
-  }
 }
 
 export function parseHeygenVideoId(payload: unknown): string {

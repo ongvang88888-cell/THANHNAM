@@ -560,6 +560,116 @@ export function illustratedConcatArgs(listPath: string, audioPath: string, outpu
   ];
 }
 
+/** PIP a short character clip onto a lecture. Keeps lecture audio. ffmpeg 4.2-safe. */
+export function characterPipOverlayArgs(
+  lecturePath: string,
+  overlayPath: string,
+  outputPath: string,
+  region: Exclude<FaceRegion, "full" | "speaker">,
+  overlayDurationSec: number,
+): string[] {
+  const seconds = Math.max(1, Math.min(20, overlayDurationSec));
+  const pos = pipGeometry(region).overlay;
+  return [
+    "-y",
+    "-i",
+    lecturePath,
+    "-i",
+    overlayPath,
+    "-filter_complex",
+    `[1:v]scale=iw*0.28:-2,scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p[ov];[0:v][ov]${pos}:enable='lte(t,${seconds.toFixed(2)})'[v]`,
+    "-map",
+    "[v]",
+    "-map",
+    "0:a?",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "23",
+    "-pix_fmt",
+    "yuv420p",
+    ...ffmpegThreadArgs(),
+    "-c:a",
+    "aac",
+    "-b:a",
+    "128k",
+    "-movflags",
+    "+faststart",
+    outputPath,
+  ];
+}
+
+export function scaleClipKeepAudioArgs(inputPath: string, outputPath: string): string[] {
+  return [
+    "-y",
+    "-i",
+    inputPath,
+    "-vf",
+    "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,fps=25,format=yuv420p,setsar=1",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "23",
+    "-pix_fmt",
+    "yuv420p",
+    "-c:a",
+    "aac",
+    "-ar",
+    "44100",
+    "-ac",
+    "2",
+    ...ffmpegThreadArgs(),
+    "-movflags",
+    "+faststart",
+    outputPath,
+  ];
+}
+
+export function scaleClipSilentAudioArgs(inputPath: string, outputPath: string): string[] {
+  return [
+    "-y",
+    "-i",
+    inputPath,
+    "-f",
+    "lavfi",
+    "-i",
+    "anullsrc=channel_layout=stereo:sample_rate=44100",
+    "-vf",
+    "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,fps=25,format=yuv420p,setsar=1",
+    "-map",
+    "0:v:0",
+    "-map",
+    "1:a:0",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "23",
+    "-pix_fmt",
+    "yuv420p",
+    "-c:a",
+    "aac",
+    "-ar",
+    "44100",
+    "-ac",
+    "2",
+    "-shortest",
+    ...ffmpegThreadArgs(),
+    "-movflags",
+    "+faststart",
+    outputPath,
+  ];
+}
+
+export function concatNormalizedArgs(listPath: string, outputPath: string): string[] {
+  return ["-y", "-f", "concat", "-safe", "0", "-i", listPath, "-c", "copy", "-movflags", "+faststart", outputPath];
+}
+
 export function replaceAudioArgs(videoPath: string, audioPath: string, outputPath: string): string[] {
   return [
     "-y",

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   cartoonPersonGraph,
   cartoonStyleGraph,
+  characterPipOverlayArgs,
+  concatNormalizedArgs,
   courseEnhanceArgs,
   clampQuickTrim,
   enhanceAndSpeechArgs,
@@ -12,6 +14,8 @@ import {
   ffmpegThreadArgs,
   ffmpegThreadCount,
   illustratedConcatArgs,
+  scaleClipKeepAudioArgs,
+  scaleClipSilentAudioArgs,
   pictureEnhanceArgs,
   silenceTrimArgs,
   speechFocusArgs,
@@ -172,6 +176,16 @@ describe("ffmpeg arg builders", () => {
     expect(args.some((a) => a.includes("crop="))).toBe(true);
     expect(args).toContain("libx264");
     expect(args.join(" ")).not.toContain("iris");
+  });
+
+  it("overlays a character PIP and keeps lecture audio", () => {
+    const args = characterPipOverlayArgs("lesson.mp4", "avatar.mp4", "out.mp4", "pip_br", 8);
+    expect(args.join(" ")).toContain("overlay=W-w-20:H-h-20");
+    expect(args.join(" ")).toContain("lte(t,8.00)");
+    expect(args).toContain("0:a?");
+    expect(scaleClipSilentAudioArgs("in.mp4", "out.mp4").some((arg) => arg.startsWith("anullsrc="))).toBe(true);
+    expect(scaleClipKeepAudioArgs("in.mp4", "out.mp4").join(" ")).toContain("1280:720");
+    expect(concatNormalizedArgs("list.txt", "out.mp4")).toContain("concat");
   });
 
   it("fitAudioDurationArgs clamps atempo to 0.5–2", () => {

@@ -124,10 +124,24 @@ export function describeRecipe(caps: Pick<AiCapabilities, "speech" | "imageGen" 
       },
       {
         id: "avatar_presenter",
-        source: "HeyGen / Synthesia",
+        source: "HeyGen Photo to Video / Avatar IV",
         status: "skipped",
-        label: "Người dẫn ảo từ kịch bản",
-        note: "Không mặc định. Chạy thủ công trong studio — cần xác nhận người ảo / ảnh hợp lệ.",
+        label: "Người dẫn ảo ghép góc bài",
+        note: "Không mặc định. Studio thủ công — HeyGen talking photo + overlay, cần khóa và xác nhận người ảo.",
+      },
+      {
+        id: "hailuo_character",
+        source: "Hailuo / MiniMax H3",
+        status: "skipped",
+        label: "Nhân vật 3D Hailuo ghép góc bài",
+        note: "Không mặc định. Cần MINIMAX_API_KEY. ffmpeg không sinh nhân vật 3D.",
+      },
+      {
+        id: "veo_intro",
+        source: "Google Veo 3.1 / Gemini",
+        status: "skipped",
+        label: "Clip mở bài Veo 8 giây",
+        note: "Không mặc định. Cần khóa Gemini/Veo trả phí. Không thay cả bài giảng.",
       },
       {
         id: "video_translate",

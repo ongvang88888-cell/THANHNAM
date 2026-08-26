@@ -42,9 +42,18 @@ describe("lecture_expert_v1 recipe", () => {
     expect(recipe.techniques.find((row) => row.id === "v2v")?.status).toBe("refused");
     expect(recipe.techniques.find((row) => row.id === "content_id_dodge")?.status).toBe("refused");
     expect(recipe.techniques.filter((row) => row.status === "skipped").map((row) => row.id)).toEqual(
-      expect.arrayContaining(["avatar_presenter", "video_translate", "eye_contact", "overdub"]),
+      expect.arrayContaining([
+        "avatar_presenter",
+        "hailuo_character",
+        "veo_intro",
+        "video_translate",
+        "eye_contact",
+        "overdub",
+      ]),
     );
     expect(recipe.techniques.find((row) => row.id === "avatar_presenter")?.status).toBe("skipped");
+    expect(recipe.techniques.find((row) => row.id === "hailuo_character")?.status).toBe("skipped");
+    expect(recipe.techniques.find((row) => row.id === "veo_intro")?.status).toBe("skipped");
   });
 
   it("marks toon skipped when the encode failed", () => {

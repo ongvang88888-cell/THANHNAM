@@ -88,6 +88,23 @@ describe("parseAiEditOptions", () => {
     expect(() =>
       assertStudioConsent("avatar_presenter", { confirmOwned: true, confirmLikeness: true }),
     ).not.toThrow();
+    expect(() => assertStudioConsent("hailuo_character", { confirmOwned: true })).toThrow(/confirmLikeness/);
+    expect(() =>
+      assertStudioConsent("veo_intro", { confirmOwned: true, confirmLikeness: true }),
+    ).not.toThrow();
+    expect(
+      parseAiEditOptions({
+        characterImageUrl: "https://ideogram.ai/a.png",
+        insertMode: "overlay",
+        characterLook: "cartoon_kid",
+      }),
+    ).toEqual({
+      characterImageUrl: "https://ideogram.ai/a.png",
+      insertMode: "overlay",
+      characterLook: "cartoon_kid",
+    });
+    expect(() => parseAiEditOptions({ characterImageUrl: "http://ideogram.ai/a.png" })).toThrow(/https/);
+    expect(() => parseAiEditOptions({ insertMode: "side" })).toThrow(/insertMode/);
     expect(() => assertStudioConsent("video_translate", { confirmOwned: true })).toThrow(/targetLanguage/);
     expect(() => assertStudioConsent("toon_talking_head", { confirmOwned: true })).toThrow(/confirmFaceEdit/);
     expect(() =>

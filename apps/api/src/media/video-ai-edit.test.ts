@@ -22,6 +22,8 @@ describe("video AI edit contract", () => {
     expect(isAiEditToolId("speech_focus")).toBe(true);
     expect(isAiEditToolId("owned_abc")).toBe(true);
     expect(isAiEditToolId("avatar_presenter")).toBe(true);
+    expect(isAiEditToolId("hailuo_character")).toBe(true);
+    expect(isAiEditToolId("veo_intro")).toBe(true);
     expect(isAiEditToolId("video_translate")).toBe(true);
     expect(isAiEditToolId("eye_contact")).toBe(true);
     expect(isAiEditToolId("overdub")).toBe(true);
@@ -37,6 +39,8 @@ describe("video AI edit contract", () => {
       llm: true,
       tts: true,
       heygen: false,
+      minimax: false,
+      veo: false,
       elevenlabs: false,
     };
     const enhance = getAiEditTool("picture_enhance")!;
@@ -89,6 +93,8 @@ describe("video AI edit contract", () => {
     expect(recipe.techniques.some((row) => row.id === "toon_restyle" && row.status === "applied")).toBe(true);
     expect(recipe.techniques.some((row) => row.id === "content_id_dodge" && row.status === "refused")).toBe(true);
     expect(recipe.techniques.some((row) => row.id === "avatar_presenter" && row.status === "skipped")).toBe(true);
+    expect(recipe.techniques.some((row) => row.id === "hailuo_character" && row.status === "skipped")).toBe(true);
+    expect(recipe.techniques.some((row) => row.id === "veo_intro" && row.status === "skipped")).toBe(true);
     expect(recipe.techniques.some((row) => row.id === "overdub" && row.status === "skipped")).toBe(true);
     expect(() => assertStudioConsent("toon_talking_head", { confirmOwned: true })).toThrow(/confirmFaceEdit/);
     expect(() => assertStudioConsent("avatar_presenter", { confirmOwned: true })).toThrow(/confirmLikeness/);

@@ -17,6 +17,8 @@ type ToolGroup = "audio" | "image" | "copy";
 type FaceRegion = "speaker" | "full" | "pip_br" | "pip_bl" | "pip_tr" | "pip_tl";
 type VisualStyle = "trend" | "anime" | "flat" | "watercolor";
 type ToonStrength = "low" | "medium" | "high";
+type InsertMode = "overlay" | "intro" | "replace";
+type CharacterLook = "teacher" | "cartoon_kid" | "custom";
 
 type CatalogTool = {
   id: string;
@@ -40,6 +42,8 @@ type Catalog = {
     llm: boolean;
     tts?: boolean;
     heygen?: boolean;
+    minimax?: boolean;
+    veo?: boolean;
     elevenlabs?: boolean;
   };
   video: { id: string; title: string; status: string; hasSource: boolean; thumbnailUrl: string | null };
@@ -110,6 +114,20 @@ const STRENGTH_LABEL: Record<ToonStrength, string> = {
   low: "Nhẹ — lớp màu hoạt hình",
 };
 
+const INSERT_LABEL: Record<InsertMode, string> = {
+  overlay: "Ghép góc màn hình (giữ tiếng bài)",
+  intro: "Nối trước bài (mở bài)",
+  replace: "Chỉ clip nhân vật (không ghép)",
+};
+
+const LOOK_LABEL: Record<CharacterLook, string> = {
+  teacher: "Cô giáo ảnh thật",
+  cartoon_kid: "Bé 3D dễ thương",
+  custom: "Tuỳ ảnh / kịch bản",
+};
+
+const CHARACTER_TOOLS = new Set(["avatar_presenter", "hailuo_character", "veo_intro"]);
+
 export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [edits, setEdits] = useState<EditRow[]>([]);
@@ -124,7 +142,10 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
   const [confirmFaceEdit, setConfirmFaceEdit] = useState(false);
   const [confirmVoiceClone, setConfirmVoiceClone] = useState(false);
   const [script, setScript] = useState("");
-  const [targetLanguage, setTargetLanguage] = useState<(typeof TARGET_LANGUAGES)[number]["id"]>("en");
+  const [characterImageUrl, setCharacterImageUrl] = useState("");
+  const [insertMode, setInsertMode] = useState<InsertMode>("overlay");
+  const [characterLook, setCharacterLook] = useState<CharacterLook>("teacher");
+  const [targetLanguage, setTargetLanguage] = useState<(typeof TARGET_LANGUAGES)[number]["id"]>("vi");
   const [startSec, setStartSec] = useState("");
   const [endSec, setEndSec] = useState("");
 
@@ -171,7 +192,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
   }, [catalog]);
 
   function studioBlocked(toolId: string): string | null {
-    if (toolId === "avatar_presenter") {
+    if (CHARACTER_TOOLS.has(toolId)) {
       if (!ownedConfirmed) return "Xác nhận bạn sở hữu kịch bản/ảnh.";
       if (!confirmLikeness) return "Xác nhận đây là người ảo hoặc ảnh bạn có quyền.";
       return null;
@@ -224,20 +245,22 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
             style,
             toonStrength,
             ...(script.trim() ? { script: script.trim().slice(0, 4000) } : {}),
-            ...(toolId === "video_translate" || toolId === "avatar_presenter" || toolId === "overdub"
+            ...(characterImageUrl.trim() ? { characterImageUrl: characterImageUrl.trim().slice(0, 500) } : {}),
+            ...(CHARACTER_TOOLS.has(toolId) ? { insertMode, characterLook } : {}),
+            ...(toolId === "video_translate" || CHARACTER_TOOLS.has(toolId) || toolId === "overdub"
               ? { targetLanguage }
               : {}),
             ...(startMs !== undefined && Number.isFinite(startMs) ? { startMs } : {}),
             ...(endMs !== undefined && Number.isFinite(endMs) ? { endMs } : {}),
             ...(toolId === "owned_abc" ||
-            toolId === "avatar_presenter" ||
+            CHARACTER_TOOLS.has(toolId) ||
             toolId === "video_translate" ||
             toolId === "eye_contact" ||
             toolId === "toon_talking_head" ||
             toolId === "overdub"
               ? { confirmOwned: true }
               : {}),
-            ...(toolId === "avatar_presenter" ? { confirmLikeness: true } : {}),
+            ...(CHARACTER_TOOLS.has(toolId) ? { confirmLikeness: true } : {}),
             ...(toolId === "eye_contact" || toolId === "toon_talking_head" ? { confirmFaceEdit: true } : {}),
             ...(toolId === "overdub" ? { confirmVoiceClone: true } : {}),
           },
@@ -328,6 +351,12 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
         <span className={`badge ${catalog.capabilities.heygen ? "ok" : ""}`}>
           HeyGen {catalog.capabilities.heygen ? "sẵn" : "chưa khóa"}
         </span>
+        <span className={`badge ${catalog.capabilities.minimax ? "ok" : ""}`}>
+          Hailuo {catalog.capabilities.minimax ? "sẵn" : "chưa khóa"}
+        </span>
+        <span className={`badge ${catalog.capabilities.veo ? "ok" : ""}`}>
+          Veo {catalog.capabilities.veo ? "sẵn" : "chưa khóa"}
+        </span>
         <span className={`badge ${catalog.capabilities.elevenlabs ? "ok" : ""}`}>
           ElevenLabs {catalog.capabilities.elevenlabs ? "sẵn" : "chưa khóa"}
         </span>
@@ -411,14 +440,53 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
             onChange={(event) => setEndSec(event.target.value)}
           />
         </div>
+        <div>
+          <label htmlFor="ai-edit-insert">Cách ghép nhân vật vào bài</label>
+          <select
+            id="ai-edit-insert"
+            value={insertMode}
+            onChange={(event) => setInsertMode(event.target.value as InsertMode)}
+          >
+            {(Object.keys(INSERT_LABEL) as InsertMode[]).map((value) => (
+              <option key={value} value={value}>
+                {INSERT_LABEL[value]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="ai-edit-look">Kiểu nhân vật</label>
+          <select
+            id="ai-edit-look"
+            value={characterLook}
+            onChange={(event) => setCharacterLook(event.target.value as CharacterLook)}
+          >
+            {(Object.keys(LOOK_LABEL) as CharacterLook[]).map((value) => (
+              <option key={value} value={value}>
+                {LOOK_LABEL[value]}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="ai-edit-options-wide">
-          <label htmlFor="ai-edit-script">Kịch bản / câu thay thế (avatar, overdub)</label>
+          <label htmlFor="ai-edit-character-url">Ảnh nhân vật (https, tùy chọn)</label>
+          <input
+            id="ai-edit-character-url"
+            type="url"
+            maxLength={500}
+            value={characterImageUrl}
+            onChange={(event) => setCharacterImageUrl(event.target.value)}
+            placeholder="https://… ảnh Ideogram / Leonardo / ảnh bạn có quyền"
+          />
+        </div>
+        <div className="ai-edit-options-wide">
+          <label htmlFor="ai-edit-script">Kịch bản / câu nói (HeyGen, Hailuo, Veo, overdub)</label>
           <textarea
             id="ai-edit-script"
             maxLength={4000}
             value={script}
             onChange={(event) => setScript(event.target.value)}
-            placeholder="Nhập lời người dẫn hoặc câu sửa. Tối đa 4000 ký tự."
+            placeholder="Lời nhân vật nói. Để trống thì HeyGen lấy transcript bài (nếu có Whisper)."
           />
         </div>
       </div>
@@ -429,7 +497,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
             checked={confirmLikeness}
             onChange={(event) => setConfirmLikeness(event.target.checked)}
           />
-          Avatar: đây là người ảo hoặc ảnh/kịch bản tôi có quyền dùng (không phải mặt người khác).
+          Nhân vật ảo (HeyGen / Hailuo / Veo): đây là người ảo hoặc ảnh/kịch bản tôi có quyền dùng (không phải mặt người khác).
         </label>
         <label className="ai-edit-owned">
           <input

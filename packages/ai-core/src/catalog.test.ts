@@ -23,6 +23,8 @@ describe("AI edit catalog", () => {
       "captions",
       "lesson_copy",
       "avatar_presenter",
+      "hailuo_character",
+      "veo_intro",
       "video_translate",
       "eye_contact",
       "overdub",
@@ -43,6 +45,8 @@ describe("AI edit catalog", () => {
       llm: false,
       tts: false,
       heygen: false,
+      minimax: false,
+      veo: false,
       elevenlabs: false,
     };
     const sound = getAiEditTool("studio_sound");
@@ -61,6 +65,8 @@ describe("AI edit catalog", () => {
       llm: false,
       tts: false,
       heygen: false,
+      minimax: false,
+      veo: false,
       elevenlabs: false,
     };
     const tool = getAiEditTool("owned_abc")!;
@@ -90,6 +96,8 @@ describe("AI edit catalog", () => {
       llm: false,
       tts: false,
       heygen: false,
+      minimax: false,
+      veo: false,
       elevenlabs: false,
     };
     const tool = getAiEditTool("illustrated_edition")!;
@@ -107,6 +115,8 @@ describe("AI edit catalog", () => {
       llm: false,
       tts: false,
       heygen: false,
+      minimax: false,
+      veo: false,
       elevenlabs: false,
     };
     const captions = getAiEditTool("captions")!;
@@ -138,11 +148,17 @@ describe("AI edit catalog", () => {
       llm: false,
       tts: false,
       heygen: false,
+      minimax: false,
+      veo: false,
       elevenlabs: false,
     };
     expect(toolAvailability(getAiEditTool("avatar_presenter")!, base, true).available).toBe(false);
     expect(toolAvailability(getAiEditTool("avatar_presenter")!, { ...base, tts: true }, true).mode).toBe("fallback");
     expect(toolAvailability(getAiEditTool("avatar_presenter")!, { ...base, heygen: true }, false).mode).toBe("full");
+    expect(toolAvailability(getAiEditTool("hailuo_character")!, base, true).available).toBe(false);
+    expect(toolAvailability(getAiEditTool("hailuo_character")!, { ...base, minimax: true }, true).mode).toBe("fallback");
+    expect(toolAvailability(getAiEditTool("veo_intro")!, base, true).available).toBe(false);
+    expect(toolAvailability(getAiEditTool("veo_intro")!, { ...base, veo: true }, true).mode).toBe("full");
     expect(toolAvailability(getAiEditTool("video_translate")!, base, true).available).toBe(false);
     expect(
       toolAvailability(getAiEditTool("video_translate")!, { ...base, speech: true, tts: true, llm: true }, true).note,

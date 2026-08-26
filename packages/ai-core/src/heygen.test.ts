@@ -4,6 +4,7 @@ import {
   buildHeygenTranslateBody,
   isAllowedHeygenMediaUrl,
   parseHeygenStatus,
+  parseHeygenTalkingPhotoId,
   parseHeygenVideoId,
 } from "./heygen";
 
@@ -13,10 +14,20 @@ describe("heygen", () => {
       script: "Xin chào lớp.",
       title: "Bài 1",
     });
-    expect(body.video_inputs[0]?.character.avatar_id).toBeTruthy();
+    expect(body.video_inputs[0]?.character.type).toBe("avatar");
+    if (body.video_inputs[0]?.character.type === "avatar") {
+      expect(body.video_inputs[0].character.avatar_id).toBeTruthy();
+    }
     expect(body.video_inputs[0]?.voice.input_text).toBe("Xin chào lớp.");
     expect(body.video_inputs[0]?.voice.voice_id).toBeTruthy();
     expect(body.title).toBe("Bài 1");
+    const photo = buildHeygenAvatarBody({
+      script: "Xin chào lớp.",
+      title: "Bài 1",
+      talkingPhotoId: "tp_1",
+    });
+    expect(photo.video_inputs[0]?.character).toEqual({ type: "talking_photo", talking_photo_id: "tp_1" });
+    expect(parseHeygenTalkingPhotoId({ data: { talking_photo_id: "tp_9" } })).toBe("tp_9");
   });
 
   it("translate body requires https source", () => {

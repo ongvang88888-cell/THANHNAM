@@ -15,6 +15,8 @@ export const AI_EDIT_TOOL_IDS = [
   "captions",
   "lesson_copy",
   "avatar_presenter",
+  "hailuo_character",
+  "veo_intro",
   "video_translate",
   "eye_contact",
   "overdub",
@@ -24,7 +26,16 @@ export type AiEditToolId = (typeof AI_EDIT_TOOL_IDS)[number];
 
 export type AiEditToolGroup = "audio" | "image" | "copy";
 export type AiEditOutputKind = "video" | "image" | "vtt" | "copy";
-export type AiCapabilityName = "ffmpeg" | "speech" | "imageGen" | "llm" | "tts" | "heygen" | "elevenlabs";
+export type AiCapabilityName =
+  | "ffmpeg"
+  | "speech"
+  | "imageGen"
+  | "llm"
+  | "tts"
+  | "heygen"
+  | "minimax"
+  | "veo"
+  | "elevenlabs";
 
 export interface AiEditToolDef {
   id: AiEditToolId;
@@ -165,11 +176,33 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
     group: "image",
     label: "Người dẫn ảo (avatar)",
     description:
-      "Dựng người dẫn từ kịch bản. Có HEYGEN_API_KEY thì gọi HeyGen; không có thì ảnh + giọng TTS. Không chạy trong tự động xuất bản. Cần xác nhận đây là người ảo / ảnh bạn có quyền.",
-    market: "HeyGen / Synthesia avatar",
+      "Dựng người dẫn ảo (HeyGen Photo Avatar / avatar sẵn) rồi ghép góc màn hình bài giảng, giữ tiếng gốc. Có ảnh https thì dùng talking photo. Không có khóa thì ảnh + TTS. Không chạy tự động. Cần xác nhận người ảo / ảnh hợp lệ.",
+    market: "HeyGen Photo to Video / Avatar IV",
     outputKind: "video",
     needs: ["ffmpeg"],
     prefers: ["heygen", "tts"],
+  },
+  {
+    id: "hailuo_character",
+    group: "image",
+    label: "Nhân vật 3D Hailuo (MiniMax)",
+    description:
+      "Ảnh tĩnh (Leonardo/Ideogram/ChatGPT hoặc ảnh bạn dán) → MiniMax Hailuo chuyển động → ghép góc bài giảng. Môi kém hơn HeyGen. Có TTS thì ghép giọng Việt. Cần MINIMAX_API_KEY. Không chạy tự động.",
+    market: "Hailuo / MiniMax H3 image-to-video + Vbee/Gemini TTS",
+    outputKind: "video",
+    needs: ["ffmpeg"],
+    prefers: ["tts", "imageGen"],
+  },
+  {
+    id: "veo_intro",
+    group: "image",
+    label: "Mở bài Veo 3 (8 giây)",
+    description:
+      "Sinh clip mở bài ~8 giây có tiếng nói (Google Veo 3.1 qua Gemini API), rồi nối trước bài giảng. Mặt có thể lệch giữa các lần. Cần GEMINI_API_KEY/VEO_API_KEY gói trả phí. Không thay cả bài. Không chạy tự động.",
+    market: "Google Veo 3.1 / Gemini / Flow",
+    outputKind: "video",
+    needs: ["ffmpeg"],
+    prefers: ["imageGen"],
   },
   {
     id: "video_translate",
@@ -214,6 +247,8 @@ export interface AiCapabilities {
   llm: boolean;
   tts: boolean;
   heygen: boolean;
+  minimax: boolean;
+  veo: boolean;
   elevenlabs: boolean;
 }
 
@@ -237,6 +272,8 @@ export function envAiCapabilities(ffmpeg: boolean): AiCapabilities {
     llm: Boolean(process.env.OPENAI_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim()),
     tts: openai || elevenlabs,
     heygen: Boolean(process.env.HEYGEN_API_KEY?.trim()),
+    minimax: Boolean(process.env.MINIMAX_API_KEY?.trim()),
+    veo: Boolean(process.env.VEO_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim()),
     elevenlabs,
   };
 }
@@ -277,6 +314,34 @@ export function toolAvailability(
       available: true,
       mode: "fallback",
       note: "Chưa có HeyGen — sẽ dựng avatar nháp (ảnh + TTS), không phải người ảo HeyGen.",
+    };
+  }
+  if (tool.id === "hailuo_character") {
+    if (!caps.minimax) {
+      return {
+        available: false,
+        mode: "fallback",
+        note: "Cần MINIMAX_API_KEY để gọi Hailuo / MiniMax. ffmpeg không sinh nhân vật 3D.",
+      };
+    }
+    return {
+      available: true,
+      mode: caps.tts ? "full" : "fallback",
+      note: caps.tts ? null : "Chưa có TTS — clip Hailuo sẽ giữ tiếng MiniMax (thường không khớp lời bài).",
+    };
+  }
+  if (tool.id === "veo_intro") {
+    if (!caps.veo) {
+      return {
+        available: false,
+        mode: "fallback",
+        note: "Cần GEMINI_API_KEY hoặc VEO_API_KEY (Veo 3.1 trả phí). Không giả clip Veo trên máy.",
+      };
+    }
+    return {
+      available: true,
+      mode: "full",
+      note: "Veo 3.1 trên Gemini API — khóa miễn phí thường bị từ chối. Clip ~8 giây, nối trước bài.",
     };
   }
   if (tool.id === "video_translate") {
@@ -332,6 +397,8 @@ export function toolAvailability(
       llm: "Chưa có khóa LLM — sẽ gợi ý từ tiêu đề.",
       tts: "Chưa có khóa TTS — không đọc được lời mới.",
       heygen: "Chưa có HEYGEN_API_KEY — chạy bản trên máy.",
+      minimax: "Chưa có MINIMAX_API_KEY — không gọi Hailuo.",
+      veo: "Chưa có khóa Veo/Gemini — không sinh clip mở bài.",
       elevenlabs: "Chưa có ElevenLabs — TTS sẽ khác giọng giáo viên.",
     };
     return { available: true, mode: "fallback", note: notes[missingPrefer[0]!] };

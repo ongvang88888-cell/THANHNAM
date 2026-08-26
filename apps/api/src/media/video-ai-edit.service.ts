@@ -20,6 +20,7 @@ import {
   HEYGEN_GENERATE_URL,
   HEYGEN_STATUS_URL,
   HEYGEN_TRANSLATE_URL,
+  HEYGEN_UPLOAD_PHOTO_URL,
   LECTURE_EXPERT_RECIPE_ID,
   OWNERSHIP_DISCLAIMER,
   assertStudioConsent,
@@ -27,13 +28,19 @@ import {
   buildConcatDemuxerList,
   buildHeygenAvatarBody,
   buildHeygenTranslateBody,
+  buildMinimaxVideoBody,
+  buildVeoGenerateBody,
   captionStillArgs,
+  characterPipOverlayArgs,
+  characterStillPrompt,
   clampSceneCount,
   concatAudioArgs,
+  concatNormalizedArgs,
   courseEnhanceArgs,
   createAiPortFromEnv,
   cuesFromWhisperSegments,
   clampQuickTrim,
+  defaultInsertMode,
   describeRecipe,
   elevenLabsApiKey,
   elevenLabsCloneVoice,
@@ -50,23 +57,37 @@ import {
   fitAudioDurationArgs,
   getAiEditTool,
   groupScenesForEdition,
+  hailuoMotionPrompt,
   heuristicCuesFromTitle,
   heygenApiKey,
   heygenHeaders,
-  isAllowedHeygenMediaUrl,
+  isAllowedRemoteMediaUrl,
   illustratedConcatArgs,
   isAiEditToolId,
   isPlaceholderLessonTitle,
   kenBurnsStillArgs,
+  minimaxApiKey,
+  minimaxCreateUrl,
+  minimaxHeaders,
+  minimaxQueryUrl,
+  overlayRegionForInsert,
   parseAiEditOptions,
   parseHeygenStatus,
+  parseHeygenTalkingPhotoId,
   parseHeygenVideoId,
+  parseMinimaxStatus,
+  parseMinimaxTaskId,
+  parsePublicHttpsUrl,
+  parseVeoOperationName,
+  parseVeoStatus,
   pictureEnhanceArgs,
   quickTrimCopyArgs,
   quickTrimEncodeArgs,
   progressFields,
   progressForStatus,
   replaceAudioArgs,
+  scaleClipKeepAudioArgs,
+  scaleClipSilentAudioArgs,
   sceneImagePrompt,
   silenceTrimArgs,
   speechFocusArgs,
@@ -78,7 +99,14 @@ import {
   toVtt,
   toolAvailability,
   toonTalkingHeadArgs,
+  veoApiKey,
+  veoGenerateUrl,
+  veoIntroPrompt,
+  veoOperationUrl,
+  withGoogleApiKey,
   type AiCapabilities,
+  type CharacterLook,
+  type InsertMode,
   type AiEditOptions,
   type AiEditStepId,
   type AiEditToolId,
@@ -696,6 +724,8 @@ export class VideoAiEditService implements OnModuleInit {
       return "ffmpeg+poster";
     }
     if (tool === "avatar_presenter") return caps.heygen ? "heygen" : caps.tts ? `${ai.id}+tts` : "ffmpeg";
+    if (tool === "hailuo_character") return caps.minimax ? (caps.tts ? "minimax+tts" : "minimax") : "ffmpeg";
+    if (tool === "veo_intro") return caps.veo ? "veo" : "ffmpeg";
     if (tool === "video_translate") return caps.heygen ? "heygen" : `${ai.id}+tts`;
     if (tool === "eye_contact") return "ffmpeg";
     if (tool === "overdub") return caps.elevenlabs ? "elevenlabs" : caps.tts ? `${ai.id}+tts` : "ffmpeg";
@@ -1155,6 +1185,10 @@ export class VideoAiEditService implements OnModuleInit {
         return this.runCopy(video, ai);
       case "avatar_presenter":
         return this.runAvatarPresenter(video, editId, options, ai);
+      case "hailuo_character":
+        return this.runHailuoCharacter(video, editId, options, ai);
+      case "veo_intro":
+        return this.runVeoIntro(video, editId, options, ai);
       case "video_translate":
         return this.runVideoTranslate(video, editId, options, ai);
       case "eye_contact": {
@@ -1696,12 +1730,22 @@ export class VideoAiEditService implements OnModuleInit {
     const heygenKey = heygenApiKey();
     if (heygenKey) {
       try {
-        return await this.renderHeygenAvatar(video, editId, script, heygenKey);
+        let talkingPhotoId: string | undefined;
+        try {
+          const still = await this.resolveCharacterStill(video, editId, options, ai);
+          if (still?.bytes) {
+            talkingPhotoId = await this.uploadHeygenTalkingPhoto(heygenKey, still.bytes, still.contentType);
+          }
+        } catch (err) {
+          this.log.warn(`HeyGen talking photo skipped: ${err instanceof Error ? err.message : "error"}`);
+        }
+        return await this.renderHeygenAvatar(video, editId, script, heygenKey, options, talkingPhotoId);
       } catch (err) {
         this.log.warn(`HeyGen avatar fallback: ${err instanceof Error ? err.message : "error"}`);
       }
     }
-    return this.renderPosterTtsAvatar(video, editId, script, options, ai);
+    const draft = await this.renderPosterTtsAvatar(video, editId, script, options, ai);
+    return this.maybeComposeCharacter(video, editId, draft, options, "avatar_presenter");
   }
 
   private async resolvePresenterScript(video: Video, options: AiEditOptions, ai: AiPort): Promise<string> {
@@ -1730,10 +1774,25 @@ export class VideoAiEditService implements OnModuleInit {
     editId: string,
     script: string,
     apiKey: string,
+    options: AiEditOptions,
+    talkingPhotoId?: string,
   ): Promise<VideoAiEditOutput> {
-    const remoteId = await this.startHeygenJob(HEYGEN_GENERATE_URL, buildHeygenAvatarBody({ script, title: video.title }), apiKey);
+    const remoteId = await this.startHeygenJob(
+      HEYGEN_GENERATE_URL,
+      buildHeygenAvatarBody({ script, title: video.title, talkingPhotoId }),
+      apiKey,
+    );
     const remoteUrl = await this.pollHeygenVideoUrl(remoteId, apiKey);
-    return this.persistRemoteMp4(video, editId, remoteUrl, "avatar_presenter.mp4", "HeyGen avatar — người dẫn ảo từ kịch bản.");
+    const standalone = await this.persistRemoteMp4(
+      video,
+      editId,
+      remoteUrl,
+      "avatar_presenter.mp4",
+      talkingPhotoId
+        ? "HeyGen Photo Avatar — ảnh tĩnh nhép miệng. Chưa ghép vào bài."
+        : "HeyGen avatar sẵn — người dẫn ảo từ kịch bản. Chưa ghép vào bài.",
+    );
+    return this.maybeComposeCharacter(video, editId, standalone, options, "avatar_presenter");
   }
 
   private async renderPosterTtsAvatar(
@@ -1796,6 +1855,343 @@ export class VideoAiEditService implements OnModuleInit {
       await rm(dir, { recursive: true, force: true });
       if (sourceCleanup) await sourceCleanup();
     }
+  }
+
+  private async runHailuoCharacter(
+    video: Video,
+    editId: string,
+    options: AiEditOptions,
+    ai: AiPort,
+  ): Promise<VideoAiEditOutput> {
+    const apiKey = minimaxApiKey();
+    if (!apiKey) throw new Error("Cần MINIMAX_API_KEY để gọi Hailuo / MiniMax.");
+    await this.markStep(editId, "enhance");
+    const look: CharacterLook = options.characterLook ?? "cartoon_kid";
+    const script = (options.script || options.prompt || "").trim();
+    const still = await this.resolveCharacterStill(video, editId, options, ai);
+    const remoteId = await this.startMinimaxJob(
+      buildMinimaxVideoBody({
+        prompt: hailuoMotionPrompt(look, script || video.title),
+        imageUrl: still?.publicUrl,
+        durationSec: 6,
+      }),
+      apiKey,
+    );
+    const remoteUrl = await this.pollMinimaxVideoUrl(remoteId, apiKey);
+    let standalone = await this.persistRemoteMp4(
+      video,
+      editId,
+      remoteUrl,
+      "hailuo_character.mp4",
+      still?.publicUrl
+        ? "MiniMax Hailuo — ảnh tĩnh thành chuyển động. Môi không khớp như HeyGen."
+        : "MiniMax Hailuo — sinh từ prompt (không có ảnh https công khai). Mặt dễ lệch.",
+    );
+    if (script && standalone.storageKey) {
+      try {
+        standalone = await this.muxTtsOntoClip(video, editId, standalone, script, options, ai);
+      } catch (err) {
+        this.log.warn(`Hailuo TTS mux skipped: ${err instanceof Error ? err.message : "error"}`);
+      }
+    }
+    return this.maybeComposeCharacter(video, editId, standalone, options, "hailuo_character");
+  }
+
+  private async runVeoIntro(
+    video: Video,
+    editId: string,
+    options: AiEditOptions,
+    ai: AiPort,
+  ): Promise<VideoAiEditOutput> {
+    const apiKey = veoApiKey();
+    if (!apiKey) throw new Error("Cần GEMINI_API_KEY hoặc VEO_API_KEY để gọi Veo 3.1.");
+    await this.markStep(editId, "enhance");
+    const look: CharacterLook = options.characterLook ?? "teacher";
+    const script = (options.script || options.prompt || "").trim();
+    let imageBase64: string | undefined;
+    let imageMime: string | undefined;
+    try {
+      const still = await this.resolveCharacterStill(video, editId, options, ai);
+      if (still?.bytes && still.bytes.length < 8 * 1024 * 1024) {
+        imageBase64 = still.bytes.toString("base64");
+        imageMime = still.contentType;
+      }
+    } catch (err) {
+      this.log.warn(`Veo still skipped: ${err instanceof Error ? err.message : "error"}`);
+    }
+    const operation = await this.startVeoJob(
+      buildVeoGenerateBody({
+        prompt: veoIntroPrompt(look, video.title, script),
+        imageBase64,
+        imageMime,
+      }),
+      apiKey,
+    );
+    const remoteUrl = await this.pollVeoVideoUrl(operation, apiKey);
+    const standalone = await this.persistRemoteMp4(
+      video,
+      editId,
+      remoteUrl,
+      "veo_intro.mp4",
+      "Veo 3.1 — clip mở bài ~8 giây có tiếng nói. Mặt có thể lệch giữa các lần.",
+      apiKey,
+    );
+    return this.maybeComposeCharacter(video, editId, standalone, { ...options, insertMode: options.insertMode ?? "intro" }, "veo_intro");
+  }
+
+  private async maybeComposeCharacter(
+    video: Video,
+    editId: string,
+    clip: VideoAiEditOutput,
+    options: AiEditOptions,
+    tool: "avatar_presenter" | "hailuo_character" | "veo_intro",
+  ): Promise<VideoAiEditOutput> {
+    const mode: InsertMode = options.insertMode ?? defaultInsertMode(tool);
+    if (mode === "replace" || !clip.storageKey || !video.storageKey) {
+      return clip;
+    }
+    const lecture = await this.openSourceFile(video);
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-insert-"));
+    try {
+      const clipObj = await this.storage.getObject(clip.storageKey);
+      if (!clipObj || clipObj.bytes.length === 0) return clip;
+      const overlayPath = path.join(dir, "character.mp4");
+      await writeFile(overlayPath, clipObj.bytes);
+      const outputPath = path.join(dir, "composed.mp4");
+      if (mode === "overlay") {
+        const overlaySec = Math.max(1, Math.min(20, (clip.durationMs ?? 8000) / 1000));
+        await this.execFfmpeg(
+          characterPipOverlayArgs(lecture.path, overlayPath, outputPath, overlayRegionForInsert(options.region), overlaySec),
+        );
+      } else {
+        const introNorm = path.join(dir, "intro.mp4");
+        const lessonNorm = path.join(dir, "lesson.mp4");
+        const introHasAudio = await this.probeHasAudio(overlayPath);
+        const lessonHasAudio = await this.probeHasAudio(lecture.path);
+        await this.execFfmpeg(
+          introHasAudio ? scaleClipKeepAudioArgs(overlayPath, introNorm) : scaleClipSilentAudioArgs(overlayPath, introNorm),
+        );
+        await this.execFfmpeg(
+          lessonHasAudio ? scaleClipKeepAudioArgs(lecture.path, lessonNorm) : scaleClipSilentAudioArgs(lecture.path, lessonNorm),
+        );
+        const listPath = path.join(dir, "concat.txt");
+        await writeFile(listPath, buildConcatDemuxerList([
+          { file: introNorm, durationSec: ((await this.probeDurationMs(introNorm)) ?? 8000) / 1000 },
+          { file: lessonNorm, durationSec: ((await this.probeDurationMs(lessonNorm)) ?? 8000) / 1000 },
+        ]), "utf8");
+        await this.execFfmpeg(concatNormalizedArgs(listPath, outputPath));
+      }
+      const key = buildObjectKey({
+        appId: video.appId,
+        type: "video-ai",
+        id: editId,
+        filename: `${tool}.mp4`,
+      });
+      const sizeBytes = await this.persistFile(key, outputPath, "video/mp4");
+      const insertNote =
+        mode === "overlay"
+          ? " Đã ghép góc màn hình, giữ tiếng bài giảng gốc."
+          : " Đã nối clip trước bài giảng.";
+      return {
+        kind: "video",
+        storageKey: key,
+        contentType: "video/mp4",
+        sizeBytes,
+        durationMs: (await this.probeDurationMs(outputPath)) ?? clip.durationMs,
+        providerNote: `${clip.providerNote ?? ""}${insertNote}`.trim(),
+      };
+    } catch (err) {
+      this.log.warn(`character compose skipped: ${err instanceof Error ? err.message : "error"}`);
+      return {
+        ...clip,
+        providerNote: `${clip.providerNote ?? ""} Không ghép được vào bài — giữ clip nhân vật riêng.`.trim(),
+      };
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+      await lecture.cleanup();
+    }
+  }
+
+  private async muxTtsOntoClip(
+    video: Video,
+    editId: string,
+    clip: VideoAiEditOutput,
+    script: string,
+    options: AiEditOptions,
+    ai: AiPort,
+  ): Promise<VideoAiEditOutput> {
+    if (!clip.storageKey) return clip;
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-mux-"));
+    try {
+      const obj = await this.storage.getObject(clip.storageKey);
+      if (!obj) return clip;
+      const videoPath = path.join(dir, "clip.mp4");
+      const voicePath = path.join(dir, "voice.mp3");
+      const outputPath = path.join(dir, "mux.mp4");
+      await writeFile(videoPath, obj.bytes);
+      const spoken = await this.speakToFile(ai, script, options.targetLanguage ?? "vi", voicePath);
+      await this.execFfmpeg(replaceAudioArgs(videoPath, voicePath, outputPath));
+      const key = buildObjectKey({
+        appId: video.appId,
+        type: "video-ai",
+        id: editId,
+        filename: "hailuo_character.mp4",
+      });
+      const sizeBytes = await this.persistFile(key, outputPath, "video/mp4");
+      return {
+        ...clip,
+        storageKey: key,
+        sizeBytes,
+        durationMs: (await this.probeDurationMs(outputPath)) ?? clip.durationMs,
+        providerNote: `${clip.providerNote ?? ""} Đã ghép TTS (${spoken.provider}) — miệng Hailuo không khớp lời.`.trim(),
+      };
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  private async resolveCharacterStill(
+    video: Video,
+    editId: string,
+    options: AiEditOptions,
+    ai: AiPort,
+  ): Promise<{ bytes: Buffer; contentType: string; publicUrl?: string } | null> {
+    if (options.characterImageUrl) {
+      const parsed = parsePublicHttpsUrl(options.characterImageUrl, "Ảnh nhân vật");
+      const res = await fetch(parsed.toString(), { signal: AbortSignal.timeout(30_000), redirect: "follow" });
+      if (!res.ok) throw new Error(`Không tải được ảnh nhân vật (${res.status})`);
+      try {
+        parsePublicHttpsUrl(res.url, "Ảnh nhân vật");
+      } catch {
+        throw new Error("Ảnh nhân vật chuyển hướng tới host không hợp lệ");
+      }
+      const bytes = Buffer.from(await res.arrayBuffer());
+      if (bytes.length > 8 * 1024 * 1024) throw new Error("Ảnh nhân vật tối đa 8MB");
+      const contentType = res.headers.get("content-type") || "image/png";
+      return { bytes, contentType, publicUrl: parsed.toString() };
+    }
+    const look: CharacterLook = options.characterLook ?? "teacher";
+    try {
+      const cover = await ai.generateCover({
+        title: video.title,
+        prompt: characterStillPrompt(look, video.title, options.prompt),
+      });
+      if (cover.provider !== "null" && !cover.contentType.includes("svg")) {
+        const key = buildObjectKey({
+          appId: video.appId,
+          type: "video-ai",
+          id: editId,
+          filename: "character-still.png",
+        });
+        await this.storage.putObject(key, cover.bytes, cover.contentType);
+        const signed = await this.storage.createDownloadUrl({ key, ttlSeconds: 3600 });
+        return {
+          bytes: cover.bytes,
+          contentType: cover.contentType,
+          publicUrl: signed.url.startsWith("https://") ? signed.url : undefined,
+        };
+      }
+    } catch (err) {
+      this.log.warn(`character still imageGen skipped: ${err instanceof Error ? err.message : "error"}`);
+    }
+    if (!video.storageKey) return null;
+    const source = await this.openSourceFile(video);
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-still-"));
+    try {
+      const still = path.join(dir, "still.jpg");
+      const seek = thumbnailSeekSeconds((await this.probeDurationMs(source.path)) ?? video.durationMs ?? 0);
+      await this.execFfmpeg(thumbnailArgs(source.path, still, seek));
+      const bytes = await readFile(still);
+      return { bytes, contentType: "image/jpeg" };
+    } catch {
+      return null;
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+      await source.cleanup();
+    }
+  }
+
+  private async uploadHeygenTalkingPhoto(apiKey: string, bytes: Buffer, contentType: string): Promise<string> {
+    const form = new FormData();
+    const ext = contentType.includes("jpeg") || contentType.includes("jpg") ? "jpg" : "png";
+    form.append("file", new Blob([new Uint8Array(bytes)], { type: contentType || "image/png" }), `character.${ext}`);
+    const res = await fetch(HEYGEN_UPLOAD_PHOTO_URL, {
+      method: "POST",
+      headers: { Accept: "application/json", "X-Api-Key": apiKey },
+      body: form,
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`HeyGen upload ảnh thất bại (${res.status}): ${text.slice(0, 180)}`);
+    }
+    return parseHeygenTalkingPhotoId(await res.json());
+  }
+
+  private async startMinimaxJob(body: unknown, apiKey: string): Promise<string> {
+    const res = await fetch(minimaxCreateUrl(), {
+      method: "POST",
+      headers: minimaxHeaders(apiKey),
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`MiniMax thất bại (${res.status}): ${text.slice(0, 180)}`);
+    }
+    return parseMinimaxTaskId(await res.json());
+  }
+
+  private async pollMinimaxVideoUrl(taskId: string, apiKey: string): Promise<string> {
+    const deadline = Date.now() + 10 * 60 * 1000;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 8_000));
+      const res = await fetch(minimaxQueryUrl(taskId), {
+        headers: minimaxHeaders(apiKey),
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`MiniMax status thất bại (${res.status}): ${text.slice(0, 180)}`);
+      }
+      const status = parseMinimaxStatus(await res.json());
+      if (status.status === "failed") throw new Error(status.error || "MiniMax xử lý thất bại");
+      if (status.status === "completed" && status.videoUrl) return status.videoUrl;
+    }
+    throw new Error("MiniMax quá hạn (hơn 10 phút). Thử lại sau.");
+  }
+
+  private async startVeoJob(body: unknown, apiKey: string): Promise<string> {
+    const res = await fetch(veoGenerateUrl(apiKey), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Veo thất bại (${res.status}): ${text.slice(0, 180)}`);
+    }
+    return parseVeoOperationName(await res.json());
+  }
+
+  private async pollVeoVideoUrl(operationName: string, apiKey: string): Promise<string> {
+    const deadline = Date.now() + 10 * 60 * 1000;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 8_000));
+      const res = await fetch(veoOperationUrl(operationName, apiKey), {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Veo status thất bại (${res.status}): ${text.slice(0, 180)}`);
+      }
+      const status = parseVeoStatus(await res.json());
+      if (status.status === "failed") throw new Error(status.error || "Veo xử lý thất bại");
+      if (status.status === "completed" && status.videoUrl) return status.videoUrl;
+    }
+    throw new Error("Veo quá hạn (hơn 10 phút). Thử lại sau.");
   }
 
   private async runVideoTranslate(
@@ -2065,11 +2461,12 @@ export class VideoAiEditService implements OnModuleInit {
     remoteUrl: string,
     filename: string,
     providerNote: string,
+    googleKey?: string,
   ): Promise<VideoAiEditOutput> {
     const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-remote-"));
     try {
       const outputPath = path.join(dir, "remote.mp4");
-      await this.downloadRemoteFile(remoteUrl, outputPath);
+      await this.downloadRemoteFile(remoteUrl, outputPath, googleKey);
       const key = buildObjectKey({
         appId: video.appId,
         type: "video-ai",
@@ -2090,13 +2487,14 @@ export class VideoAiEditService implements OnModuleInit {
     }
   }
 
-  private async downloadRemoteFile(url: string, dest: string): Promise<void> {
-    if (!isAllowedHeygenMediaUrl(url)) {
-      throw new Error("Chỉ tải video từ máy chủ HeyGen (https)");
+  private async downloadRemoteFile(url: string, dest: string, googleKey?: string): Promise<void> {
+    if (!isAllowedRemoteMediaUrl(url)) {
+      throw new Error("Chỉ tải video từ máy chủ HeyGen / MiniMax / Google (https)");
     }
-    const res = await fetch(url, { signal: AbortSignal.timeout(180_000), redirect: "follow" });
-    if (!isAllowedHeygenMediaUrl(res.url)) {
-      throw new Error("HeyGen chuyển hướng tới host không hợp lệ");
+    const fetchUrl = googleKey ? withGoogleApiKey(url, googleKey) : url;
+    const res = await fetch(fetchUrl, { signal: AbortSignal.timeout(180_000), redirect: "follow" });
+    if (!isAllowedRemoteMediaUrl(res.url)) {
+      throw new Error("Máy chủ remote chuyển hướng tới host không hợp lệ");
     }
     if (!res.ok || !res.body) {
       throw new Error(`Tải video remote thất bại (${res.status})`);
