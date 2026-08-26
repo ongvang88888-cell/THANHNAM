@@ -20,6 +20,9 @@
     "production": {
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_NATIVE_IAP": "1"
       }
     }
   },

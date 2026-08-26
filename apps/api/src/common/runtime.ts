@@ -24,15 +24,62 @@ export function allowLocalMedia(): boolean {
   return process.env.ALLOW_LOCAL_MEDIA === "true";
 }
 
+function requireStrongSecret(name: string, secret: string): string {
+  if (secret.length < 32 || /change-me|dev-access/i.test(secret)) {
+    throw new Error(`${name} must be a strong 32+ char secret in production`);
+  }
+  return secret;
+}
+
 export function jwtAccessSecret(): string {
   const secret = process.env.JWT_ACCESS_SECRET || "";
   if (isProduction()) {
-    if (secret.length < 32 || /change-me|dev-access/i.test(secret)) {
-      throw new Error("JWT_ACCESS_SECRET must be a strong 32+ char secret in production");
-    }
-    return secret;
+    return requireStrongSecret("JWT_ACCESS_SECRET", secret);
   }
   return secret || "dev-access-secret-change-me-32chars!!";
+}
+
+function requirePublicHttpsUrl(name: string, raw: string | undefined): string {
+  const value = raw?.trim() || "";
+  if (!value) throw new Error(`${name} is required in production`);
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(`${name} must be a valid URL`);
+  }
+  const allowInsecure = process.env.ALLOW_INSECURE_PUBLIC_URL === "true";
+  if (parsed.protocol !== "https:" && !allowInsecure) {
+    throw new Error(`${name} must be https in production`);
+  }
+  const loopback = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1" || parsed.hostname === "0.0.0.0";
+  if (loopback && process.env.ALLOW_LOCAL_PUBLIC_WEB !== "true") {
+    throw new Error(`${name} must not be a loopback address in production`);
+  }
+  return value.replace(/\/$/, "");
+}
+
+export function assertSellOnPlayConfig(): void {
+  if (process.env.SELL_ON_PLAY !== "true") return;
+  const pkg = process.env.GOOGLE_PLAY_PACKAGE_NAME?.trim();
+  if (!pkg) {
+    throw new Error("GOOGLE_PLAY_PACKAGE_NAME is required when SELL_ON_PLAY=true");
+  }
+  const json = process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON?.trim();
+  if (!json) {
+    throw new Error("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is required when SELL_ON_PLAY=true");
+  }
+  try {
+    const parsed = JSON.parse(json) as { type?: string; client_email?: string };
+    if (parsed.type !== "service_account" || !parsed.client_email) {
+      throw new Error("invalid");
+    }
+  } catch {
+    throw new Error("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON must be a Google service account JSON");
+  }
+  if (process.env.ALLOW_IAP_TEST_TOKENS === "true") {
+    throw new Error("ALLOW_IAP_TEST_TOKENS cannot be true when SELL_ON_PLAY=true");
+  }
 }
 
 export function corsOrigins(): string[] {
@@ -113,4 +160,6 @@ export function assertProductionSecrets(): void {
   if (provider === "zalopay" && !process.env.ZALOPAY_KEY1) {
     throw new Error("ZALOPAY_KEY1 is required when DEFAULT_PAYMENT_PROVIDER=zalopay");
   }
+  requirePublicHttpsUrl("PUBLIC_WEB_URL", process.env.PUBLIC_WEB_URL);
+  assertSellOnPlayConfig();
 }

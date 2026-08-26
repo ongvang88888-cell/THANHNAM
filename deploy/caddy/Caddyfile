@@ -1,0 +1,12 @@
+# Optional TLS terminator for a single VPS.
+# Set PUBLIC_DOMAIN (e.g. school.example.com). Do not invent a domain.
+# API listens on 3001 with prefix /api/v1. Web listens on 3000.
+
+{$PUBLIC_DOMAIN} {
+	encode zstd gzip
+
+	@api path /api/*
+	reverse_proxy @api 127.0.0.1:3001
+
+	reverse_proxy 127.0.0.1:3000
+}

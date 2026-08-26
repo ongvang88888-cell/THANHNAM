@@ -29,9 +29,11 @@ The API refuses to boot when JWT/database/storage secrets look like local defaul
 | Clients | Web register/reset/refresh/role nav/checkout poll/Stripe confirm/affiliate; mobile SecureStore + register + forgot/reset + video |
 | Ops | Helmet, CORS, throttle, CI workflow, prod compose |
 
+Operator sequence for Play + durable selling data: [PLAY_AND_DATA_LAUNCH.md](./PLAY_AND_DATA_LAUNCH.md).
+
 ## Still not “app-store launch”
 
-- Live Apple/Play credentials and store listing
+- Live Apple/Play credentials and store listing (you create these; repo has listing/SKU/Data safety drafts)
 - Full Hóa đơn điện tử GDT provider (printable VAT invoice is the substitute)
 - AWS ECS/RDS deploy (docs + compose only)
 - Marketplace revenue split (locked OFF)

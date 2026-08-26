@@ -1,0 +1,48 @@
+{
+  "packageName": "com.educommerce.student",
+  "note": "Create these Managed products in Play Console. Prices match seed amountMinor as displayed by formatVnd (dong, no /100).",
+  "products": [
+    {
+      "sku": "typescript_fundamentals",
+      "productType": "managed",
+      "status": "active",
+      "defaultLanguage": "vi-VN",
+      "listings": {
+        "vi-VN": {
+          "title": "TypeScript Fundamentals",
+          "description": "Khóa học TypeScript từ cơ bản đến production."
+        },
+        "en-US": {
+          "title": "TypeScript Fundamentals",
+          "description": "Learn TypeScript from zero to production-ready patterns."
+        }
+      },
+      "defaultPrice": {
+        "currency": "VND",
+        "priceMicros": "49900000000000",
+        "seedAmountMinor": 49900000
+      }
+    },
+    {
+      "sku": "ts_cheat_sheet",
+      "productType": "managed",
+      "status": "active",
+      "defaultLanguage": "vi-VN",
+      "listings": {
+        "vi-VN": {
+          "title": "TypeScript Cheat Sheet",
+          "description": "Tài liệu PDF tóm tắt TypeScript."
+        },
+        "en-US": {
+          "title": "TypeScript Cheat Sheet",
+          "description": "TypeScript PDF cheat sheet."
+        }
+      },
+      "defaultPrice": {
+        "currency": "VND",
+        "priceMicros": "9900000000000",
+        "seedAmountMinor": 9900000
+      }
+    }
+  ]
+}

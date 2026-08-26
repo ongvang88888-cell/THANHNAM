@@ -1,6 +1,7 @@
-const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? "http://127.0.0.1:3001/api/v1";
-const APP_ID = process.env.EXPO_PUBLIC_APP_ID ?? "education_app";
+import { resolveApiUrl, resolveAppId } from "./config";
+
+const API_URL = resolveApiUrl();
+const APP_ID = resolveAppId();
 
 export type ProductListItem = {
   id: string;

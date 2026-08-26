@@ -1,0 +1,56 @@
+# Google Play Data safety — map to Console form.
+# Only declare data this codebase actually collects.
+
+app: com.educommerce.student
+collects_data: true
+encrypted_in_transit: true
+users_can_request_deletion: true
+deletion_url: /data-deletion
+privacy_policy_url: /privacy
+
+collected:
+  - type: email_address
+    purpose: [app_functionality, account_management]
+    required: true
+    shared: false
+    note: Account login and receipts
+  - type: name
+    purpose: [app_functionality]
+    required: false
+    shared: false
+    note: Optional display name
+  - type: user_ids
+    purpose: [app_functionality, account_management]
+    required: true
+    shared: false
+    note: Internal user id + app_id
+  - type: purchase_history
+    purpose: [app_functionality]
+    required: false
+    shared: true
+    shared_with: [google_play, payment_processors]
+    note: Order + Play purchaseToken / web provider refs. No card numbers.
+  - type: app_activity
+    purpose: [app_functionality, analytics]
+    required: false
+    shared: false
+    note: Lesson progress, video position, certificates
+  - type: other_user_content
+    purpose: [app_functionality]
+    required: false
+    shared: false
+    note: Lesson comments, notes
+
+not_collected:
+  - approximate_location
+  - precise_location
+  - contacts
+  - photos
+  - microphone
+  - advertising_id
+  - card_number
+
+security:
+  data_encrypted_in_transit: true
+  committed_to_play_families_policy: false
+  independent_security_review: false

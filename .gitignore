@@ -7,8 +7,16 @@ coverage/
 .env
 .env.*
 !.env.example
+!.env.production.example
 *.pem
 *.key
+*.p8
+*.keystore
+*.jks
+*.mobileprovision
+google-play-service-account.json
+upload-keystore.jks
+backups/
 .DS_Store
 agent-tools/
 .playwright-mcp/

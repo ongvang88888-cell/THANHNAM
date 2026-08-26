@@ -35,6 +35,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </header>
       <main>{children}</main>
+      <footer className="site-footer">
+        <a href="/privacy">Quyền riêng tư</a>
+        <a href="/terms">Điều khoản</a>
+        <a href="/data-deletion">Xóa dữ liệu</a>
+      </footer>
     </div>
   );
 }

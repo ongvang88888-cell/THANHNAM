@@ -1,8 +1,10 @@
 # Production-shaped compose for self-host. Not a substitute for AWS ECS/RDS.
 # Set secrets via environment or a private .env — never commit live keys.
+# Run scripts/ops/check-production-env.sh .env before the first up.
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-edu}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
@@ -16,6 +18,8 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
+    volumes: ["redisdata:/data"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -26,10 +30,13 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
     env_file: .env
     environment:
       NODE_ENV: production
       API_PORT: 3001
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
     ports: ["3001:3001"]
     depends_on:
       postgres:
@@ -41,13 +48,41 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL to the public https API /api/v1}
+        NEXT_PUBLIC_APP_ID: ${NEXT_PUBLIC_APP_ID:-education_app}
+    restart: unless-stopped
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://127.0.0.1:3001/api/v1}
-      NEXT_PUBLIC_APP_ID: education_app
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_APP_ID: ${NEXT_PUBLIC_APP_ID:-education_app}
     ports: ["3000:3000"]
     depends_on:
       - api
 
+  db-backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      BACKUP_DIR: /backups
+      REQUIRE_STRONG_BACKUP_TARGET: ${REQUIRE_STRONG_BACKUP_TARGET:-true}
+    volumes:
+      - pgbackups:/backups
+      - ./scripts/ops/backup-postgres.sh:/backup.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "db-backup sidecar: daily pg_dump while this service stays up"
+        while true; do
+          /backup.sh || echo "backup failed; will retry in 24h"
+          sleep 86400
+        done
+
 volumes:
   pgdata:
+  redisdata:
+  pgbackups:

@@ -1,6 +1,17 @@
 # Implementation status
 
-Last updated: 2026-08-26 (stability / publish-readiness slice)
+Last updated: 2026-08-26 (Play + durable-data launch package)
+
+## Shipped in this slice
+
+- Mobile `app.config.js` fails production EAS if `EXPO_PUBLIC_API_URL` is missing, http, or loopback
+- Legal pages `/privacy` `/terms` `/data-deletion` + footer
+- Play listing / Data safety / IAP SKUs under `store/play/`
+- Postgres backup/restore scripts + prod compose restart/volumes/backup sidecar
+- Web Docker image requires `NEXT_PUBLIC_API_URL` build-arg
+- Production boot requires https `PUBLIC_WEB_URL`; `SELL_ON_PLAY=true` requires Play SA and rejects test IAP tokens
+- `/ready` pings Redis when `REDIS_URL` is set
+- Operator runbook: `docs/PLAY_AND_DATA_LAUNCH.md`
 
 ## Shipped in this slice
 
