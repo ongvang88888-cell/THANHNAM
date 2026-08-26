@@ -30,6 +30,9 @@ export CI=true
 export NEXT_PUBLIC_APP_ID="${NEXT_PUBLIC_APP_ID:-education_app}"
 unset NODE_ENV || true
 
+# New workspace packages (e.g. @edu/ai-core) need a lockfile install before turbo build.
+pnpm install --frozen-lockfile
+
 pnpm exec turbo run build --filter=@edu/api --filter=@edu/web
 systemctl restart edu-api edu-web
 echo "Rebuilt with NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
