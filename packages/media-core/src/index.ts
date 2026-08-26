@@ -95,6 +95,7 @@ export class MemoryStorageProvider implements IStorageProvider {
     const base =
       process.env.MEDIA_PUBLIC_BASE ||
       process.env.API_URL ||
+      process.env.PUBLIC_WEB_URL ||
       `http://127.0.0.1:${process.env.API_PORT || 3001}`;
     return `${base.replace(/\/$/, "")}/api/v1/media/local`;
   }
