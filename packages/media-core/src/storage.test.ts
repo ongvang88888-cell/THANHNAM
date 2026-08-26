@@ -16,6 +16,9 @@ describe("MemoryStorageProvider objects", () => {
     const head = await storage.head("clip.mp4");
     expect(head?.sizeBytes).toBe(4);
     expect(storage.localPath("clip.mp4")).toBeNull();
+    await expect(
+      storage.writeFromStream("big.mp4", Readable.from([Buffer.alloc(8)]), "video/mp4", { maxBytes: 4 }),
+    ).rejects.toThrow(/MEDIA_TOO_LARGE/);
   });
 });
 
@@ -39,6 +42,15 @@ describe("DiskStorageProvider objects", () => {
     expect(streamed).toBe(3);
     expect(assertSafeStorageKey("app/ok.mp4")).toBe("app/ok.mp4");
     expect(() => assertSafeStorageKey("../etc/passwd")).toThrow(/Invalid storage key/);
+    await expect(
+      storage.writeFromStream(
+        "app/education_app/videos/huge.mp4",
+        Readable.from([Buffer.alloc(32)]),
+        "video/mp4",
+        { maxBytes: 16 },
+      ),
+    ).rejects.toThrow(/MEDIA_TOO_LARGE/);
+    expect(await storage.head("app/education_app/videos/huge.mp4")).toBeNull();
     await rm(root, { recursive: true, force: true });
   });
 });

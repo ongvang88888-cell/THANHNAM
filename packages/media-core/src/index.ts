@@ -2,6 +2,7 @@ import { createHmac, createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import type { Readable } from "node:stream";
 import { getSharedDiskStorage } from "./disk-storage";
+import { MAX_MEDIA_OBJECT_BYTES, MediaTooLargeError } from "./limits";
 import { mediaSigningSecret, signLocalMedia, signedLocalMediaUrl, verifyLocalMedia } from "./signing";
 import type {
   IStorageProvider,
@@ -19,6 +20,15 @@ export {
   storageRoot,
 } from "./disk-storage";
 export { mediaSigningSecret, signLocalMedia, verifyLocalMedia };
+export {
+  MAX_MEDIA_OBJECT_BYTES,
+  MIN_FREE_MEDIA_BYTES,
+  MediaTooLargeError,
+  assertFreeMediaDisk,
+  freeDiskBytes,
+  isMediaTooLargeError,
+  limitBytesTransform,
+} from "./limits";
 
 const ALLOWED_DOC_MIME = new Set([
   "application/pdf",
@@ -80,6 +90,9 @@ export class MemoryStorageProvider implements IStorageProvider {
   }
 
   async putObject(key: string, bytes: Buffer, contentType: string): Promise<void> {
+    if (bytes.length > MAX_MEDIA_OBJECT_BYTES) {
+      throw new MediaTooLargeError();
+    }
     this.put(key, bytes, contentType);
   }
 
@@ -87,10 +100,20 @@ export class MemoryStorageProvider implements IStorageProvider {
     this.put(key, await readFile(filePath), contentType);
   }
 
-  async writeFromStream(key: string, stream: Readable, contentType: string): Promise<number> {
+  async writeFromStream(
+    key: string,
+    stream: Readable,
+    contentType: string,
+    opts?: { maxBytes?: number },
+  ): Promise<number> {
+    const maxBytes = opts?.maxBytes ?? MAX_MEDIA_OBJECT_BYTES;
     const chunks: Buffer[] = [];
+    let seen = 0;
     for await (const chunk of stream) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      seen += buf.length;
+      if (seen > maxBytes) throw new MediaTooLargeError(maxBytes);
+      chunks.push(buf);
     }
     const bytes = Buffer.concat(chunks);
     this.put(key, bytes, contentType);

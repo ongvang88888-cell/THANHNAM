@@ -3,6 +3,7 @@ import { copyFile, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import type { Readable } from "node:stream";
+import { MAX_MEDIA_OBJECT_BYTES, MediaTooLargeError, limitBytesTransform } from "./limits";
 import { signedLocalMediaUrl } from "./signing";
 import type { IStorageProvider, SignedDownload, SignedUpload, StoredObject } from "./types";
 
@@ -92,6 +93,9 @@ export class DiskStorageProvider implements IStorageProvider {
   }
 
   async putObject(key: string, bytes: Buffer, contentType: string): Promise<void> {
+    if (bytes.length > MAX_MEDIA_OBJECT_BYTES) {
+      throw new MediaTooLargeError();
+    }
     const filePath = this.localPath(key);
     await mkdir(path.dirname(filePath), { recursive: true });
     const tmp = `${filePath}.part`;
@@ -109,15 +113,26 @@ export class DiskStorageProvider implements IStorageProvider {
     await this.writeMeta(dest, contentType);
   }
 
-  async writeFromStream(key: string, stream: Readable, contentType: string): Promise<number> {
+  async writeFromStream(
+    key: string,
+    stream: Readable,
+    contentType: string,
+    opts?: { maxBytes?: number },
+  ): Promise<number> {
     const dest = this.localPath(key);
     await mkdir(path.dirname(dest), { recursive: true });
     const tmp = `${dest}.part`;
-    await pipeline(stream, createWriteStream(tmp));
-    const info = await stat(tmp);
-    await rename(tmp, dest);
-    await this.writeMeta(dest, contentType);
-    return info.size;
+    const maxBytes = opts?.maxBytes ?? MAX_MEDIA_OBJECT_BYTES;
+    try {
+      await pipeline(stream, limitBytesTransform(maxBytes), createWriteStream(tmp));
+      const info = await stat(tmp);
+      await rename(tmp, dest);
+      await this.writeMeta(dest, contentType);
+      return info.size;
+    } catch (err) {
+      await rm(tmp, { force: true });
+      throw err;
+    }
   }
 
   createReadStream(key: string, opts?: { start?: number; end?: number }) {

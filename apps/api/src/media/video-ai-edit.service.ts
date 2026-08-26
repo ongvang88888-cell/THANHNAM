@@ -1,13 +1,16 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import {
+  assertFreeMediaDisk,
   buildObjectKey,
   createStorageFromEnv,
+  MAX_MEDIA_OBJECT_BYTES,
+  storageRoot,
   type IStorageProvider,
 } from "@edu/media-core";
 import {
@@ -64,10 +67,10 @@ import { AppError, ErrorCodes, assertNever, hasAnyRole } from "@edu/shared-core"
 import type { Prisma, Video, VideoAiEdit } from "@edu/database";
 import { PrismaService } from "../common/prisma.service";
 import type { RequestUser } from "../auth/auth.guard";
-import { ffmpegEncodeGate, isHeavyFfmpegEncode } from "./ffmpeg-gate";
+import { ffmpegEncodeGate, ffmpegMaxConcurrent, isHeavyFfmpegEncode } from "./ffmpeg-gate";
 
 const execFileAsync = promisify(execFile);
-const MAX_SOURCE_BYTES = 400 * 1024 * 1024;
+const MAX_SOURCE_BYTES = MAX_MEDIA_OBJECT_BYTES;
 const MAX_EDITS_PER_VIDEO = 20;
 const MAX_ACTIVE_PER_USER = 3;
 const STALE_EDIT_MS = 12 * 60 * 1000;
@@ -122,6 +125,25 @@ export class VideoAiEditService implements OnModuleInit {
     if (result.count > 0) {
       this.log.warn(`Failed ${result.count} orphaned AI edits after restart`);
     }
+    await this.cleanupStaleTempDirs();
+  }
+
+  private async cleanupStaleTempDirs() {
+    const root = tmpdir();
+    let names: string[] = [];
+    try {
+      names = await readdir(root);
+    } catch {
+      return;
+    }
+    for (const name of names) {
+      if (!name.startsWith("edu-ai-")) continue;
+      try {
+        await rm(path.join(root, name), { recursive: true, force: true });
+      } catch {
+        // ignore a dir still in use
+      }
+    }
   }
 
   private assertTeacher(user: RequestUser) {
@@ -166,9 +188,16 @@ export class VideoAiEditService implements OnModuleInit {
     if (!video.storageKey) return { hasSource: false, sizeBytes: 0 };
     const head = await this.storage.head(video.storageKey);
     if (head) return { hasSource: head.sizeBytes > 0, sizeBytes: head.sizeBytes };
-    const obj = await this.storage.getObject(video.storageKey);
-    if (!obj || obj.bytes.length === 0) return { hasSource: false, sizeBytes: 0 };
-    return { hasSource: true, sizeBytes: obj.bytes.length };
+    const local = this.storage.localPath?.(video.storageKey);
+    if (local && existsSync(local)) {
+      try {
+        const info = await stat(local);
+        return { hasSource: info.size > 0, sizeBytes: info.size };
+      } catch {
+        return { hasSource: false, sizeBytes: 0 };
+      }
+    }
+    return { hasSource: false, sizeBytes: 0 };
   }
 
   private async persistFile(key: string, filePath: string, contentType: string): Promise<number> {
@@ -329,6 +358,23 @@ export class VideoAiEditService implements OnModuleInit {
     });
     if (active >= MAX_ACTIVE_PER_USER) {
       throw new AppError(ErrorCodes.VALIDATION, "Đang có quá nhiều lệnh AI chạy. Đợi lệnh trước xong.", 400);
+    }
+    const globalActive = await this.prisma.videoAiEdit.count({
+      where: { status: { in: ["QUEUED", "PROCESSING"] } },
+    });
+    if (globalActive >= Math.max(2, ffmpegMaxConcurrent() * 2)) {
+      throw new AppError(
+        ErrorCodes.VALIDATION,
+        "Máy chủ đang xử lý tối đa video. Đợi lệnh trước xong.",
+        429,
+      );
+    }
+    if (this.storage.localPath?.("__quota__")) {
+      try {
+        await assertFreeMediaDisk(storageRoot());
+      } catch {
+        throw new AppError(ErrorCodes.MAINTENANCE, "Máy chủ hết chỗ trống cho video. Xóa video cũ rồi chạy lại.", 503);
+      }
     }
     const ai = createAiPortFromEnv();
     const queued = progressFields("queue");

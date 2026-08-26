@@ -25,7 +25,11 @@ import {
   createStorageFromEnv,
   createTranscodeFromEnv,
   assertAllowedMime,
+  assertFreeMediaDisk,
   buildObjectKey,
+  isMediaTooLargeError,
+  MAX_MEDIA_OBJECT_BYTES,
+  storageRoot,
   verifyLocalMedia,
   type IStorageProvider,
   type TranscodePort,
@@ -156,6 +160,13 @@ export class MediaService {
     // Prefer real object head when storage supports it; memory provider always has the key.
     const head = await this.storage.head(video.storageKey);
     const sizeBytes = BigInt(dto.sizeBytes ?? head?.sizeBytes ?? 0);
+    if (!head || head.sizeBytes <= 0) {
+      throw new AppError(ErrorCodes.VALIDATION, "Chưa nhận được file video. Hãy tải lại.", 400);
+    }
+    if (head.sizeBytes > MAX_MEDIA_OBJECT_BYTES || sizeBytes > BigInt(MAX_MEDIA_OBJECT_BYTES)) {
+      await this.storage.delete(video.storageKey);
+      throw new AppError(ErrorCodes.VALIDATION, "Video quá lớn để tải lên máy chủ (tối đa 400MB)", 413);
+    }
 
     const assetKey = `${video.storageKey}.m3u8`;
     await this.prisma.videoAsset.deleteMany({ where: { videoId: video.id } });
@@ -425,19 +436,34 @@ export class LocalMediaController {
     if (!key) throw new AppError(ErrorCodes.VALIDATION, "Missing key", 400);
     this.assertSigned(key, exp, sig);
     const contentType = String(req.headers["content-type"] || "application/octet-stream");
-    if (Buffer.isBuffer(req.rawBody) && req.rawBody.length > 0) {
-      await this.storage.putObject(key, req.rawBody, contentType);
-      return { ok: true, key, sizeBytes: req.rawBody.length };
+    const declared = Number(req.headers["content-length"]);
+    if (Number.isFinite(declared) && declared > MAX_MEDIA_OBJECT_BYTES) {
+      throw new AppError(ErrorCodes.VALIDATION, "Video quá lớn để tải lên máy chủ (tối đa 400MB)", 413);
     }
-    if (Buffer.isBuffer(req.body) && req.body.length > 0) {
-      await this.storage.putObject(key, req.body, contentType);
-      return { ok: true, key, sizeBytes: req.body.length };
+    if (this.storage.localPath?.("__quota__")) {
+      try {
+        await assertFreeMediaDisk(storageRoot());
+      } catch {
+        throw new AppError(ErrorCodes.MAINTENANCE, "Máy chủ hết chỗ trống cho video. Xóa video cũ rồi tải lại.", 503);
+      }
     }
-    if (this.storage.writeFromStream) {
-      const sizeBytes = await this.storage.writeFromStream(key, req, contentType);
+    if (!this.storage.writeFromStream) {
+      throw new AppError(ErrorCodes.VALIDATION, "Empty media upload", 400);
+    }
+    try {
+      const sizeBytes = await this.storage.writeFromStream(key, req, contentType, {
+        maxBytes: MAX_MEDIA_OBJECT_BYTES,
+      });
+      if (sizeBytes <= 0) {
+        throw new AppError(ErrorCodes.VALIDATION, "Chưa nhận được file video. Hãy tải lại.", 400);
+      }
       return { ok: true, key, sizeBytes };
+    } catch (err) {
+      if (isMediaTooLargeError(err)) {
+        throw new AppError(ErrorCodes.VALIDATION, "Video quá lớn để tải lên máy chủ (tối đa 400MB)", 413);
+      }
+      throw err;
     }
-    throw new AppError(ErrorCodes.VALIDATION, "Empty media upload", 400);
   }
 
   @Get()

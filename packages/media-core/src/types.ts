@@ -33,7 +33,12 @@ export interface IStorageProvider {
   putObject(key: string, bytes: Buffer, contentType: string): Promise<void>;
   localPath?(key: string): string | null;
   putFile?(key: string, filePath: string, contentType: string): Promise<void>;
-  writeFromStream?(key: string, stream: Readable, contentType: string): Promise<number>;
+  writeFromStream?(
+    key: string,
+    stream: Readable,
+    contentType: string,
+    opts?: { maxBytes?: number },
+  ): Promise<number>;
 }
 
 export interface TranscodePort {
