@@ -29,11 +29,14 @@ export {
 } from "./scenes";
 export {
   captionStillArgs,
+  COURSE_ENHANCE_VF,
   courseEnhanceArgs,
+  enhanceAndSpeechArgs,
   extractLessonAudioArgs,
   extractSpeechAudioArgs,
   FFMPEG_FONT_CANDIDATES,
   illustratedConcatArgs,
+  SPEECH_FOCUS_AF,
   pictureEnhanceArgs,
   pipGeometry,
   sanitizeDrawText,
@@ -47,6 +50,7 @@ export {
   toonVf,
 } from "./ffmpeg";
 export {
+  assertOwnedAbcReady,
   FACE_REGIONS,
   isFaceRegion,
   isVisualStyle,

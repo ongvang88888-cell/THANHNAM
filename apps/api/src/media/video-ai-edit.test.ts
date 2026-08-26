@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isAiEditToolId, parseAiEditOptions, toolAvailability, getAiEditTool } from "@edu/ai-core";
+import {
+  assertOwnedAbcReady,
+  isAiEditToolId,
+  parseAiEditOptions,
+  toolAvailability,
+  getAiEditTool,
+} from "@edu/ai-core";
 
 describe("video AI edit contract", () => {
   it("only accepts catalog tools", () => {
@@ -8,6 +14,7 @@ describe("video AI edit contract", () => {
     expect(isAiEditToolId("toon_talking_head")).toBe(true);
     expect(isAiEditToolId("illustrated_edition")).toBe(true);
     expect(isAiEditToolId("speech_focus")).toBe(true);
+    expect(isAiEditToolId("owned_abc")).toBe(true);
     expect(isAiEditToolId("elevenlabs_overdub")).toBe(false);
   });
 
@@ -24,6 +31,11 @@ describe("video AI edit contract", () => {
       region: "pip_br",
       style: "anime",
     });
+    expect(parseAiEditOptions({ confirmOwned: true, style: "flat" })).toEqual({
+      confirmOwned: true,
+      style: "flat",
+    });
     expect(() => parseAiEditOptions({ seekSeconds: 90_000 })).toThrow(/seekSeconds/);
+    expect(() => assertOwnedAbcReady("owned_abc", { region: "pip_br" })).toThrow(/confirmOwned/);
   });
 });

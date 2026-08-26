@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAiEditOptions } from "./options";
+import { assertOwnedAbcReady, parseAiEditOptions } from "./options";
 
 describe("parseAiEditOptions", () => {
   it("accepts empty and known fields", () => {
@@ -13,6 +13,7 @@ describe("parseAiEditOptions", () => {
       style: "anime",
       maxScenes: 6,
     });
+    expect(parseAiEditOptions({ confirmOwned: true })).toEqual({ confirmOwned: true });
   });
 
   it("rejects unknown or invalid fields", () => {
@@ -20,6 +21,14 @@ describe("parseAiEditOptions", () => {
     expect(() => parseAiEditOptions({ seekSeconds: -1 })).toThrow(/seekSeconds/);
     expect(() => parseAiEditOptions({ region: "center" })).toThrow(/region/);
     expect(() => parseAiEditOptions({ style: "oil" })).toThrow(/style/);
+    expect(() => parseAiEditOptions({ confirmOwned: "yes" })).toThrow(/confirmOwned/);
     expect(() => parseAiEditOptions("x")).toThrow(/object/);
+  });
+
+  it("requires an ownership commitment for the A+B+C pack", () => {
+    expect(() => assertOwnedAbcReady("owned_abc", {})).toThrow(/confirmOwned/);
+    expect(() => assertOwnedAbcReady("owned_abc", { confirmOwned: false })).toThrow(/confirmOwned/);
+    expect(() => assertOwnedAbcReady("owned_abc", { confirmOwned: true })).not.toThrow();
+    expect(() => assertOwnedAbcReady("course_enhance", {})).not.toThrow();
   });
 });

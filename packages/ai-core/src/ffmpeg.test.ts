@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   courseEnhanceArgs,
+  enhanceAndSpeechArgs,
   extractSpeechAudioArgs,
   illustratedConcatArgs,
   pictureEnhanceArgs,
@@ -57,6 +58,14 @@ describe("ffmpeg arg builders", () => {
     const full = toonTalkingHeadArgs("in.mp4", "out.mp4", "full", "flat");
     expect(full).toContain("-vf");
     expect(full.join(" ")).not.toContain("filter_complex");
+  });
+
+  it("combines slide-safe enhance with speech-focus in one encode", () => {
+    const args = enhanceAndSpeechArgs("in.mp4", "out.mp4");
+    expect(args.some((a) => a.includes("hqdn3d=") && a.includes("unsharp=3:3"))).toBe(true);
+    expect(args.some((a) => a.includes("highpass=f=140") && a.includes("lowpass=f=3800"))).toBe(true);
+    expect(args).not.toContain("-c:v");
+    expect(args).not.toContain("-c:a");
   });
 
   it("muxes original lesson audio onto illustrated stills", () => {

@@ -13,12 +13,14 @@ import {
 import {
   AI_EDIT_TOOLS,
   OWNERSHIP_DISCLAIMER,
+  assertOwnedAbcReady,
   buildConcatDemuxerList,
   captionStillArgs,
   clampSceneCount,
   courseEnhanceArgs,
   createAiPortFromEnv,
   cuesFromWhisperSegments,
+  enhanceAndSpeechArgs,
   envAiCapabilities,
   extractLessonAudioArgs,
   extractSpeechAudioArgs,
@@ -66,6 +68,11 @@ export interface VideoAiEditOutput {
   description?: string;
   tags?: string[];
   newVideoId?: string;
+  editionStorageKey?: string;
+  editionContentType?: string;
+  editionSizeBytes?: number;
+  editionDurationMs?: number;
+  editionVideoId?: string;
   appliedAt?: string;
   appliedToLessonId?: string;
   appliedToProductId?: string;
@@ -191,6 +198,7 @@ export class VideoAiEditService {
     let options: AiEditOptions;
     try {
       options = parseAiEditOptions(rawOptions);
+      assertOwnedAbcReady(rawTool, options);
     } catch (e) {
       throw new AppError(ErrorCodes.VALIDATION, e instanceof Error ? e.message : "Tùy chọn không hợp lệ", 400);
     }
@@ -235,10 +243,10 @@ export class VideoAiEditService {
     if (tool === "captions") return caps.speech ? ai.id : "heuristic";
     if (tool === "ai_cover") return caps.imageGen ? ai.id : "poster";
     if (tool === "lesson_copy") return caps.llm ? ai.id : "heuristic";
-    if (tool === "illustrated_edition") {
+    if (tool === "illustrated_edition" || tool === "owned_abc") {
       if (caps.imageGen && caps.speech) return ai.id;
       if (caps.speech) return `${ai.id}+poster`;
-      return "poster";
+      return "ffmpeg+poster";
     }
     return "ffmpeg";
   }
@@ -267,6 +275,12 @@ export class VideoAiEditService {
       const newVideoId = output.newVideoId || (await this.materializeEditedVideo(video, edit, output, tool.label));
       output.newVideoId = newVideoId;
       applied.push("video");
+      if (output.editionStorageKey) {
+        output.editionVideoId =
+          output.editionVideoId ||
+          (await this.materializeCompanionVideo(video, output, "Bản hoạt hình mới (B)"));
+        applied.push("edition");
+      }
       if (body.lessonId) {
         await this.swapLessonVideo(user, body.lessonId, newVideoId);
         output.appliedToLessonId = body.lessonId;
@@ -316,6 +330,7 @@ export class VideoAiEditService {
     return {
       ...preview,
       newVideoId: output.newVideoId,
+      editionVideoId: output.editionVideoId,
       title: output.title,
       description: output.description,
       tags: output.tags,
@@ -347,6 +362,37 @@ export class VideoAiEditService {
         format: "mp4",
         storageKey: output.storageKey!,
         sizeBytes: BigInt(output.sizeBytes ?? 0),
+      },
+    });
+    return created.id;
+  }
+
+  private async materializeCompanionVideo(
+    source: Video,
+    output: VideoAiEditOutput,
+    titleSuffix: string,
+  ): Promise<string> {
+    if (!output.editionStorageKey) {
+      throw new AppError(ErrorCodes.VALIDATION, "Thiếu bản minh họa B", 400);
+    }
+    const created = await this.prisma.video.create({
+      data: {
+        appId: source.appId,
+        ownerUserId: source.ownerUserId,
+        title: `${source.title} (${titleSuffix})`.slice(0, 180),
+        status: "READY",
+        durationMs: output.editionDurationMs ?? source.durationMs,
+        storageKey: output.editionStorageKey,
+        thumbnailKey: source.thumbnailKey,
+      },
+    });
+    await this.prisma.videoAsset.create({
+      data: {
+        videoId: created.id,
+        quality: "720p",
+        format: "mp4",
+        storageKey: output.editionStorageKey,
+        sizeBytes: BigInt(output.editionSizeBytes ?? 0),
       },
     });
     return created.id;
@@ -442,6 +488,8 @@ export class VideoAiEditService {
   ): Promise<VideoAiEditOutput> {
     const ai = createAiPortFromEnv();
     switch (tool) {
+      case "owned_abc":
+        return this.runOwnedAbc(video, editId, options, ai);
       case "studio_sound":
         return this.runFfmpegVideo(video, editId, tool, studioSoundArgs, "video/mp4");
       case "speech_focus": {
@@ -690,6 +738,57 @@ export class VideoAiEditService {
     };
   }
 
+  private async runOwnedAbc(
+    video: Video,
+    editId: string,
+    options: AiEditOptions,
+    ai: AiPort,
+  ): Promise<VideoAiEditOutput> {
+    const source = await this.loadSource(video);
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-abc-"));
+    try {
+      const inputPath = path.join(dir, `in${source.ext}`);
+      await writeFile(inputPath, source.bytes);
+      if (!(await this.probeHasAudio(inputPath))) {
+        throw new Error("Video không có tiếng giảng. Gói A+B+C cần giữ lời gốc cho bản minh họa.");
+      }
+      const enhancedPath = path.join(dir, "enhance-speech.mp4");
+      await this.execFfmpeg(enhanceAndSpeechArgs(inputPath, enhancedPath));
+      const region = options.region ?? "pip_br";
+      const style = options.style ?? "anime";
+      const lessonPath = path.join(dir, "owned-abc-lesson.mp4");
+      await this.execFfmpeg(toonTalkingHeadArgs(enhancedPath, lessonPath, region, style));
+      const lessonBytes = await readFile(lessonPath);
+      const lessonKey = buildObjectKey({
+        appId: video.appId,
+        type: "video-ai",
+        id: editId,
+        filename: "owned_abc.mp4",
+      });
+      await this.storage.putObject(lessonKey, lessonBytes, "video/mp4");
+
+      const edition = await this.renderIllustratedFromInput(video, editId, options, ai, dir, inputPath, "owned_abc_edition.mp4");
+      const pipNote =
+        region === "full"
+          ? "C stylize cả khung — chữ slide có thể khó đọc."
+          : "C stylize PIP/mặt, giữ slide.";
+      return {
+        kind: "video",
+        storageKey: lessonKey,
+        contentType: "video/mp4",
+        sizeBytes: lessonBytes.length,
+        durationMs: (await this.probeDurationMs(lessonPath)) ?? video.durationMs ?? undefined,
+        editionStorageKey: edition.storageKey,
+        editionContentType: "video/mp4",
+        editionSizeBytes: edition.sizeBytes,
+        editionDurationMs: edition.durationMs,
+        providerNote: `${OWNERSHIP_DISCLAIMER} A làm nét + giảm nhạc nền. ${pipNote} B là bản minh họa riêng trên 100% tiếng gốc. ${edition.note}`,
+      };
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
   private async runIllustratedEdition(
     video: Video,
     editId: string,
@@ -700,99 +799,125 @@ export class VideoAiEditService {
     const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-"));
     try {
       const inputPath = path.join(dir, `in${source.ext}`);
-      const audioPath = path.join(dir, "lesson.m4a");
       await writeFile(inputPath, source.bytes);
       if (!(await this.probeHasAudio(inputPath))) {
         throw new Error("Video không có tiếng giảng. Bản hoạt hình cần giữ 100% âm thanh gốc.");
       }
-      await this.execFfmpeg(extractLessonAudioArgs(inputPath, audioPath));
-      const durationMs = (await this.probeDurationMs(inputPath)) ?? video.durationMs ?? 8_000;
-      const caps = await this.capabilities();
-      const sceneCount = clampSceneCount(options.maxScenes, caps.imageGen);
-      let cues = timeSliceCues(video.title, durationMs, sceneCount);
-      let note = "Minh họa theo nhịp thời gian — thêm khóa Whisper để chia cảnh theo lời giảng.";
-
-      if (caps.speech) {
-        try {
-          const speechPath = path.join(dir, "speech.mp3");
-          await this.execFfmpeg(extractSpeechAudioArgs(inputPath, speechPath));
-          const audio = await readFile(speechPath);
-          if (audio.length <= 20 * 1024 * 1024) {
-            const speech = await ai.transcribe({ bytes: audio, filename: "speech.mp3", mime: "audio/mpeg" });
-            const fromSpeech = cuesFromWhisperSegments(speech.segments);
-            if (fromSpeech.length > 0) {
-              cues = fromSpeech;
-              note = "Minh họa theo transcript, giữ 100% tiếng gốc.";
-            }
-          } else {
-            note = "Audio dài — đã chia cảnh theo thời gian, không gửi hết file vào Whisper.";
-          }
-        } catch (err) {
-          note = `Không nhận lời nói (${err instanceof Error ? err.message : "lỗi"}). Đã dựng thẻ theo thời gian.`;
-        }
-      }
-
-      const scenes = groupScenesForEdition(cues, durationMs, sceneCount);
-      const style = options.style ?? "anime";
-      const font = firstExistingFont(existsSync);
-      if (!font) {
-        throw new Error("Máy chủ thiếu font để dựng thẻ bài học.");
-      }
-
-      const entries: Array<{ file: string; durationSec: number }> = [];
-      for (let index = 0; index < scenes.length; index += 1) {
-        const scene = scenes[index];
-        if (!scene) continue;
-        const still = path.join(dir, `scene-${index}.jpg`);
-        let usedGenerated = false;
-        if (caps.imageGen) {
-          try {
-            const cover = await ai.generateCover({
-              title: video.title,
-              prompt: options.prompt || sceneImagePrompt(video.title, scene.text, style),
-            });
-            if (!cover.contentType.includes("svg") && cover.bytes.length > 0) {
-              const raw = path.join(dir, `raw-${index}.png`);
-              await writeFile(raw, cover.bytes);
-              await this.execFfmpeg(captionStillArgs(raw, still, scene.text, font));
-              usedGenerated = true;
-            }
-          } catch {
-            usedGenerated = false;
-          }
-        }
-        if (!usedGenerated) {
-          await this.execFfmpeg(titlePosterArgs(still, scene.text, font, style));
-        }
-        entries.push({
-          file: still,
-          durationSec: Math.max(0.8, (scene.endMs - scene.startMs) / 1000),
-        });
-      }
-
-      const listPath = path.join(dir, "scenes.txt");
-      await writeFile(listPath, buildConcatDemuxerList(entries), "utf8");
-      const outputPath = path.join(dir, "out.mp4");
-      await this.execFfmpeg(illustratedConcatArgs(listPath, audioPath, outputPath));
-      const out = await readFile(outputPath);
-      const key = buildObjectKey({
-        appId: video.appId,
-        type: "video-ai",
-        id: editId,
-        filename: "illustrated_edition.mp4",
-      });
-      await this.storage.putObject(key, out, "video/mp4");
+      const edition = await this.renderIllustratedFromInput(
+        video,
+        editId,
+        options,
+        ai,
+        dir,
+        inputPath,
+        "illustrated_edition.mp4",
+      );
       return {
         kind: "video",
-        storageKey: key,
+        storageKey: edition.storageKey,
         contentType: "video/mp4",
-        sizeBytes: out.length,
-        durationMs: (await this.probeDurationMs(outputPath)) ?? durationMs,
-        providerNote: `${OWNERSHIP_DISCLAIMER} ${note}`,
+        sizeBytes: edition.sizeBytes,
+        durationMs: edition.durationMs,
+        providerNote: `${OWNERSHIP_DISCLAIMER} ${edition.note}`,
       };
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  }
+
+  private async renderIllustratedFromInput(
+    video: Video,
+    editId: string,
+    options: AiEditOptions,
+    ai: AiPort,
+    dir: string,
+    inputPath: string,
+    filename: string,
+  ): Promise<{ storageKey: string; sizeBytes: number; durationMs: number; note: string }> {
+    const audioPath = path.join(dir, "lesson.m4a");
+    await this.execFfmpeg(extractLessonAudioArgs(inputPath, audioPath));
+    const durationMs = (await this.probeDurationMs(inputPath)) ?? video.durationMs ?? 8_000;
+    const caps = await this.capabilities();
+    const sceneCount = clampSceneCount(options.maxScenes, caps.imageGen);
+    let cues = timeSliceCues(video.title, durationMs, sceneCount);
+    let note = "Minh họa theo nhịp thời gian — thêm khóa Whisper để chia cảnh theo lời giảng.";
+
+    if (caps.speech) {
+      try {
+        const speechPath = path.join(dir, "speech.mp3");
+        await this.execFfmpeg(extractSpeechAudioArgs(inputPath, speechPath));
+        const audio = await readFile(speechPath);
+        if (audio.length <= 20 * 1024 * 1024) {
+          const speech = await ai.transcribe({ bytes: audio, filename: "speech.mp3", mime: "audio/mpeg" });
+          const fromSpeech = cuesFromWhisperSegments(speech.segments);
+          if (fromSpeech.length > 0) {
+            cues = fromSpeech;
+            note = "Minh họa theo transcript, giữ 100% tiếng gốc.";
+          }
+        } else {
+          note = "Audio dài — đã chia cảnh theo thời gian, không gửi hết file vào Whisper.";
+        }
+      } catch (err) {
+        note = `Không nhận lời nói (${err instanceof Error ? err.message : "lỗi"}). Đã dựng thẻ theo thời gian.`;
+      }
+    }
+
+    const scenes = groupScenesForEdition(cues, durationMs, sceneCount);
+    const style = options.style ?? "anime";
+    const font = firstExistingFont(existsSync);
+    if (!font) {
+      throw new Error("Máy chủ thiếu font để dựng thẻ bài học.");
+    }
+
+    const entries: Array<{ file: string; durationSec: number }> = [];
+    for (let index = 0; index < scenes.length; index += 1) {
+      const scene = scenes[index];
+      if (!scene) continue;
+      const still = path.join(dir, `scene-${index}.jpg`);
+      let usedGenerated = false;
+      if (caps.imageGen) {
+        try {
+          const cover = await ai.generateCover({
+            title: video.title,
+            prompt: options.prompt || sceneImagePrompt(video.title, scene.text, style),
+          });
+          if (!cover.contentType.includes("svg") && cover.bytes.length > 0) {
+            const raw = path.join(dir, `raw-${index}.png`);
+            await writeFile(raw, cover.bytes);
+            await this.execFfmpeg(captionStillArgs(raw, still, scene.text, font));
+            usedGenerated = true;
+          }
+        } catch {
+          usedGenerated = false;
+        }
+      }
+      if (!usedGenerated) {
+        await this.execFfmpeg(titlePosterArgs(still, scene.text, font, style));
+      }
+      entries.push({
+        file: still,
+        durationSec: Math.max(0.8, (scene.endMs - scene.startMs) / 1000),
+      });
+    }
+
+    const listPath = path.join(dir, "scenes.txt");
+    await writeFile(listPath, buildConcatDemuxerList(entries), "utf8");
+    const outputPath = path.join(dir, "illustrated-out.mp4");
+    await this.execFfmpeg(illustratedConcatArgs(listPath, audioPath, outputPath));
+    const out = await readFile(outputPath);
+    const key = buildObjectKey({
+      appId: video.appId,
+      type: "video-ai",
+      id: editId,
+      filename,
+    });
+    await this.storage.putObject(key, out, "video/mp4");
+    return {
+      storageKey: key,
+      sizeBytes: out.length,
+      durationMs: (await this.probeDurationMs(outputPath)) ?? durationMs,
+      note,
+    };
   }
 
   private async probeHasAudio(filePath: string): Promise<boolean> {
@@ -838,12 +963,20 @@ export class VideoAiEditService {
   private async presentEdit(edit: VideoAiEdit) {
     const output = asOutput(edit.outputJson);
     let previewUrl: string | null = null;
+    let editionPreviewUrl: string | null = null;
     if (output?.storageKey) {
       const signed = await this.storage.createDownloadUrl({
         key: output.storageKey,
         ttlSeconds: 600,
       });
       previewUrl = signed.url;
+    }
+    if (output?.editionStorageKey) {
+      const signed = await this.storage.createDownloadUrl({
+        key: output.editionStorageKey,
+        ttlSeconds: 600,
+      });
+      editionPreviewUrl = signed.url;
     }
     const tool = getAiEditTool(edit.tool);
     return {
@@ -859,6 +992,7 @@ export class VideoAiEditService {
       updatedAt: edit.updatedAt,
       output,
       previewUrl,
+      editionPreviewUrl,
     };
   }
 }
@@ -879,6 +1013,11 @@ function asOutput(value: Prisma.JsonValue | null): VideoAiEditOutput | null {
     description: typeof rec.description === "string" ? rec.description : undefined,
     tags: Array.isArray(rec.tags) ? rec.tags.filter((t): t is string => typeof t === "string") : undefined,
     newVideoId: typeof rec.newVideoId === "string" ? rec.newVideoId : undefined,
+    editionStorageKey: typeof rec.editionStorageKey === "string" ? rec.editionStorageKey : undefined,
+    editionContentType: typeof rec.editionContentType === "string" ? rec.editionContentType : undefined,
+    editionSizeBytes: typeof rec.editionSizeBytes === "number" ? rec.editionSizeBytes : undefined,
+    editionDurationMs: typeof rec.editionDurationMs === "number" ? rec.editionDurationMs : undefined,
+    editionVideoId: typeof rec.editionVideoId === "string" ? rec.editionVideoId : undefined,
     appliedAt: typeof rec.appliedAt === "string" ? rec.appliedAt : undefined,
     appliedToLessonId: typeof rec.appliedToLessonId === "string" ? rec.appliedToLessonId : undefined,
     appliedToProductId: typeof rec.appliedToProductId === "string" ? rec.appliedToProductId : undefined,

@@ -2,6 +2,7 @@ export const OWNERSHIP_DISCLAIMER =
   "Chỉ dùng video bạn sở hữu. Đổi phong cách hay giảm nhạc nền không xóa bản quyền nội dung người khác.";
 
 export const AI_EDIT_TOOL_IDS = [
+  "owned_abc",
   "studio_sound",
   "speech_focus",
   "silence_trim",
@@ -33,6 +34,17 @@ export interface AiEditToolDef {
 }
 
 export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
+  {
+    id: "owned_abc",
+    group: "image",
+    label: "A+B+C — bài của tôi",
+    description:
+      "Một lệnh: A làm nét slide-an toàn + giảm nhạc nền, C stylize mặt/PIP, B dựng bản minh họa trên 100% tiếng gốc. Chỉ video bạn sở hữu.",
+    market: "Descript + CapCut restyle + illustrated scene cards",
+    outputKind: "video",
+    needs: ["ffmpeg"],
+    prefers: ["speech", "imageGen"],
+  },
   {
     id: "studio_sound",
     group: "audio",

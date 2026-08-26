@@ -155,13 +155,18 @@ export function titlePosterArgs(
   ];
 }
 
+export const COURSE_ENHANCE_VF =
+  "hqdn3d=1.2:1.0:4:4,unsharp=3:3:0.35:3:3:0.0,eq=contrast=1.04:brightness=0.01:saturation=1.03";
+
+export const SPEECH_FOCUS_AF = "highpass=f=140,lowpass=f=3800,afftdn=nf=-22,loudnorm=I=-16:TP=-1.5:LRA=11";
+
 export function courseEnhanceArgs(inputPath: string, outputPath: string): string[] {
   return [
     "-y",
     "-i",
     inputPath,
     "-vf",
-    "hqdn3d=1.2:1.0:4:4,unsharp=3:3:0.35:3:3:0.0,eq=contrast=1.04:brightness=0.01:saturation=1.03",
+    COURSE_ENHANCE_VF,
     "-c:a",
     "copy",
     "-preset",
@@ -180,9 +185,28 @@ export function speechFocusArgs(inputPath: string, outputPath: string): string[]
     "-i",
     inputPath,
     "-af",
-    "highpass=f=140,lowpass=f=3800,afftdn=nf=-22,loudnorm=I=-16:TP=-1.5:LRA=11",
+    SPEECH_FOCUS_AF,
     "-c:v",
     "copy",
+    "-movflags",
+    "+faststart",
+    outputPath,
+  ];
+}
+
+export function enhanceAndSpeechArgs(inputPath: string, outputPath: string): string[] {
+  return [
+    "-y",
+    "-i",
+    inputPath,
+    "-vf",
+    COURSE_ENHANCE_VF,
+    "-af",
+    SPEECH_FOCUS_AF,
+    "-preset",
+    "veryfast",
+    "-crf",
+    "22",
     "-movflags",
     "+faststart",
     outputPath,

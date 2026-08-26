@@ -10,9 +10,10 @@ export interface AiEditOptions {
   region?: FaceRegion;
   style?: VisualStyle;
   maxScenes?: number;
+  confirmOwned?: boolean;
 }
 
-const ALLOWED = new Set(["seekSeconds", "prompt", "region", "style", "maxScenes"]);
+const ALLOWED = new Set(["seekSeconds", "prompt", "region", "style", "maxScenes", "confirmOwned"]);
 
 export function isFaceRegion(value: string): value is FaceRegion {
   return (FACE_REGIONS as readonly string[]).includes(value);
@@ -65,5 +66,18 @@ export function parseAiEditOptions(input: unknown): AiEditOptions {
     }
     out.maxScenes = rec.maxScenes;
   }
+  if (rec.confirmOwned !== undefined) {
+    if (typeof rec.confirmOwned !== "boolean") {
+      throw new Error("confirmOwned phải là true hoặc false");
+    }
+    out.confirmOwned = rec.confirmOwned;
+  }
   return out;
+}
+
+export function assertOwnedAbcReady(toolId: string, options: AiEditOptions): void {
+  if (toolId !== "owned_abc") return;
+  if (options.confirmOwned !== true) {
+    throw new Error("Gói A+B+C cần bạn xác nhận video là của bạn (confirmOwned).");
+  }
 }

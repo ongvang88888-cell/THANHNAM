@@ -370,6 +370,7 @@ export default function TeacherPage() {
               videoId={lastVideoId}
               token={token}
               courseId={attachCourseId || undefined}
+              onNewVideoId={setLastVideoId}
             />
           )}
           <label>Gắn vào khóa</label>

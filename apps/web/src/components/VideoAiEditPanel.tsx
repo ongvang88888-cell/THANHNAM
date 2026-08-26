@@ -36,6 +36,7 @@ type EditRow = {
   provider: string;
   error: string | null;
   previewUrl: string | null;
+  editionPreviewUrl?: string | null;
   createdAt: string;
   output: {
     kind: "video" | "image" | "vtt" | "copy";
@@ -45,6 +46,7 @@ type EditRow = {
     tags?: string[];
     providerNote?: string;
     newVideoId?: string;
+    editionVideoId?: string;
   } | null;
 };
 
@@ -83,6 +85,7 @@ export function VideoAiEditPanel(props: {
   const [busyTool, setBusyTool] = useState<string | null>(null);
   const [region, setRegion] = useState<FaceRegion>("pip_br");
   const [style, setStyle] = useState<VisualStyle>("anime");
+  const [ownedConfirmed, setOwnedConfirmed] = useState(false);
 
   const pending = edits.some((row) => row.status === "QUEUED" || row.status === "PROCESSING");
 
@@ -116,25 +119,42 @@ export function VideoAiEditPanel(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending, props.videoId, props.token]);
 
+  const packTool = catalog?.tools.find((tool) => tool.id === "owned_abc") ?? null;
+
   const grouped = useMemo(() => {
     const tools = catalog?.tools ?? [];
     return (["audio", "image", "copy"] as const).map((group) => ({
       group,
-      tools: tools.filter((tool) => tool.group === group),
+      tools: tools.filter((tool) => tool.group === group && tool.id !== "owned_abc"),
     }));
   }, [catalog]);
 
   async function start(toolId: string) {
+    if (toolId === "owned_abc" && !ownedConfirmed) {
+      setError("Hãy xác nhận video này là của bạn trước khi chạy gói A+B+C.");
+      return;
+    }
     setBusyTool(toolId);
     setError(null);
     setMsg(null);
     try {
       await apiPost(
         `/videos/${props.videoId}/ai/edits`,
-        { tool: toolId, options: { region, style } },
+        {
+          tool: toolId,
+          options: {
+            region,
+            style,
+            ...(toolId === "owned_abc" ? { confirmOwned: true } : {}),
+          },
+        },
         props.token,
       );
-      setMsg("Đã xếp lệnh chỉnh. Đợi vài giây rồi xem kết quả bên dưới.");
+      setMsg(
+        toolId === "owned_abc"
+          ? "Đã xếp gói A+B+C. Đợi bài học (A+C) và bản minh họa (B) xong rồi duyệt cả hai."
+          : "Đã xếp lệnh chỉnh. Đợi vài giây rồi xem kết quả bên dưới.",
+      );
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không chạy được công cụ AI");
@@ -150,6 +170,7 @@ export function VideoAiEditPanel(props: {
     try {
       const result = await apiPost<{
         newVideoId?: string;
+        editionVideoId?: string;
         title?: string;
         description?: string;
         applied: string[];
@@ -163,7 +184,8 @@ export function VideoAiEditPanel(props: {
         props.onCopy?.({ title: result.title, description: result.description });
       }
       const bits = result.applied.length ? result.applied.join(", ") : "kết quả";
-      setMsg(`Đã áp dụng ${bits}. Duyệt lại trước khi gửi học viên. Nhớ Lưu bài nếu gắn video mới.`);
+      const editionHint = result.editionVideoId ? ` Bản minh họa B: ${result.editionVideoId}.` : "";
+      setMsg(`Đã áp dụng ${bits}. Duyệt lại trước khi gửi học viên. Nhớ Lưu bài nếu gắn video mới.${editionHint}`);
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không áp dụng được");
@@ -180,8 +202,8 @@ export function VideoAiEditPanel(props: {
     <div className="ai-edit-panel">
       <h3>4. Chỉnh sửa AI (hình + tiếng)</h3>
       <p className="muted">
-        A làm nét an toàn và giảm nhạc nền. C stylize mặt/PIP, giữ slide. B dựng bản hoạt hình mới trên tiếng gốc.
-        Phụ đề, ảnh bìa và edition hoạt hình cần bạn duyệt trước khi công khai.
+        Gói A+B+C chạy một lần trên video bạn sở hữu: bài học đã làm nét + giảm nhạc + PIP mặt, kèm bản minh họa trên tiếng gốc.
+        Công cụ lẻ vẫn dùng được. Phụ đề, ảnh bìa và edition cần bạn duyệt trước khi công khai.
       </p>
       <p className="ai-edit-legal muted">
         {catalog.ownershipDisclaimer ??
@@ -235,6 +257,31 @@ export function VideoAiEditPanel(props: {
       {error && <p className="toast error">{error}</p>}
       {msg && <p className="toast ok">{msg}</p>}
 
+      {packTool && (
+        <div className="ai-edit-pack">
+          <label className="ai-edit-owned">
+            <input
+              type="checkbox"
+              checked={ownedConfirmed}
+              onChange={(event) => setOwnedConfirmed(event.target.checked)}
+            />
+            Tôi cam kết chỉ dùng video tôi sở hữu. Đổi phong cách hay giảm nhạc nền không xóa bản quyền nội dung người khác.
+          </label>
+          <button
+            type="button"
+            className="ai-edit-tool ai-edit-tool-pack"
+            disabled={!packTool.available || busyTool !== null || pending || !ownedConfirmed}
+            onClick={() => void start("owned_abc")}
+          >
+            <strong>{packTool.label}</strong>
+            <small>{packTool.description}</small>
+            <small>Học từ {packTool.market}</small>
+            {packTool.note ? <small>{packTool.note}</small> : null}
+            {packTool.mode === "fallback" && packTool.available ? <span className="badge">Bản rút gọn</span> : null}
+          </button>
+        </div>
+      )}
+
       {grouped.map((block) => (
         <div key={block.group}>
           <h4>{GROUP_LABEL[block.group]}</h4>
@@ -286,7 +333,16 @@ export function VideoAiEditPanel(props: {
                 <img className="ai-edit-thumb" src={edit.previewUrl} alt={edit.label} />
               )}
               {edit.status === "READY" && edit.previewUrl && edit.output?.kind === "video" && (
-                <video className="ai-edit-preview" src={edit.previewUrl} controls preload="metadata" />
+                <>
+                  {edit.tool === "owned_abc" ? <div className="muted">Bài học A+C</div> : null}
+                  <video className="ai-edit-preview" src={edit.previewUrl} controls preload="metadata" />
+                </>
+              )}
+              {edit.status === "READY" && edit.editionPreviewUrl && (
+                <>
+                  <div className="muted">Bản minh họa B (tiếng gốc)</div>
+                  <video className="ai-edit-preview" src={edit.editionPreviewUrl} controls preload="metadata" />
+                </>
               )}
               {edit.status === "READY" && edit.previewUrl && edit.output?.kind === "vtt" && (
                 <a href={edit.previewUrl} target="_blank" rel="noreferrer">

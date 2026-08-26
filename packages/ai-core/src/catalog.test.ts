@@ -10,6 +10,7 @@ import {
 describe("AI edit catalog", () => {
   it("covers the market tools we ship", () => {
     expect(AI_EDIT_TOOLS.map((t) => t.id)).toEqual([
+      "owned_abc",
       "studio_sound",
       "speech_focus",
       "silence_trim",
@@ -36,6 +37,14 @@ describe("AI edit catalog", () => {
     const avail = toolAvailability(sound!, caps, true);
     expect(avail.available).toBe(false);
     expect(avail.note).toMatch(/ffmpeg/i);
+  });
+
+  it("keeps the A+B+C pack available without Whisper or image gen", () => {
+    const caps = { enabled: true, ffmpeg: true, speech: false, imageGen: false, llm: false };
+    const tool = getAiEditTool("owned_abc")!;
+    const avail = toolAvailability(tool, caps, true);
+    expect(avail.available).toBe(true);
+    expect(avail.mode).toBe("fallback");
   });
 
   it("keeps illustrated edition available without Whisper or image gen", () => {
