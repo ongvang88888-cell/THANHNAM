@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { API_URL, APP_ID, apiGet, apiPost, formatVnd } from "@/lib/api";
+import { AdminDenied } from "@/components/AdminDenied";
 import { hasRole, useRequireAuth } from "@/lib/auth";
 import { FileDrop } from "@/components/FileDrop";
 
@@ -162,7 +163,7 @@ export default function AdminCourseImportPage() {
   }
 
   if (ready && user && !hasRole(user, ["admin", "support_agent"])) {
-    return <p className="error">Tài khoản này không có quyền quản trị.</p>;
+    return <AdminDenied nextPath="/admin/courses/import" />;
   }
 
   const canCommit =

@@ -147,6 +147,10 @@ img { max-width: 100%; display: block; }
   padding: 10px 18px !important;
   text-decoration: none;
   border: 0;
+  white-space: nowrap;
+  max-width: min(220px, 42vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .u-login-btn:hover { background: var(--orange-hover) !important; }
 .u-account {
@@ -182,6 +186,15 @@ img { max-width: 100%; display: block; }
 }
 .u-account-pop a:hover,
 .u-account-pop button.plain:hover { background: #fef6f2; color: var(--orange); }
+.u-account-who {
+  margin: 0 0 4px;
+  padding: 8px 12px 10px;
+  border-bottom: 1px solid #f3f4f6;
+  display: grid;
+  gap: 2px;
+}
+.u-account-who strong { font-size: 14px; }
+.u-account-who span { color: #6b7280; font-size: 12px; word-break: break-all; }
 
 .u-mega {
   top: calc(100% + 8px);
@@ -716,6 +729,35 @@ img { max-width: 100%; display: block; }
 }
 .u-auth h1 { margin: 8px 0 6px; font-size: 1.5rem; }
 .u-auth .u-logo { justify-content: center; }
+.demo-accounts {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 18px;
+}
+.demo-account {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  color: #111;
+}
+.demo-account strong { font-size: 14px; }
+.demo-account span { font-size: 13px; color: #374151; }
+.demo-account em { font-size: 12px; color: #6b7280; font-style: normal; }
+.demo-account.is-active {
+  border-color: var(--orange);
+  background: #fff7f2;
+}
+.admin-denied {
+  max-width: 640px;
+  padding: 28px 0 48px;
+  display: grid;
+  gap: 10px;
+}
+.admin-denied button { width: fit-content; }
 
 /* Cart */
 .u-cart-list { display: grid; gap: 14px; }

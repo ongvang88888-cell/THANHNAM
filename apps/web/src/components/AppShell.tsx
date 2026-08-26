@@ -152,10 +152,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                   aria-expanded={accountOpen}
                   onClick={() => setAccountOpen((open) => !open)}
                 >
-                  {user.displayName?.split(" ")[0] || "Tài khoản"}
+                  {user.displayName || user.email || "Tài khoản"}
                 </button>
                 {accountOpen && (
                   <div className="u-account-pop">
+                    <p className="u-account-who">
+                      <strong>{user.displayName || user.email}</strong>
+                      <span>{user.email}</span>
+                    </p>
                     <a href="/library">Khóa học của tôi</a>
                     <a href="/wishlist">Yêu thích</a>
                     <a href="/account">Tài khoản</a>

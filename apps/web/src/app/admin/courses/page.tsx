@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiDelete, apiGet, apiPatch, apiPost, formatVnd } from "@/lib/api";
+import { AdminDenied } from "@/components/AdminDenied";
 import { hasRole, useRequireAuth } from "@/lib/auth";
 import { productTypeLabel, statusLabel, statusTone } from "@/lib/labels";
 
@@ -197,7 +198,7 @@ export default function AdminCoursesPage() {
   }
 
   if (ready && user && !hasRole(user, ["admin", "support_agent"])) {
-    return <p className="error">Tài khoản này không có quyền quản trị.</p>;
+    return <AdminDenied nextPath="/admin/courses" />;
   }
 
   return (
