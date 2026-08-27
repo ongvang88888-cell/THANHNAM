@@ -189,6 +189,9 @@ model App {
   affiliateAttributions AffiliateAttribution[]
   affiliatePayouts AffiliatePayout[]
   invoices Invoice[]
+  gplxTopics GplxTopic[]
+  gplxQuestions GplxBankQuestion[]
+  gplxMockAttempts GplxMockAttempt[]
 }
 
 enum AuthTokenPurpose {
@@ -232,6 +235,8 @@ model User {
   couponRedemptions  CouponRedemption[]
   auditLogs          AuditLog[]
   affiliateCodes     AffiliateCode[]
+  gplxStudyProgress  GplxStudyProgress[]
+  gplxMockAttempts   GplxMockAttempt[]
   wishlistItems      WishlistItem[]
   affiliatePayouts   AffiliatePayout[]
   lessonComments     LessonComment[]
@@ -1219,4 +1224,97 @@ model AnalyticsEvent {
   app App @relation(fields: [appId], references: [id])
 
   @@index([appId, name, createdAt])
+}
+
+/// GPLX theory study — independent question bank (not course-bound Quiz).
+model GplxTopic {
+  id        String   @id @default(cuid())
+  appId     String
+  code      String
+  title     String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  app       App                @relation(fields: [appId], references: [id])
+  questions GplxBankQuestion[]
+
+  @@unique([appId, code])
+  @@index([appId, position])
+}
+
+model GplxBankQuestion {
+  id                String   @id @default(cuid())
+  appId             String
+  topicId           String
+  stem              String
+  explanation       String   @default("")
+  isCritical        Boolean  @default(false)
+  /// License classes this question applies to, e.g. ["A1","B","C"]
+  licenseClassesJson Json    @default("[]")
+  imageUrl          String?
+  officialNo        Int?
+  position          Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  app      App                 @relation(fields: [appId], references: [id])
+  topic    GplxTopic           @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  answers  GplxBankAnswer[]
+  progress GplxStudyProgress[]
+
+  @@index([appId, topicId])
+  @@index([appId, isCritical])
+}
+
+model GplxBankAnswer {
+  id         String  @id @default(cuid())
+  questionId String
+  body       String
+  isCorrect  Boolean @default(false)
+  position   Int     @default(0)
+
+  question GplxBankQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+model GplxStudyProgress {
+  id           String   @id @default(cuid())
+  userId       String
+  questionId   String
+  /// unseen | learning | mastered | wrong
+  status       String   @default("unseen")
+  correctCount Int      @default(0)
+  wrongCount   Int      @default(0)
+  lastSeenAt   DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question GplxBankQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+  @@index([userId, status])
+}
+
+model GplxMockAttempt {
+  id              String    @id @default(cuid())
+  appId           String
+  userId          String
+  licenseClass    String
+  questionIdsJson Json      @default("[]")
+  score           Int       @default(0)
+  correctCount    Int       @default(0)
+  total           Int       @default(0)
+  passed          Boolean   @default(false)
+  failedCritical  Boolean   @default(false)
+  startedAt       DateTime  @default(now())
+  expiresAt       DateTime
+  submittedAt     DateTime?
+  detailJson      Json      @default("{}")
+
+  app  App  @relation(fields: [appId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([appId, userId, startedAt])
+  @@index([userId, licenseClass])
 }

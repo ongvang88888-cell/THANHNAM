@@ -202,6 +202,82 @@ export const api = {
       `/documents/${documentId}/content`,
       { method: "POST", token, body: {} }
     ),
+  gplxOverview: (token: string, licenseClass: string) =>
+    request<{
+      licenseClass: string;
+      isPro: boolean;
+      mocksRemainingToday: number | null;
+      freeMocksPerDay: number;
+      stats: {
+        totalQuestions: number;
+        criticalCount: number;
+        mastered: number;
+        wrong: number;
+      };
+      topics: Array<{ id: string; code: string; title: string; questionCount: number }>;
+      rules: { questionCount: number; passCorrectCount: number; durationSec: number };
+      proProduct: { slug: string; name: string } | null;
+    }>(`/gplx/overview?licenseClass=${licenseClass}`, { token }),
+  gplxStartMock: (token: string, licenseClass: string) =>
+    request<{ attemptId: string }>("/gplx/mock/start", {
+      method: "POST",
+      token,
+      body: { licenseClass },
+    }),
+  gplxGetAttempt: (token: string, attemptId: string) =>
+    request<{
+      attemptId: string;
+      licenseClass: string;
+      submitted: boolean;
+      expiresAt?: string;
+      questions?: Array<{
+        id: string;
+        stem: string;
+        isCritical: boolean;
+        answers: Array<{ id: string; body: string }>;
+      }>;
+      passed?: boolean;
+      correctCount?: number;
+      total?: number;
+      failedCritical?: boolean;
+      detail?: { review?: unknown };
+    }>(`/gplx/mock/${attemptId}`, { token }),
+  gplxSubmitMock: (
+    token: string,
+    attemptId: string,
+    answers: Array<{ questionId: string; selectedAnswerIds: string[] }>,
+  ) =>
+    request<{
+      passed: boolean;
+      correctCount: number;
+      total: number;
+      failedCritical: boolean;
+      licenseClass: string;
+    }>(`/gplx/mock/${attemptId}/submit`, {
+      method: "POST",
+      token,
+      body: { answers },
+    }),
+  gplxTopicQuestions: (token: string, topicId: string, licenseClass: string) =>
+    request<{
+      topic: { title: string };
+      questions: Array<{
+        id: string;
+        stem: string;
+        explanation: string;
+        isCritical: boolean;
+        answers: Array<{ id: string; body: string }>;
+      }>;
+    }>(`/gplx/topics/${topicId}/questions?licenseClass=${licenseClass}`, { token }),
+  gplxPracticeAnswer: (
+    token: string,
+    questionId: string,
+    selectedAnswerIds: string[],
+  ) =>
+    request<{ correct: boolean; explanation: string }>(
+      "/gplx/practice/answer",
+      { method: "POST", token, body: { questionId, selectedAnswerIds } },
+    ),
   rewardEligibility: (token: string, lessonId: string) =>
     request<{ eligible: boolean; reason?: string; rewardSessionId?: string }>(
       "/rewards/eligibility",

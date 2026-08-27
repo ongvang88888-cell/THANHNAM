@@ -14,6 +14,7 @@ import { AdminModule } from "./admin/admin.module";
 import { TeacherModule } from "./teacher/teacher.module";
 import { MediaModule } from "./media/media.module";
 import { QuizModule } from "./quiz/quiz.module";
+import { GplxModule } from "./gplx/gplx.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { ReviewsModule } from "./reviews/reviews.module";
@@ -47,6 +48,7 @@ import { CommonModule } from "./common/common.module";
     TeacherModule,
     MediaModule,
     QuizModule,
+    GplxModule,
     NotificationsModule,
     AnalyticsModule,
     ReviewsModule,
