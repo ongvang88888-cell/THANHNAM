@@ -12,16 +12,26 @@ export {
 } from "./quiz";
 export {
   GPLX_EXAM_RULES,
+  GPLX_PRIMARY_CLASSES,
   getGplxExamRules,
   scoreGplxExam,
+  scoreGplxMockByMode,
   shuffleIds,
   pickMockQuestionIds,
+  pickCriticalOnlyQuestionIds,
+  resolveFixedSetQuestionIds,
   gplxProgressStatus,
+  gplxUtcDateString,
+  applyGplxStudyStreak,
+  rankWeakTopics,
   type GplxLicenseClassCode,
   type GplxExamRules,
   type GplxExamScoreResult,
   type GplxQuestionKey,
   type GplxAnswerInput,
+  type GplxMockMode,
+  type GplxStreakState,
+  type GplxWeakTopicStat,
 } from "./gplx";
 export {
   GPLX_TIPS,

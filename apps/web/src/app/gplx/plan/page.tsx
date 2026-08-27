@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { apiGet } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
+import { GplxCrumb } from "@/components/gplx/GplxChrome";
 
 type Day = {
   day: number;
@@ -28,17 +29,22 @@ function PlanInner() {
   }, [ready, token, licenseClass]);
 
   return (
-    <section>
-      <p className="muted">
-        <a href={`/gplx?licenseClass=${licenseClass}`}>Ôn GPLX</a> · Lộ trình · hạng{" "}
-        {licenseClass}
-      </p>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Lộ trình 7 ngày</h1>
+    <div className="gx-page">
+      <GplxCrumb licenseClass={licenseClass} trail={[{ label: "Lộ trình" }]} />
+      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "0", marginTop: 0 }}>
+        Lộ trình 7 ngày
+      </h1>
       <p className="muted">Kế hoạch ôn cấp tốc trước ngày sát hạch lý thuyết.</p>
       {error && <p className="error">{error}</p>}
       {days.map((d) => (
         <div className="panel" key={d.day} style={{ marginBottom: 12 }}>
-          <h3 style={{ marginTop: 0 }}>
+          <h3
+            style={{
+              marginTop: 0,
+              fontFamily: "var(--font-display)",
+              letterSpacing: "0",
+            }}
+          >
             Ngày {d.day}: {d.title}
           </h3>
           <p className="muted">{d.focus}</p>
@@ -56,7 +62,7 @@ function PlanInner() {
           )}
         </div>
       ))}
-    </section>
+    </div>
   );
 }
 

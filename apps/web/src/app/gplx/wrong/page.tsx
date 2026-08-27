@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { apiGet, apiPost } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
+import { GplxCrumb } from "@/components/gplx/GplxChrome";
 
 type Q = {
   id: string;
@@ -63,12 +64,11 @@ function WrongInner() {
   }
 
   return (
-    <section>
-      <p className="muted">
-        <a href={`/gplx?licenseClass=${licenseClass}`}>Ôn GPLX</a> · Câu hay sai · hạng{" "}
-        {licenseClass}
-      </p>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Ôn câu hay sai</h1>
+    <div className="gx-page">
+      <GplxCrumb licenseClass={licenseClass} trail={[{ label: "Câu hay sai" }]} />
+      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "0", marginTop: 0 }}>
+        Ôn câu hay sai
+      </h1>
       {error && <p className="error">{error}</p>}
       {!q ? (
         <p className="muted">Chưa có câu đánh dấu sai. Hãy làm bài ôn hoặc thi thử trước.</p>
@@ -79,47 +79,67 @@ function WrongInner() {
             {q.wrongCount ? ` · đã sai ${q.wrongCount} lần` : ""}
             {q.isCritical ? " · điểm liệt" : ""}
           </p>
-          <p style={{ fontSize: "1.05rem" }}>{q.stem}</p>
-          <ul className="lesson-list">
-            {q.answers.map((a) => (
-              <li key={a.id}>
+          <p style={{ fontSize: "1.05rem", fontWeight: 600 }}>{q.stem}</p>
+          <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+            {q.answers.map((a) => {
+              const on = selected.includes(a.id);
+              const showCorrect = feedback && feedback.correct && on;
+              const showWrong = feedback && !feedback.correct && on;
+              return (
                 <button
+                  key={a.id}
                   type="button"
-                  className={selected.includes(a.id) ? "" : "secondary"}
+                  className={[
+                    "gx-answer",
+                    on ? "on" : "",
+                    showCorrect ? "correct" : "",
+                    showWrong ? "wrong" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                   disabled={!!feedback}
                   onClick={() => setSelected([a.id])}
                 >
                   {a.body}
                 </button>
-              </li>
-            ))}
-          </ul>
-          {!feedback ? (
-            <button type="button" onClick={() => void check()} disabled={!selected.length}>
-              Kiểm tra
-            </button>
-          ) : (
-            <>
-              <p className={feedback.correct ? "ok" : "error"}>
-                {feedback.correct ? "Đúng" : "Sai"}
-              </p>
-              <p className="muted">{feedback.explanation}</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setFeedback(null);
-                  setSelected([]);
-                  if (idx >= questions.length - 1) reload();
-                  else setIdx((i) => i + 1);
-                }}
-              >
-                Tiếp tục
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
+            {!feedback ? (
+              <button type="button" onClick={() => void check()} disabled={!selected.length}>
+                Kiểm tra
               </button>
-            </>
+            ) : (
+              <>
+                <span
+                  className={feedback.correct ? "ok" : "error"}
+                  style={{ fontWeight: 700, alignSelf: "center" }}
+                >
+                  {feedback.correct ? "Đúng" : "Sai"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFeedback(null);
+                    setSelected([]);
+                    if (idx >= questions.length - 1) reload();
+                    else setIdx((i) => i + 1);
+                  }}
+                >
+                  Tiếp tục
+                </button>
+              </>
+            )}
+          </div>
+          {feedback?.explanation && (
+            <p className="muted" style={{ marginBottom: 0, marginTop: 12 }}>
+              {feedback.explanation}
+            </p>
           )}
         </div>
       )}
-    </section>
+    </div>
   );
 }
 
