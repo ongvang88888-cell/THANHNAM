@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 import { PrismaClient, PolicyType, ProductType, ProductStatus, Visibility, CourseStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedGplx } from "./seed-gplx";
 
 const prisma = new PrismaClient();
 
@@ -15,6 +16,7 @@ async function main() {
         rewardedAds: true,
         subscriptions: true,
         marketplace: false,
+        gplx: true,
       },
       monetizationConfigJson: {
         purchaseEnabled: true,
@@ -38,6 +40,7 @@ async function main() {
         rewardedAds: true,
         subscriptions: true,
         marketplace: false,
+        gplx: true,
       },
       monetizationConfigJson: {
         purchaseEnabled: true,
@@ -562,9 +565,12 @@ async function main() {
     }
   }
 
+  const gplx = await seedGplx(prisma, app.id);
+
   console.log("Seed complete");
   console.log({
     app: app.slug,
+    gplx,
     accounts: {
       admin: "admin@edu.local",
       teacher: "teacher@edu.local",

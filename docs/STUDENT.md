@@ -4,6 +4,7 @@
 
 - Home: Continue · Recommended · Popular · New · Categories · Free · Premium · Bundles · Search
 - Library: My Courses · My Documents · Purchases · Favorites · Bookmarks · History · Notes · Certificates
+- **GPLX:** study by topic · critical questions · wrong-answer review · timed mock exams (`/gplx`)
 - Player / Reader experiences
 - Profile · Notifications
 

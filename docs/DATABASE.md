@@ -32,6 +32,7 @@ apps ─┬─ users ─┬─ user_roles ─ roles ─ role_permissions ─ per
       ├─ coupons / promotions / coupon_redemptions
       ├─ payments / transactions / refunds
       ├─ quizzes / questions / answers / quiz_attempts
+      ├─ gplx_topics / gplx_bank_questions / gplx_bank_answers / gplx_study_progress / gplx_mock_attempts
       ├─ certificates
       ├─ reviews
       ├─ affiliates / referrals / commissions

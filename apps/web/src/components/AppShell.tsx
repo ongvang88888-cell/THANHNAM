@@ -17,6 +17,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <nav>
           <a href="/">Cửa hàng</a>
           {user && <a href="/library">Thư viện</a>}
+          {user && <a href="/gplx">Ôn GPLX</a>}
           {user && <a href="/wishlist">Yêu thích</a>}
           {user && <a href="/certificates">Chứng chỉ</a>}
           {user && <a href="/invoices">Hóa đơn</a>}

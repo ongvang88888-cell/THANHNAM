@@ -40,6 +40,7 @@
 | 18 | Video Architecture | [docs/VIDEO.md](./docs/VIDEO.md) |
 | 19 | Document Architecture | [docs/DOCUMENT.md](./docs/DOCUMENT.md) |
 | 20 | Student Architecture | [docs/STUDENT.md](./docs/STUDENT.md) |
+| 20b | GPLX Theory Study | [docs/GPLX.md](./docs/GPLX.md) |
 | 21 | Teacher Architecture | [docs/TEACHER.md](./docs/TEACHER.md) |
 | 22 | Admin Architecture | [docs/ADMIN.md](./docs/ADMIN.md) |
 | 23 | Security Architecture | [docs/SECURITY.md](./docs/SECURITY.md) |
