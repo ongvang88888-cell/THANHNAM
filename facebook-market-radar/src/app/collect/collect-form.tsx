@@ -33,6 +33,7 @@ export function CollectForm({
     }
     const shopee = String(form.get("shopeeSold") ?? "").trim();
     const tiktok = String(form.get("tiktokSold") ?? "").trim();
+    const listingPrice = String(form.get("listingPriceVnd") ?? "").trim();
     const body = {
       sourceUrl: String(form.get("sourceUrl") ?? "").trim() || undefined,
       snapshot,
@@ -45,6 +46,7 @@ export function CollectForm({
       landingUrl: String(form.get("landingUrl") ?? "").trim() || undefined,
       imageUrl: String(form.get("imageUrl") ?? "").trim() || undefined,
       body: String(form.get("body") ?? "").trim() || undefined,
+      listingPriceVnd: listingPrice || undefined,
       shopeeSold: shopee ? Number(shopee) : undefined,
       tiktokSold: tiktok ? Number(tiktok) : undefined,
       isActive: form.get("isActive") !== "false",
@@ -115,8 +117,12 @@ export function CollectForm({
         <input name="landingUrl" />
       </label>
       <label>
-        Nội dung quảng cáo (không bắt buộc)
+        Nội dung quảng cáo (không bắt buộc — nếu có giá kiểu 189.000đ / 189k sẽ được đọc)
         <textarea name="body" rows={3} />
+      </label>
+      <label>
+        Giá bán (Shopee / TikTok / landing, VND — ước lượng)
+        <input name="listingPriceVnd" placeholder="189000 hoặc 189.000đ / 189k" />
       </label>
       <label>
         Shopee đã bán (proxy, tự nhập)

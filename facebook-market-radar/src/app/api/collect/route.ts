@@ -43,6 +43,7 @@ function readCollectInput(body: unknown): CollectManualInput {
     shopeeSold: readNumber(raw.shopeeSold),
     tiktokSold: readNumber(raw.tiktokSold),
     imageUrl: readString(raw.imageUrl),
+    listingPriceVnd: readString(raw.listingPriceVnd) ?? readNumber(raw.listingPriceVnd),
   };
 }
 

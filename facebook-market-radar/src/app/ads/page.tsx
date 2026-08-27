@@ -1,3 +1,4 @@
+import { formatVnd } from "@/domain/price";
 import { productImagePath, uniqueImageUrls } from "@/domain/product-image";
 import { ProductCell } from "@/ui/product-cell";
 import { getRadarService } from "@/server/radar";
@@ -19,6 +20,7 @@ export default async function AdsPage() {
             <th>Mã thư viện</th>
             <th>Trang</th>
             <th>Sản phẩm</th>
+            <th>Giá nhập</th>
             <th>Ngày bắt đầu</th>
             <th>Đang chạy</th>
           </tr>
@@ -42,6 +44,7 @@ export default async function AdsPage() {
                     ])}
                   />
                 </td>
+                <td>{ad.listingPriceVnd != null ? formatVnd(ad.listingPriceVnd) : "—"}</td>
                 <td>{ad.startDate}</td>
                 <td>{ad.isActive ? "có" : "không"}</td>
               </tr>

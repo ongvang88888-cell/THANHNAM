@@ -19,6 +19,7 @@ async function main(): Promise<void> {
   await prisma.marketSnapshot.deleteMany({ where: { appId } });
   await prisma.salesProxyObservation.deleteMany({ where: { appId } });
   await prisma.adProductLink.deleteMany();
+  await prisma.productWatch.deleteMany({ where: { appId } });
   await prisma.ad.deleteMany({ where: { appId } });
   await prisma.adCreative.deleteMany({ where: { appId } });
   await prisma.productCluster.deleteMany({ where: { appId } });
@@ -40,11 +41,16 @@ async function main(): Promise<void> {
   const own = new OwnAdsMarketingApiProvider("fixture", new FixtureMarketingHttp(FIXTURE_GRAPH_INSIGHTS));
   await service.syncOwnInsights(own, "act_demo", "2026-08-20", "2026-08-27", null, undefined);
 
+  for (const name of ["Serum Niacinamide", "Bỉm quần", "Đèn LED"]) {
+    await service.upsertWatch(name, "mẫu theo dõi", DEMO_NOW_MS, null, undefined);
+  }
+
   const rankings = await service.listRankings(DEMO_NOW_MS);
   const alerts = await service.listAlerts();
+  const watches = await service.listWatchesWithAnalysis();
   const overview = await service.industryOverview(DEMO_NOW_MS);
   console.log(
-    `Seeded ${V0_SAMPLE_ADS.length} ads, ${rankings.length} products, ${alerts.length} alerts, coverage ${overview.coverage.coveragePercent}% (${overview.coverage.hotIndustryCount} hot industries)`,
+    `Seeded ${V0_SAMPLE_ADS.length} ads, ${rankings.length} products, ${watches.length} watches, ${alerts.length} alerts, coverage ${overview.coverage.coveragePercent}% (${overview.coverage.hotIndustryCount} hot industries)`,
   );
   await prisma.$disconnect();
 }

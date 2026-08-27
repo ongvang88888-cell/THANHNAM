@@ -1,5 +1,6 @@
 import type { IndustryStat } from "./industry-stats";
 import type { ScoreBreakdown } from "./ports";
+import type { PriceEstimate } from "./price";
 import { isoWeekLabel } from "./week";
 
 export type RankingRow = {
@@ -8,8 +9,10 @@ export type RankingRow = {
   nicheSlug: string;
   nicheName: string;
   activeAdCount: number;
+  totalAdCount: number;
   distinctPageCount: number;
   imageUrls: string[];
+  price: PriceEstimate;
   scores: ScoreBreakdown;
 };
 
@@ -42,12 +45,12 @@ export function buildWeeklyReportMarkdown(input: WeeklyReportInput): string {
     "",
     "## Top sản phẩm theo Điểm nóng (ước lượng)",
     "",
-    "| Hạng | Ngành hàng | Sản phẩm | Cường độ | Độ bền | Tốc độ mới | Proxy bán | Điểm nóng |",
-    "|------|------------|----------|----------|--------|------------|-----------|-----------|",
+    "| Hạng | Ngành hàng | Sản phẩm | Giá (ước lượng) | Bài đang chạy | Cường độ | Độ bền | Tốc độ mới | Proxy bán | Điểm nóng |",
+    "|------|------------|----------|-----------------|---------------|----------|--------|------------|-----------|-----------|",
   ];
   top.forEach((row, index) => {
     lines.push(
-      `| ${index + 1} | ${row.nicheName} | ${row.clusterTitle} | ${row.scores.intensity} | ${row.scores.longevity} | ${row.scores.velocity} | ${row.scores.salesProxy} | ${row.scores.heat} |`,
+      `| ${index + 1} | ${row.nicheName} | ${row.clusterTitle} | ${row.price.label} | ${row.activeAdCount} | ${row.scores.intensity} | ${row.scores.longevity} | ${row.scores.velocity} | ${row.scores.salesProxy} | ${row.scores.heat} |`,
     );
   });
   if (hot.length > 0) {
@@ -69,6 +72,7 @@ export function buildWeeklyReportMarkdown(input: WeeklyReportInput): string {
     "## Ghi chú",
     "",
     "- Mọi cột điểm là ước lượng. Không ghi “bán chạy trên Facebook”.",
+    "- Giá cạnh tên là ước lượng (user nhập / nội dung ads / khoảng ngành), không crawl sàn.",
     "- Proxy bán chỉ hiện khi user nhập số đã bán Shopee/TikTok.",
     "",
   );

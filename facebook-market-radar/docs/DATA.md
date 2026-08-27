@@ -15,7 +15,8 @@ Mọi nguồn ads đi qua port. Domain không import SDK Meta / filesystem.
 ## Schema (Prisma / SQLite local)
 
 - `advertiser_pages` — `@@unique([appId, pageId])`
-- `ads` — `@@unique([appId, libraryId])`
+- `ads` — `@@unique([appId, libraryId])`, `listingPriceVnd` tùy chọn (giá user nhập, không scrape)
+- `product_watches` — `@@unique([appId, slug])` tên sản phẩm user ghi để soi cường độ ads
 - `ad_creatives`
 - `niches`, `product_clusters` — `@@unique([appId, slug])`, `imageUrl` tùy chọn trên cụm và quảng cáo
 - `ad_product_links`

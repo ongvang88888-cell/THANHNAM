@@ -90,6 +90,7 @@ model Ad {
   landingUrl   String?
   snapshotUrl  String?
   imageUrl     String?
+  listingPriceVnd Int?
   firstSeen    DateTime
   lastSeen     DateTime
   links        AdProductLink[]
@@ -167,6 +168,20 @@ model OwnInsightsDaily {
   @@unique([appId, adAccountId, date, campaignId])
   @@index([appId, adAccountId])
   @@map("own_insights_daily")
+}
+
+model ProductWatch {
+  id        String   @id @default(cuid())
+  appId     String
+  slug      String
+  name      String
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([appId, slug])
+  @@index([appId, createdAt])
+  @@map("product_watches")
 }
 
 model Alert {

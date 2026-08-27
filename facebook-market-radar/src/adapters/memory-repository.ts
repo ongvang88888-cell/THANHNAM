@@ -6,6 +6,7 @@ import type {
   StoredPage,
   StoredSalesProxy,
   StoredSnapshot,
+  StoredWatch,
 } from "../application/repository";
 import type { OwnCampaignInsight } from "../domain/ports";
 
@@ -21,6 +22,7 @@ export class MemoryRadarRepository implements IRadarRepository {
   private readonly snapshots = new Map<string, StoredSnapshot[]>();
   private readonly alerts = new Map<string, StoredAlert[]>();
   private readonly insights = new Map<string, OwnCampaignInsight>();
+  private readonly watches = new Map<string, StoredWatch>();
 
   async upsertPage(appId: string, page: StoredPage): Promise<void> {
     this.pages.set(key(appId, page.pageId), page);
@@ -88,5 +90,20 @@ export class MemoryRadarRepository implements IRadarRepository {
     return [...this.insights.entries()]
       .filter(([k]) => k.startsWith(`${appId}::`))
       .map(([, v]) => v);
+  }
+
+  async upsertWatch(appId: string, row: StoredWatch): Promise<void> {
+    this.watches.set(key(appId, row.slug), row);
+  }
+
+  async listWatches(appId: string): Promise<StoredWatch[]> {
+    return [...this.watches.entries()]
+      .filter(([k]) => k.startsWith(`${appId}::`))
+      .map(([, v]) => v)
+      .sort((a, b) => b.createdMs - a.createdMs);
+  }
+
+  async deleteWatch(appId: string, slug: string): Promise<void> {
+    this.watches.delete(key(appId, slug));
   }
 }

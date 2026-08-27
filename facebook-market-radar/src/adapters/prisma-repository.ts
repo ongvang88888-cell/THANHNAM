@@ -7,6 +7,7 @@ import type {
   StoredPage,
   StoredSalesProxy,
   StoredSnapshot,
+  StoredWatch,
 } from "../application/repository";
 import type { AlertType } from "../domain/alerts";
 import { nicheName } from "../domain/niches";
@@ -118,6 +119,7 @@ export class PrismaRadarRepository implements IRadarRepository {
         landingUrl: ad.landingUrl,
         snapshotUrl: ad.snapshotUrl,
         imageUrl: ad.imageUrl,
+        listingPriceVnd: ad.listingPriceVnd,
         firstSeen: new Date(ad.firstSeenMs),
         lastSeen: new Date(ad.lastSeenMs),
       },
@@ -131,6 +133,7 @@ export class PrismaRadarRepository implements IRadarRepository {
         landingUrl: ad.landingUrl,
         snapshotUrl: ad.snapshotUrl,
         imageUrl: ad.imageUrl,
+        listingPriceVnd: ad.listingPriceVnd,
         lastSeen: new Date(ad.lastSeenMs),
       },
     });
@@ -163,6 +166,7 @@ export class PrismaRadarRepository implements IRadarRepository {
       landingUrl: row.landingUrl,
       snapshotUrl: row.snapshotUrl,
       imageUrl: row.imageUrl,
+      listingPriceVnd: row.listingPriceVnd,
       creativeHash: row.creative.hash,
       firstSeenMs: row.firstSeen.getTime(),
       lastSeenMs: row.lastSeen.getTime(),
@@ -306,6 +310,40 @@ export class PrismaRadarRepository implements IRadarRepository {
         purchaseValueMinor: row.purchaseValueMinor,
       },
     });
+  }
+
+  async upsertWatch(appId: string, row: StoredWatch): Promise<void> {
+    await this.db.productWatch.upsert({
+      where: { appId_slug: { appId, slug: row.slug } },
+      create: {
+        appId,
+        slug: row.slug,
+        name: row.name,
+        note: row.note,
+        createdAt: new Date(row.createdMs),
+      },
+      update: {
+        name: row.name,
+        note: row.note,
+      },
+    });
+  }
+
+  async listWatches(appId: string): Promise<StoredWatch[]> {
+    const rows = await this.db.productWatch.findMany({
+      where: { appId },
+      orderBy: { createdAt: "desc" },
+    });
+    return rows.map((row) => ({
+      slug: row.slug,
+      name: row.name,
+      note: row.note,
+      createdMs: row.createdAt.getTime(),
+    }));
+  }
+
+  async deleteWatch(appId: string, slug: string): Promise<void> {
+    await this.db.productWatch.deleteMany({ where: { appId, slug } });
   }
 
   async listOwnInsights(appId: string): Promise<OwnCampaignInsight[]> {

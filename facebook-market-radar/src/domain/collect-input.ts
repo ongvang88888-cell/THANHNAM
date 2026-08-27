@@ -1,5 +1,6 @@
 import { parseAdLibraryUrl } from "./ad-library-url";
 import { PUBLISHER_PLATFORMS, type NormalizedAd, type PublisherPlatform } from "./ports";
+import { parseOptionalPriceVnd } from "./price";
 import { parseImageUrl } from "./product-image";
 import { parseAdSnapshot } from "./snapshot";
 
@@ -23,6 +24,7 @@ export type CollectManualInput = {
   shopeeSold?: number;
   tiktokSold?: number;
   imageUrl?: string;
+  listingPriceVnd?: number | string;
 };
 
 export type CollectManualResult =
@@ -35,6 +37,7 @@ export type CollectManualResult =
       tiktokSold: number | null;
       sourceUrl: string | null;
       imageUrl: string | null;
+      listingPriceVnd: number | null;
     }
   | { ok: false; error: string };
 
@@ -46,6 +49,23 @@ function optionalSold(value: number | undefined): number | null {
     throw new Error("sold phải là số nguyên 0–50000000");
   }
   return value;
+}
+
+function optionalListingPrice(value: number | string | undefined, snapshot?: unknown): number | null {
+  if (typeof value === "string" && value.trim() === "") {
+    return null;
+  }
+  if (value !== undefined) {
+    return parseOptionalPriceVnd(value);
+  }
+  if (typeof snapshot === "object" && snapshot !== null && !Array.isArray(snapshot)) {
+    const raw = snapshot as Record<string, unknown>;
+    const fromSnap = raw.listingPriceVnd ?? raw.priceVnd;
+    if (typeof fromSnap === "number" || typeof fromSnap === "string") {
+      return parseOptionalPriceVnd(fromSnap);
+    }
+  }
+  return null;
 }
 
 function parsePlatformList(value: string[] | undefined): PublisherPlatform[] {
@@ -82,6 +102,7 @@ export function validateCollectManual(input: CollectManualInput): CollectManualR
         tiktokSold: optionalSold(input.tiktokSold),
         sourceUrl: input.sourceUrl?.trim() || parsed.ad.snapshotUrl,
         imageUrl: parseImageUrl(input.imageUrl) ?? parsed.ad.imageUrl,
+        listingPriceVnd: optionalListingPrice(input.listingPriceVnd, input.snapshot),
       };
     }
 
@@ -151,6 +172,7 @@ export function validateCollectManual(input: CollectManualInput): CollectManualR
       tiktokSold: optionalSold(input.tiktokSold),
       sourceUrl: sourceUrl || null,
       imageUrl: ad.imageUrl,
+      listingPriceVnd: optionalListingPrice(input.listingPriceVnd, input.snapshot),
     };
   } catch (error) {
     return {

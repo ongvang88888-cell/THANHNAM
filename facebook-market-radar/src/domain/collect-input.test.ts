@@ -73,6 +73,45 @@ describe("validateCollectManual", () => {
     }
   });
 
+  it("accepts a listing price and snapshot price", () => {
+    const typed = validateCollectManual({
+      libraryId: "1",
+      pageId: "2",
+      pageName: "Page",
+      productTitle: "Serum",
+      startDate: "2026-08-01",
+      listingPriceVnd: "189.000đ",
+    });
+    expect(typed.ok).toBe(true);
+    if (typed.ok) {
+      expect(typed.listingPriceVnd).toBe(189_000);
+    }
+    const fromSnap = validateCollectManual({
+      snapshot: {
+        libraryId: "99",
+        pageId: "12",
+        pageName: "Demo Page",
+        startDate: "2026-08-01",
+        productTitle: "Đèn LED",
+        listingPriceVnd: 79_000,
+      },
+      productTitle: "Đèn LED cảm ứng tủ bếp",
+    });
+    expect(fromSnap.ok).toBe(true);
+    if (fromSnap.ok) {
+      expect(fromSnap.listingPriceVnd).toBe(79_000);
+    }
+    const bad = validateCollectManual({
+      libraryId: "1",
+      pageId: "2",
+      pageName: "Page",
+      productTitle: "Serum",
+      startDate: "2026-08-01",
+      listingPriceVnd: 12,
+    });
+    expect(bad.ok).toBe(false);
+  });
+
   it("rejects negative sold counts", () => {
     const result = validateCollectManual({
       libraryId: "1",

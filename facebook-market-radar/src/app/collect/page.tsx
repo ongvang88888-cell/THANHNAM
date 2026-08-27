@@ -12,8 +12,8 @@ export default async function CollectPage({ searchParams }: Props) {
     <>
       <h1>Lưu quảng cáo từ Thư viện</h1>
       <div className="banner">
-        Máy chủ không tải facebook.com. Chỉ đọc đường dẫn bạn dán hoặc JSON bạn sao chép. Bookmark chỉ
-        mở form với đường dẫn trang bạn đang xem.
+        Máy chủ không tải facebook.com hay sàn TMĐT. Chỉ đọc đường dẫn bạn dán, JSON bạn sao chép, và
+        giá bán bạn tự điền. Bookmark chỉ mở form với đường dẫn trang bạn đang xem.
       </div>
       <h2>Bookmark lưu nhanh</h2>
       <p className="muted">

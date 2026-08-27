@@ -1,2 +1,2 @@
-week,nicheSlug,libraryId,pageId,pageName,productTitle,startDate,isActive,creativeVariantCount,platforms,landingUrl,shopeeSold,tiktokSold,notes
-2026-W34,my-pham,,,,,2026-08-01,true,1,facebook|instagram,,,,"Điền libraryId từ URL Ad Library; shopeeSold chỉ khi tự mở listing công khai"
+week,nicheSlug,libraryId,pageId,pageName,productTitle,startDate,isActive,creativeVariantCount,platforms,landingUrl,listingPriceVnd,shopeeSold,tiktokSold,notes
+2026-W34,my-pham,,,,,2026-08-01,true,1,facebook|instagram,,,,,"Điền libraryId từ URL Ad Library; listingPriceVnd / shopeeSold chỉ khi tự mở listing công khai"

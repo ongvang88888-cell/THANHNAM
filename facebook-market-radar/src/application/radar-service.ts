@@ -1,10 +1,12 @@
 import { detectAlerts, creativeHash, type AlertDraft } from "../domain/alerts";
 import { assertCollectAuthorized } from "../domain/authz";
-import { draftCluster, shouldMergeClusters } from "../domain/clustering";
+import { draftCluster, shouldMergeClusters, slugifyTitle } from "../domain/clustering";
 import { validateCollectManual, type CollectManualInput } from "../domain/collect-input";
 import { buildIndustryStats, catalogCoverage, type CatalogCoverage, type IndustryStat } from "../domain/industry-stats";
 import { nicheName } from "../domain/niches";
+import { estimateProductPrice } from "../domain/price";
 import { productImagePath, uniqueImageUrls } from "../domain/product-image";
+import { analyzeProductName, type ProductAdAnalysis } from "../domain/product-watch";
 import { scoreHeat } from "../domain/scoring";
 import { buildClusterSignals, maxSold } from "../domain/signals";
 import { weekStartUtc } from "../domain/week";
@@ -17,6 +19,7 @@ import type {
   StoredAlert,
   StoredCluster,
   StoredSnapshot,
+  StoredWatch,
 } from "./repository";
 
 export const DEFAULT_APP_ID = "fmr_vn";
@@ -77,6 +80,7 @@ export class RadarService {
       landingUrl: parsed.ad.landingUrl,
       snapshotUrl: parsed.sourceUrl,
       imageUrl,
+      listingPriceVnd: parsed.listingPriceVnd,
       creativeHash: hash,
       firstSeenMs: existingAd?.firstSeenMs ?? observedMs,
       lastSeenMs: nowMs,
@@ -193,12 +197,19 @@ export class RadarService {
         nicheSlug: cluster.nicheSlug,
         nicheName: nicheName(cluster.nicheSlug),
         activeAdCount: snap.activeAdCount,
+        totalAdCount: clusterAds.length,
         distinctPageCount: snap.distinctPageCount,
         imageUrls: uniqueImageUrls([
           cluster.imageUrl,
           ...clusterAds.map((ad) => ad.imageUrl),
           fallback,
         ]),
+        price: estimateProductPrice({
+          title: cluster.title,
+          nicheSlug: cluster.nicheSlug,
+          listingPricesVnd: clusterAds.map((ad) => ad.listingPriceVnd),
+          copyTexts: clusterAds.flatMap((ad) => [ad.body, ad.title, cluster.title]),
+        }),
         scores: {
           intensity: snap.intensity,
           longevity: snap.longevity,
@@ -232,6 +243,75 @@ export class RadarService {
   async listAlerts(): Promise<StoredAlert[]> {
     const alerts = await this.repo.listAlerts(this.appId);
     return [...alerts].sort((a, b) => b.createdMs - a.createdMs);
+  }
+
+  async analyzeProductName(query: string): Promise<ProductAdAnalysis> {
+    const clusters = await this.repo.listClusters(this.appId);
+    const ads = await this.repo.listAds(this.appId);
+    return analyzeProductName(
+      query,
+      clusters.map((cluster) => ({
+        slug: cluster.slug,
+        title: cluster.title,
+        nicheSlug: cluster.nicheSlug,
+        ads: ads
+          .filter((ad) => ad.clusterSlug === cluster.slug)
+          .map((ad) => ({
+            isActive: ad.isActive,
+            pageId: ad.pageId,
+            listingPriceVnd: ad.listingPriceVnd,
+            body: ad.body,
+            title: ad.title,
+          })),
+      })),
+    );
+  }
+
+  async upsertWatch(
+    name: string,
+    note: string | null,
+    nowMs: number,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<{ watch: StoredWatch; analysis: ProductAdAnalysis }> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    const trimmed = name.trim();
+    if (trimmed.length < 2 || trimmed.length > 200) {
+      throw new Error("Tên sản phẩm phải từ 2–200 ký tự");
+    }
+    const analysis = await this.analyzeProductName(trimmed);
+    const slug = analysis.slug || slugifyTitle(trimmed);
+    const existing = (await this.repo.listWatches(this.appId)).find((row) => row.slug === slug);
+    const watch: StoredWatch = {
+      slug,
+      name: trimmed,
+      note,
+      createdMs: existing?.createdMs ?? nowMs,
+    };
+    await this.repo.upsertWatch(this.appId, watch);
+    return { watch, analysis };
+  }
+
+  async listWatchesWithAnalysis(): Promise<Array<StoredWatch & { analysis: ProductAdAnalysis }>> {
+    const watches = await this.repo.listWatches(this.appId);
+    const rows: Array<StoredWatch & { analysis: ProductAdAnalysis }> = [];
+    for (const watch of watches) {
+      rows.push({ ...watch, analysis: await this.analyzeProductName(watch.name) });
+    }
+    return rows;
+  }
+
+  async deleteWatch(
+    slug: string,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<void> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    const trimmed = slug.trim();
+    if (!trimmed) {
+      throw new Error("slug bắt buộc");
+    }
+    await this.repo.deleteWatch(this.appId, trimmed);
   }
 
   async weeklyReport(nowMs: number): Promise<string> {

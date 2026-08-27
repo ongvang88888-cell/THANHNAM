@@ -15,8 +15,18 @@ describe("weekly report", () => {
           nicheSlug: "gadget",
           nicheName: "Gadget / nhà cửa",
           activeAdCount: 2,
+          totalAdCount: 2,
           distinctPageCount: 2,
           imageUrls: ["/api/anh-san-pham?ten=Den"],
+          price: {
+            lowVnd: 79_000,
+            highVnd: 99_000,
+            midVnd: 89_000,
+            confidence: "vua",
+            sources: ["copy", "catalog"],
+            label: "≈ 89.000đ",
+            note: "test",
+          },
           scores: {
             intensity: 40,
             longevity: 80,
@@ -32,5 +42,7 @@ describe("weekly report", () => {
     expect(md).toContain("Đèn LED cảm ứng tủ bếp");
     expect(md).toContain("Không phải");
     expect(md).toContain("52.5");
+    expect(md).toContain("≈ 89.000đ");
+    expect(md).toContain("Giá (ước lượng)");
   });
 });

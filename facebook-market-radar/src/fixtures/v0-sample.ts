@@ -564,4 +564,39 @@ const CATALOG_ADS: CollectManualInput[] = [
   },
 ];
 
-export const V0_SAMPLE_ADS: CollectManualInput[] = [...CORE_ADS, ...CATALOG_ADS].map(withImage);
+const LISTING_PRICES: Record<string, number> = {
+  "111000001": 189_000,
+  "111000002": 199_000,
+  "111000011": 285_000,
+  "111000012": 279_000,
+  "111000021": 79_000,
+  "111000022": 89_000,
+  "111000141": 1_290_000,
+  "111000142": 1_190_000,
+  "111000161": 79_000,
+  "111000162": 69_000,
+  "111000181": 349_000,
+  "111000231": 149_000,
+  "111000251": 990_000,
+};
+
+const COPY_BODIES: Record<string, string> = {
+  "111000003": "Kem chống nắng SPF50 — chỉ 249.000đ hôm nay",
+  "111000031": "Collagen peptide 5000mg, giá 399.000đ / hộp",
+  "111000041": "Khóa Excel nhân sự 14 buổi — 1.2 triệu / khóa",
+  "111000042": "Tiếng Anh giao tiếp buổi tối, học phí 1.490.000đ",
+  "111000101": "Nước hoa nam gỗ 50ml 299.000đ",
+  "111000111": "Máy đo huyết áp bắp tay giá 590k",
+  "111000261": "Thảm yoga chống trượt 159.000đ",
+};
+
+function withResearchFields(ad: CollectManualInput): CollectManualInput {
+  const libraryId = ad.libraryId ?? "";
+  return {
+    ...withImage(ad),
+    listingPriceVnd: ad.listingPriceVnd ?? LISTING_PRICES[libraryId],
+    body: ad.body ?? COPY_BODIES[libraryId],
+  };
+}
+
+export const V0_SAMPLE_ADS: CollectManualInput[] = [...CORE_ADS, ...CATALOG_ADS].map(withResearchFields);

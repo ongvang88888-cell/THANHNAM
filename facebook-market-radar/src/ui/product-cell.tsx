@@ -1,9 +1,15 @@
+import { priceConfidenceLabel, type PriceEstimate } from "@/domain/price";
+
 export function ProductCell({
   title,
   imageUrls,
+  price,
+  adSummary,
 }: {
   title: string;
   imageUrls: string[];
+  price?: PriceEstimate | null;
+  adSummary?: string;
 }) {
   const thumbs = imageUrls.slice(0, 4);
   return (
@@ -13,7 +19,16 @@ export function ProductCell({
           <img key={src} src={src} alt="" width={48} height={48} />
         ))}
       </div>
-      <span className="product-name">{title}</span>
+      <div className="product-meta">
+        <span className="product-name">{title}</span>
+        {price ? (
+          <span className={`product-price ${price.confidence}`}>
+            {price.label}
+            <span className="product-price-src"> · {priceConfidenceLabel(price.confidence)}</span>
+          </span>
+        ) : null}
+        {adSummary ? <span className="product-ads">{adSummary}</span> : null}
+      </div>
     </div>
   );
 }

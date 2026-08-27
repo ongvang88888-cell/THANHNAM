@@ -15,6 +15,20 @@ Sản phẩm **độc lập**. Không phải App #2 của edu-commerce-platform.
 
 Điểm nóng luôn hiển thị chú thích “ước lượng”. Proxy bán chỉ từ Shopee/TikTok/user nhập — không phải đơn Facebook.
 
+## Giá bán cạnh tên sản phẩm
+
+Ước lượng tương đối, không crawl sàn / Facebook:
+
+1. **Bạn nhập** khi lưu thẻ (Shopee / TikTok / landing) — độ tin cao.
+2. **Đọc VND từ nội dung ads** (189.000đ, 189k, 1.2 triệu) — độ tin vừa.
+3. **Khoảng giá catalog** theo ngành + từ khóa — độ tin thấp, khi chưa có số.
+
+Không pretends đây là giá live hay giá đối thủ chính xác.
+
+## Theo dõi tên sản phẩm
+
+User ghi một tên → Radar khớp cụm đã lưu → đếm **bài đang chạy / số trang / bài đã lưu** và gắn nhãn ít / vừa / nhiều. Chỉ trên dữ liệu đã lưu, không phải tổng ads Facebook.
+
 Danh mục khóa: **26 ngành / 13 nhóm**. “Quét đầy đủ” = độ phủ danh mục + từ khóa để user tự tìm trên Thư viện — không scrape Facebook.
 
 ## Thu thập hợp lệ

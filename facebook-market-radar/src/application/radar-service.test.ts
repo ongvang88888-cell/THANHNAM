@@ -21,6 +21,8 @@ async function seededService(): Promise<RadarService> {
       productTitle: "Đèn LED cảm ứng tủ bếp",
       startDate: "2026-05-20",
       nicheSlug: "gadget",
+      listingPriceVnd: 79_000,
+      body: "Đèn LED cảm ứng tủ bếp 79.000đ",
       shopeeSold: 6300,
     },
     now,
@@ -67,7 +69,24 @@ describe("RadarService", () => {
     expect(led?.scores.estimated).toBe(true);
     expect(led?.imageUrls.length).toBeGreaterThan(0);
     expect(led?.scores.salesProxy).toBeGreaterThan(0);
+    expect(led?.totalAdCount).toBe(2);
+    expect(led?.price.midVnd).toBe(79_000);
+    expect(led?.price.label).toContain("79.000đ");
     expect(rankings[0]?.scores.heat).toBeGreaterThanOrEqual(rankings[1]?.scores.heat ?? 0);
+  });
+
+  it("analyzes a recorded product name for running ads", async () => {
+    const service = await seededService();
+    const analysis = await service.analyzeProductName("Đèn LED");
+    expect(analysis.activeAdCount).toBe(2);
+    expect(analysis.totalAdCount).toBe(2);
+    expect(analysis.distinctPageCount).toBe(2);
+    expect(analysis.intensity).toBe("vua");
+    const saved = await service.upsertWatch("Đèn LED", "soi ads", now, null, undefined);
+    expect(saved.watch.slug).toContain("den-led");
+    const watches = await service.listWatchesWithAnalysis();
+    expect(watches).toHaveLength(1);
+    expect(watches[0]?.analysis.activeAdCount).toBe(2);
   });
 
   it("does not treat backfilled long-running pages as new", async () => {

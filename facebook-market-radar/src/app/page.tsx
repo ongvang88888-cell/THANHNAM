@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LOCKED_NICHES, NICHE_GROUPS, nicheGroup, nichesInGroup } from "@/domain/niches";
+import { adRunSummary } from "@/domain/product-watch";
 import { ProductCell } from "@/ui/product-cell";
 import { getRadarService } from "@/server/radar";
 
@@ -31,8 +32,16 @@ export default async function HomePage({ searchParams }: Props) {
       </p>
       <div className="banner">
         Không có tỷ suất / chi phí / đơn hàng của đối thủ. Số “proxy bán” chỉ xuất hiện khi bạn tự nhập
-        số đã bán công khai ngoài Facebook.
+        số đã bán công khai ngoài Facebook. Giá cạnh tên là ước lượng (bạn nhập / nội dung ads / khoảng
+        ngành) — không crawl sàn.
       </div>
+      <form className="watch-search" action="/theo-doi" method="get">
+        <label>
+          Gõ tên sản phẩm — xem đang chạy bao nhiêu bài ads
+          <input name="ten" placeholder="Serum Niacinamide, Bỉm quần, Đèn LED…" />
+        </label>
+        <button type="submit">Soi ads</button>
+      </form>
       <div className="cards">
         <div className="card">
           <div className="n">{ads.length}</div>
@@ -146,7 +155,12 @@ export default async function HomePage({ searchParams }: Props) {
             <tr key={row.clusterSlug}>
               <td>{i + 1}</td>
               <td>
-                <ProductCell title={row.clusterTitle} imageUrls={row.imageUrls} />
+                <ProductCell
+                  title={row.clusterTitle}
+                  imageUrls={row.imageUrls}
+                  price={row.price}
+                  adSummary={adRunSummary(row.activeAdCount, row.distinctPageCount, row.totalAdCount)}
+                />
               </td>
               <td>{row.nicheName}</td>
               <td>

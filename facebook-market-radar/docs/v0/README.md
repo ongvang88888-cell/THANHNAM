@@ -13,8 +13,9 @@ Xem [niches.csv](./niches.csv). Radar khóa 13 nhóm: Làm đẹp, Sức khỏe,
 1. Mở Ad Library, country = Vietnam, “Tất cả quảng cáo”.
 2. Search từ khóa / ngành (cột `searchKeywords` trong niches.csv). Ưu tiên ngành đang chạy mạnh trên UI.
 3. Ghi ads vào bản sao của [ad-library-sheet.template.csv](./ad-library-sheet.template.csv). Kèm URL ảnh nếu copy được.
-4. Nếu trùng sản phẩm trên Shopee/TikTok Shop: điền `shopeeSold` / `tiktokSold` (proxy ngoài Facebook, không phải doanh số ads).
-5. Sinh báo cáo từ [weekly-report.template.md](./weekly-report.template.md).
+4. Nếu trùng sản phẩm trên Shopee/TikTok Shop: điền `shopeeSold` / `tiktokSold` (proxy ngoài Facebook, không phải doanh số ads) và `listingPriceVnd` nếu nhìn thấy giá niêm yết (ước lượng, không crawl).
+5. Trên Radar: ghi tên sản phẩm ở **Theo dõi sản phẩm** để xem có bao nhiêu bài ads đang chạy trong dữ liệu đã lưu.
+6. Sinh báo cáo từ [weekly-report.template.md](./weekly-report.template.md).
 
 ## Tiêu chí “đáng làm Vòng 1”
 

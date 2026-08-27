@@ -13,9 +13,9 @@
 
 ## Top sản phẩm theo Điểm nóng (ước lượng)
 
-| Hạng | Ngành hàng | Sản phẩm | Cường độ | Độ bền | Tốc độ mới | Proxy bán | Điểm nóng | Ghi chú |
-|------|------------|----------|----------|--------|------------|-----------|-----------|---------|
-| 1 | | | | | | | | Ước lượng |
+| Hạng | Ngành hàng | Sản phẩm | Giá (ước lượng) | Bài đang chạy | Cường độ | Độ bền | Tốc độ mới | Proxy bán | Điểm nóng | Ghi chú |
+|------|------------|----------|-----------------|---------------|----------|--------|------------|-----------|-----------|---------|
+| 1 | | | | | | | | | | Ước lượng |
 
 ## Ngành đang chạy mạnh
 
@@ -33,3 +33,4 @@
 
 - Sheet: `docs/v0/ad-library-sheet.csv` tuần __WEEK__
 - Mọi điểm số là proxy. Không ghi “bán chạy trên Facebook”.
+- Giá là ước lượng (nhập tay / đọc từ nội dung ads / khoảng ngành). Không crawl sàn.

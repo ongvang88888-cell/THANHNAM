@@ -1,14 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { buildIndustryStats, catalogCoverage, isStrongProduct } from "./industry-stats";
+import type { PriceEstimate } from "./price";
 import type { RankingRow } from "./weekly-report";
+
+const TEST_PRICE: PriceEstimate = {
+  lowVnd: 100_000,
+  highVnd: 200_000,
+  midVnd: 150_000,
+  confidence: "thap",
+  sources: ["catalog"],
+  label: "≈ 150.000đ",
+  note: "test",
+};
 
 function row(partial: Partial<RankingRow> & Pick<RankingRow, "nicheSlug" | "clusterSlug">): RankingRow {
   return {
     clusterTitle: partial.clusterTitle ?? partial.clusterSlug,
     nicheName: partial.nicheName ?? partial.nicheSlug,
     activeAdCount: partial.activeAdCount ?? 1,
+    totalAdCount: partial.totalAdCount ?? partial.activeAdCount ?? 1,
     distinctPageCount: partial.distinctPageCount ?? 1,
     imageUrls: partial.imageUrls ?? [],
+    price: partial.price ?? TEST_PRICE,
     scores: partial.scores ?? {
       intensity: 20,
       longevity: 20,

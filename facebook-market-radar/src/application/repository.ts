@@ -19,6 +19,7 @@ export type StoredAd = {
   landingUrl: string | null;
   snapshotUrl: string | null;
   imageUrl: string | null;
+  listingPriceVnd: number | null;
   creativeHash: string;
   firstSeenMs: number;
   lastSeenMs: number;
@@ -51,6 +52,13 @@ export type StoredSnapshot = {
   distinctPageCount: number;
 };
 
+export type StoredWatch = {
+  slug: string;
+  name: string;
+  note: string | null;
+  createdMs: number;
+};
+
 export type StoredAlert = {
   type: AlertType;
   title: string;
@@ -76,4 +84,7 @@ export interface IRadarRepository {
   upsertOwnInsight(appId: string, row: OwnCampaignInsight): Promise<void>;
   listOwnInsights(appId: string): Promise<OwnCampaignInsight[]>;
   listPages(appId: string): Promise<StoredPage[]>;
+  upsertWatch(appId: string, row: StoredWatch): Promise<void>;
+  listWatches(appId: string): Promise<StoredWatch[]>;
+  deleteWatch(appId: string, slug: string): Promise<void>;
 }
