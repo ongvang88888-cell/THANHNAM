@@ -18,6 +18,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
+      # Workspace packages export dist/; typecheck of consumers needs those builds.
+      - run: pnpm --filter @edu/shared-core --filter @edu/database --filter @edu/education-core --filter @edu/monetization-core --filter @edu/media-core build
       - run: pnpm --filter @edu/shared-core typecheck
       - run: pnpm --filter @edu/monetization-core typecheck
       - run: pnpm --filter @edu/api typecheck
@@ -26,6 +28,20 @@ jobs:
       - run: pnpm --filter @edu/monetization-core exec vitest run
       - run: pnpm --filter @edu/api test
       - run: pnpm --filter @edu/api build
+
+  facebook-market-radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - run: pnpm --filter facebook-market-radar db:generate
+        env:
+          FMR_DATABASE_URL: file:./dev.db
       - run: pnpm --filter facebook-market-radar test
       - run: pnpm --filter facebook-market-radar typecheck
