@@ -45,7 +45,13 @@ function resolveQuestionImage(topic: string, stem: string, explicit?: string): s
   for (const [re, url] of signRules) {
     if (re.test(stem) || re.test(s)) return url;
   }
-  if (topic === "signs" || topic === "situations" || topic === "technique" || /sa hình|tình huống|giao lộ|vượt|đèn/i.test(stem)) {
+  if (
+    topic === "signs" ||
+    topic === "situations" ||
+    topic === "technique" ||
+    topic === "concepts" ||
+    /sa hình|tình huống|giao lộ|vượt|đèn|ưu tiên|cao tốc|dốc|làn|vạch/i.test(stem)
+  ) {
     const sitRules: Array<[RegExp, string]> = [
       [/rẽ trái tại giao lộ có đèn/i, "/gplx/situations/left-turn-signal.svg"],
       [/đèn (đỏ|vàng|xanh)|tín hiệu/i, "/gplx/situations/traffic-light.svg"],
