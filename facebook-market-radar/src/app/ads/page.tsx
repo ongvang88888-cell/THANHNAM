@@ -1,3 +1,4 @@
+import { productImagePath, uniqueImageUrls } from "@/domain/product-image";
 import { ProductCell } from "@/ui/product-cell";
 import { getRadarService } from "@/server/radar";
 
@@ -32,7 +33,13 @@ export default async function AdsPage() {
                 <td>
                   <ProductCell
                     title={cluster?.title ?? ad.clusterSlug}
-                    imageUrls={[ad.imageUrl, cluster?.imageUrl].filter((url): url is string => Boolean(url))}
+                    imageUrls={uniqueImageUrls([
+                      ad.imageUrl,
+                      cluster?.imageUrl,
+                      cluster
+                        ? productImagePath(cluster.slug, cluster.title, cluster.nicheSlug)
+                        : productImagePath(ad.clusterSlug, ad.clusterSlug, "khac"),
+                    ])}
                   />
                 </td>
                 <td>{ad.startDate}</td>
