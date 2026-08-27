@@ -1,0 +1,16 @@
+# Keep build context lean for VPS deploys
+.git
+.github
+**/.next
+**/node_modules
+**/dist
+**/.turbo
+**/coverage
+apps/mobile-student
+**/*.md
+!README.md
+.env
+.env.*
+!.env.example
+**/.DS_Store
+artifacts
