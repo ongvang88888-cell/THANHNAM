@@ -5,7 +5,7 @@ import { FileDrop } from "@/components/FileDrop";
 import { LectureRecipeProgress } from "@/components/LectureRecipeProgress";
 import { VideoQuickAdjust } from "@/components/VideoQuickAdjust";
 import { ApiError, apiGet, apiPost, apiPutBinaryProgress, isBusyError } from "@/lib/api";
-import { PIPELINE_STEPS, pipelineStepById, type RecipeRow } from "@/lib/lecture-recipe";
+import { PIPELINE_STEPS, WAN_EDIT_POLL_MS, pipelineStepById, type RecipeRow } from "@/lib/lecture-recipe";
 
 const MAX_UPLOAD_BYTES = 400 * 1024 * 1024;
 const MAX_PARALLEL = 2;
@@ -283,7 +283,7 @@ export function VideoInbox(props: {
   }
 
   async function pollEdit(localId: string, videoId: string, editId: string): Promise<LibraryEdit> {
-    const deadline = Date.now() + 15 * 60 * 1000;
+    const deadline = Date.now() + WAN_EDIT_POLL_MS;
     let last: LibraryEdit | null = null;
     while (Date.now() < deadline) {
       const edit = await withThrottleRetry(() =>
@@ -384,7 +384,7 @@ export function VideoInbox(props: {
         phase: "queued",
         progress: 0,
         stepId: "upload",
-        label: "Chờ trong hàng — cùng công thức chuyên gia như tải 1 video",
+        label: "Chờ trong hàng — cùng công thức Wan 2.2 + Nano Banana",
       });
     }
     if (accepted.length) setQueue((rows) => [...rows, ...accepted]);
@@ -456,16 +456,15 @@ export function VideoInbox(props: {
     <div className="video-inbox">
       <h2>Kho video hàng loạt</h2>
       <p className="muted">
-        Tải nhiều video một lúc. Mỗi file chạy công thức trên máy: làm nét, lọc tiếng, cắt im lặng, rồi tự che người
-        gốc bằng người dẫn ảo, ảnh bìa và phụ đề. Không đổi tóc/áo như video AI 3D trên YouTube. Khi xong, xem trên hàng,
-        chọn bài rồi bấm Lưu.
+        Tải nhiều video một lúc. Mỗi file chạy Nano Banana (ảnh nhân vật) rồi Wan 2.2 thay người, giữ tiếng gốc. Không
+        thẻ chữ, không Ken Burns, không tô hoạt hình trên máy. Khi xong, xem trên hàng, chọn bài rồi bấm Lưu.
       </p>
       <FileDrop
         accept="video/mp4,video/*,application/octet-stream"
         multiple
         disabled={queue.length >= 40}
         label="Chọn nhiều video vào kho"
-        hint="Chọn hàng loạt. Mỗi video xếp hàng: làm nét, rồi tự che người bằng người dẫn ảo. Tối đa 2 video đang chỉnh cùng lúc, các video khác chờ. Gắn bài trên từng hàng sau khi xem lại."
+        hint="Chọn hàng loạt. Mỗi video xếp hàng Wan 2.2 + Nano Banana. Tối đa 2 video đang chỉnh cùng lúc, các video khác chờ. Gắn bài trên từng hàng sau khi xem lại."
         onFile={(file) => enqueue([file])}
         onFiles={(files) => enqueue(files)}
       />

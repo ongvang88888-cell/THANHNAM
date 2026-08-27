@@ -17,12 +17,22 @@ import {
 } from "@edu/media-core";
 import {
   AI_EDIT_TOOLS,
+  NANO_BANANA_MISSING_KEY,
+  WAN_MISSING_KEY,
+  WAN_NANO_RECIPE_ID,
+  falApiKey,
+  falUploadBytes,
+  generateNanoBananaStill,
+  isPublicAiEditToolId,
+  planWanChunks,
+  wanChunkProgress,
+  wanProviderFromEnv,
+  wanReplaceCharacter,
   HEYGEN_CREATE_AVATAR_URL,
   HEYGEN_GENERATE_URL,
   HEYGEN_STATUS_URL,
   HEYGEN_TRANSLATE_URL,
   HEYGEN_UPLOAD_PHOTO_URL,
-  LECTURE_EXPERT_RECIPE_ID,
   OWNERSHIP_DISCLAIMER,
   assertStudioConsent,
   atempoForFit,
@@ -58,6 +68,7 @@ import {
   envAiCapabilities,
   extractAudioSegmentArgs,
   extractLessonAudioArgs,
+  extractVideoSegmentArgs,
   extractSpeechAudioArgs,
   eyeContactReframeArgs,
   firstExistingFont,
@@ -69,6 +80,7 @@ import {
   heuristicCuesFromTitle,
   heygenApiKey,
   heygenHeaders,
+  isAiEditStepId,
   isAllowedRemoteMediaUrl,
   illustratedConcatArgs,
   isAiEditToolId,
@@ -138,7 +150,7 @@ const execFileAsync = promisify(execFile);
 const MAX_SOURCE_BYTES = MAX_MEDIA_OBJECT_BYTES;
 const MAX_EDITS_PER_VIDEO = 20;
 const MAX_ACTIVE_PER_USER = 16;
-const STALE_EDIT_MS = 12 * 60 * 1000;
+const STALE_EDIT_MS = 90 * 60 * 1000;
 
 export interface VideoAiEditOutput {
   kind: "video" | "image" | "vtt" | "copy";
@@ -344,7 +356,7 @@ export class VideoAiEditService implements OnModuleInit {
         thumbnailUrl,
         hasSource: source.hasSource,
       },
-      tools: AI_EDIT_TOOLS.map((tool) => {
+      tools: AI_EDIT_TOOLS.filter((tool) => isPublicAiEditToolId(tool.id)).map((tool) => {
         const avail = toolAvailability(tool, caps, source.hasSource);
         return {
           id: tool.id,
@@ -385,8 +397,8 @@ export class VideoAiEditService implements OnModuleInit {
     if (video.status === "UPLOADING") {
       throw new AppError(ErrorCodes.VALIDATION, "Video chưa tải xong", 400);
     }
-    if (!isAiEditToolId(rawTool)) {
-      throw new AppError(ErrorCodes.VALIDATION, "Công cụ AI không hợp lệ", 400);
+    if (!isAiEditToolId(rawTool) || !isPublicAiEditToolId(rawTool)) {
+      throw new AppError(ErrorCodes.VALIDATION, "Công cụ AI không hợp lệ. Chỉ còn Wan 2.2 + Nano Banana.", 400);
     }
     let options: AiEditOptions;
     try {
@@ -488,14 +500,16 @@ export class VideoAiEditService implements OnModuleInit {
 
   private async markStep(
     editId: string,
-    stepId: AiEditStepId,
+    stepId: AiEditStepId | string,
     extra?: Partial<VideoAiEditOutput>,
   ): Promise<void> {
-    const fields = progressFields(stepId);
+    const fields = isAiEditStepId(stepId)
+      ? progressFields(stepId)
+      : { progress: extra?.progress ?? 0, step: "source" as const, stepLabel: extra?.stepLabel ?? "Đang xử lý" };
     const current = await this.prisma.videoAiEdit.findUnique({ where: { id: editId } });
     if (!current) return;
     const existing = asOutput(current.outputJson) ?? { kind: "video" as const };
-    const next: VideoAiEditOutput = { ...existing, ...extra, ...fields };
+    const next: VideoAiEditOutput = { ...existing, ...fields, ...extra };
     await this.prisma.videoAiEdit.update({
       where: { id: editId },
       data: { outputJson: next as unknown as Prisma.InputJsonValue },
@@ -512,27 +526,23 @@ export class VideoAiEditService implements OnModuleInit {
     if (courseId !== lesson.section.course.id) {
       throw new AppError(ErrorCodes.VALIDATION, "Bài học không thuộc khóa đã chọn", 400);
     }
+    await this.assertWanAutoReady(user);
     return this.startEdit(user, videoId, "owned_abc", {
       confirmOwned: true,
       autoApply: true,
       lessonId: lesson.id,
       courseId,
-      recipeId: LECTURE_EXPERT_RECIPE_ID,
-      region: "speaker",
-      style: "trend",
-      toonStrength: "high",
+      recipeId: WAN_NANO_RECIPE_ID,
       ...(await this.autoReplaceOptions(user)),
     });
   }
 
   async startPrepare(user: RequestUser, videoId: string) {
+    await this.assertWanAutoReady(user);
     return this.startEdit(user, videoId, "owned_abc", {
       confirmOwned: true,
       autoApply: false,
-      recipeId: LECTURE_EXPERT_RECIPE_ID,
-      region: "speaker",
-      style: "trend",
-      toonStrength: "high",
+      recipeId: WAN_NANO_RECIPE_ID,
       ...(await this.autoReplaceOptions(user)),
     });
   }
@@ -540,7 +550,15 @@ export class VideoAiEditService implements OnModuleInit {
   async getPresenterCharacter(user: RequestUser) {
     this.assertTeacher(user);
     const caps = await this.capabilities();
-    return { character: await this.presenterView(user, caps), capabilities: { heygen: caps.heygen, minimax: caps.minimax } };
+    return {
+      character: await this.presenterView(user, caps),
+      capabilities: {
+        wan: caps.wan,
+        nanoBanana: caps.nanoBanana,
+        fal: caps.fal,
+        dashscope: caps.dashscope,
+      },
+    };
   }
 
   async savePresenterCharacter(user: RequestUser, body: unknown) {
@@ -554,39 +572,6 @@ export class VideoAiEditService implements OnModuleInit {
     const existing = await this.prisma.presenterCharacter.findUnique({
       where: { appId_userId: { appId: user.appId, userId: user.userId } },
     });
-    let heygenAvatarId = existing?.heygenAvatarId ?? null;
-    let heygenTalkingPhotoId = existing?.heygenTalkingPhotoId ?? null;
-    let heygenGroupId = existing?.heygenGroupId ?? null;
-    let heygenVoiceId = existing?.heygenVoiceId ?? null;
-    let provisionNote: string | undefined;
-    const stillChanged = (parsed.stillUrl ?? null) !== (existing?.stillUrl ?? null);
-    const bibleChanged = parsed.bible !== (existing?.bible ?? "");
-    const heygenKey = heygenApiKey();
-    if (heygenKey && parsed.confirmOwned && parsed.confirmLikeness) {
-      const needAvatar = !heygenAvatarId || stillChanged || (bibleChanged && !parsed.stillUrl);
-      if (needAvatar) {
-        try {
-          const created = await this.createHeygenReusableAvatar(heygenKey, parsed, heygenGroupId);
-          heygenAvatarId = created.avatarId;
-          if (created.groupId) heygenGroupId = created.groupId;
-          if (created.voiceId) heygenVoiceId = created.voiceId;
-          provisionNote = "Đã tạo avatar HeyGen v3 — tái dùng cho mọi bài.";
-        } catch (err) {
-          this.log.warn(`HeyGen v3 avatar skipped: ${err instanceof Error ? err.message : "error"}`);
-          if (parsed.stillUrl && (!heygenTalkingPhotoId || stillChanged)) {
-            try {
-              heygenTalkingPhotoId = await this.uploadHeygenTalkingPhotoFromUrl(heygenKey, parsed.stillUrl);
-              provisionNote = "HeyGen v3 lỗi — đã lưu talking photo v1 để tái dùng.";
-            } catch (photoErr) {
-              this.log.warn(`HeyGen talking photo skipped: ${photoErr instanceof Error ? photoErr.message : "error"}`);
-              provisionNote = "Đã lưu hồ sơ. Tạo avatar HeyGen lỗi — sẽ thử lại khi có khóa/ảnh.";
-            }
-          } else {
-            provisionNote = "Đã lưu hồ sơ. Tạo avatar HeyGen lỗi — sẽ thử lại khi có khóa/ảnh.";
-          }
-        }
-      }
-    }
     const row = await this.prisma.presenterCharacter.upsert({
       where: { appId_userId: { appId: user.appId, userId: user.userId } },
       create: {
@@ -596,10 +581,10 @@ export class VideoAiEditService implements OnModuleInit {
         look: parsed.look,
         bible: parsed.bible,
         stillUrl: parsed.stillUrl ?? null,
-        heygenAvatarId,
-        heygenTalkingPhotoId,
-        heygenGroupId,
-        heygenVoiceId,
+        heygenAvatarId: existing?.heygenAvatarId ?? null,
+        heygenTalkingPhotoId: existing?.heygenTalkingPhotoId ?? null,
+        heygenGroupId: existing?.heygenGroupId ?? null,
+        heygenVoiceId: existing?.heygenVoiceId ?? null,
         autoReplace: parsed.autoReplace,
         confirmOwned: parsed.confirmOwned,
         confirmLikeness: parsed.confirmLikeness,
@@ -609,19 +594,23 @@ export class VideoAiEditService implements OnModuleInit {
         look: parsed.look,
         bible: parsed.bible,
         stillUrl: parsed.stillUrl ?? null,
-        heygenAvatarId,
-        heygenTalkingPhotoId,
-        heygenGroupId,
-        heygenVoiceId,
         autoReplace: parsed.autoReplace,
         confirmOwned: parsed.confirmOwned,
         confirmLikeness: parsed.confirmLikeness,
       },
     });
+    const provisionNote = parsed.stillUrl
+      ? "Đã lưu ảnh nhân vật. Video tải lên sẽ gọi Wan 2.2 để thay người."
+      : "Đã lưu hồ sơ. Nếu có GEMINI_API_KEY, Nano Banana sẽ vẽ ảnh khi tải video.";
     const caps = await this.capabilities();
     return {
       character: presentPresenterCharacter(row, caps),
-      capabilities: { heygen: caps.heygen, minimax: caps.minimax },
+      capabilities: {
+        wan: caps.wan,
+        nanoBanana: caps.nanoBanana,
+        fal: caps.fal,
+        dashscope: caps.dashscope,
+      },
       provisionNote,
     };
   }
@@ -821,6 +810,7 @@ export class VideoAiEditService implements OnModuleInit {
   }
 
   private providerFor(tool: AiEditToolId, ai: AiPort, caps: AiCapabilities): string {
+    if (tool === "owned_abc") return caps.fal ? "fal-wan" : caps.dashscope ? "dashscope-wan" : "wan";
     if (tool === "captions") return caps.speech ? ai.id : "heuristic";
     if (tool === "ai_cover") return caps.imageGen ? ai.id : "poster";
     if (tool === "lesson_copy") return caps.llm ? ai.id : "heuristic";
@@ -1241,73 +1231,10 @@ export class VideoAiEditService implements OnModuleInit {
     options: AiEditOptions,
   ): Promise<VideoAiEditOutput> {
     const ai = createAiPortFromEnv();
-    switch (tool) {
-      case "owned_abc":
-        return this.runOwnedAbc(video, editId, options, ai);
-      case "studio_sound":
-        return this.runFfmpegVideo(video, editId, tool, studioSoundArgs, "video/mp4");
-      case "speech_focus": {
-        const output = await this.runFfmpegVideo(video, editId, tool, speechFocusArgs, "video/mp4");
-        output.providerNote = `${OWNERSHIP_DISCLAIMER} Đã giữ hình gốc và lời giảng, thu hẹp dải nhạc nền.`;
-        return output;
-      }
-      case "course_enhance": {
-        const output = await this.runFfmpegVideo(video, editId, tool, courseEnhanceArgs, "video/mp4");
-        output.providerNote = "Làm nét nhẹ, ưu tiên chữ slide không bị vỡ. Giữ nguyên tiếng.";
-        return output;
-      }
-      case "picture_enhance":
-        return this.runFfmpegVideo(video, editId, tool, pictureEnhanceArgs, "video/mp4");
-      case "toon_talking_head": {
-        const region = options.region ?? "speaker";
-        const style = options.style ?? "trend";
-        const strength = options.toonStrength ?? "high";
-        const output = await this.runFfmpegVideo(
-          video,
-          editId,
-          tool,
-          (input, outputPath) => toonTalkingHeadArgs(input, outputPath, region, style, strength),
-          "video/mp4",
-        );
-        output.providerNote =
-          region === "full"
-            ? `${OWNERSHIP_DISCLAIMER} Bản trên máy: tô đậm cả khung (cel + nét). Không đổi tóc/áo như Kling/Dreamina.`
-            : region === "speaker"
-              ? `${OWNERSHIP_DISCLAIMER} Bản trên máy: tô đậm người giữa khung, giữ slide và tiếng gốc. Không sinh nhân vật 3D.`
-              : `${OWNERSHIP_DISCLAIMER} Bản trên máy: tô PIP/mặt, giữ slide và tiếng gốc.`;
-        return output;
-      }
-      case "illustrated_edition":
-        return this.runIllustratedEdition(video, editId, options, ai);
-      case "silence_trim":
-        return this.runFfmpegVideo(video, editId, tool, silenceTrimArgs, "video/mp4");
-      case "auto_thumbnail":
-        return this.runThumbnail(video, editId, options);
-      case "ai_cover":
-        return this.runCover(video, editId, options, ai);
-      case "captions":
-        return this.runCaptions(video, editId, ai);
-      case "lesson_copy":
-        return this.runCopy(video, ai);
-      case "avatar_presenter":
-        return this.runAvatarPresenter(video, editId, options, ai);
-      case "hailuo_character":
-        return this.runHailuoCharacter(video, editId, options, ai);
-      case "veo_intro":
-        return this.runVeoIntro(video, editId, options, ai);
-      case "video_translate":
-        return this.runVideoTranslate(video, editId, options, ai);
-      case "eye_contact": {
-        const output = await this.runFfmpegVideo(video, editId, tool, eyeContactReframeArgs, "video/mp4");
-        output.providerNote =
-          "Bản trên máy: canh mặt/mắt vào giữa khung (crop/zoom). Không warp từng con ngươi như Descript đám mây.";
-        return output;
-      }
-      case "overdub":
-        return this.runOverdub(video, editId, options, ai);
-      default:
-        return assertNever(tool);
+    if (tool !== "owned_abc") {
+      throw new Error("Công cụ này đã gỡ. Chỉ còn Wan 2.2 + Nano Banana khi tải video.");
     }
+    return this.runOwnedAbc(video, editId, options, ai);
   }
 
   private async runFfmpegVideo(
@@ -1505,69 +1432,58 @@ export class VideoAiEditService implements OnModuleInit {
     video: Video,
     editId: string,
     options: AiEditOptions,
-    ai: AiPort,
+    _ai: AiPort,
   ): Promise<VideoAiEditOutput> {
+    if (!wanProviderFromEnv()) throw new Error(WAN_MISSING_KEY);
     const source = await this.openSourceFile(video);
-    const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-abc-"));
+    const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-wan-"));
     try {
-      const inputPath = source.path;
       await this.markStep(editId, "source");
-      if (!(await this.probeHasAudio(inputPath))) {
-        throw new Error("Video không có tiếng giảng. Cần lời gốc để làm nét tiếng và giảm nhạc nền.");
+      if (!(await this.probeHasAudio(source.path))) {
+        throw new Error("Video không có tiếng giảng. Wan 2.2 chỉ sửa hình — cần tiếng gốc để ghép lại.");
       }
-      await this.markStep(editId, "enhance");
-      const combinedPath = path.join(dir, "enhance-trim.mp4");
-      const enhancedPath = path.join(dir, "enhance-speech.mp4");
-      let lessonPath = enhancedPath;
-      let trimApplied = false;
-      try {
-        await this.execFfmpeg(enhanceSpeechTrimArgs(inputPath, combinedPath));
-        lessonPath = combinedPath;
-        trimApplied = true;
-        await this.markStep(editId, "trim");
-      } catch (err) {
-        this.log.warn(`one-pass enhance+trim fallback: ${err instanceof Error ? err.message : "error"}`);
-        await this.execFfmpeg(enhanceAndSpeechArgs(inputPath, enhancedPath));
-        await this.markStep(editId, "trim");
-        const trimmedPath = path.join(dir, "owned-abc-trim.mp4");
-        try {
-          await this.execFfmpeg(silenceTrimArgs(enhancedPath, trimmedPath));
-          lessonPath = trimmedPath;
-          trimApplied = true;
-        } catch (trimErr) {
-          this.log.warn(`silence trim skipped: ${trimErr instanceof Error ? trimErr.message : "error"}`);
-        }
-      }
-      const region = options.region ?? "speaker";
-      const style = options.style ?? "trend";
-      const strength = options.toonStrength ?? "high";
-      let toonApplied = false;
-      let characterReplace: false | "heygen" | "minimax" | "local" = false;
-      await this.markStep(editId, "character");
+      const durationMs = (await this.probeDurationMs(source.path)) ?? video.durationMs ?? 0;
+      const chunks = planWanChunks(durationMs / 1000);
+      await this.markStep(editId, "still");
       const profile = video.ownerUserId
         ? await this.prisma.presenterCharacter.findUnique({
             where: { appId_userId: { appId: video.appId, userId: video.ownerUserId } },
           })
         : null;
       const presenter = resolveAutoPresenter(profile);
-      if (presenter) {
-        const replaced = await this.tryAutoReplaceOntoLesson(video, editId, presenter, options, ai, lessonPath, dir);
-        if (replaced) {
-          lessonPath = replaced.path;
-          characterReplace = replaced.kind;
-        }
+      if (!presenter) {
+        throw new Error("Tự thay người đang tắt. Bật trong hồ sơ nhân vật để chạy Wan 2.2.");
       }
-      if (!characterReplace) {
-        await this.markStep(editId, "toon");
-        const toonPath = path.join(dir, "owned-abc-toon.mp4");
-        try {
-          await this.execFfmpeg(toonTalkingHeadArgs(lessonPath, toonPath, region, style, strength));
-          lessonPath = toonPath;
-          toonApplied = true;
-        } catch (toonErr) {
-          this.log.warn(`auto toon restyle skipped: ${toonErr instanceof Error ? toonErr.message : "error"}`);
-        }
+      const still = await this.resolveWanStill(video, editId, presenter, options);
+      await this.markStep(editId, "replace");
+      const replacedPaths: string[] = [];
+      let provider = wanProviderFromEnv();
+      if (!provider) throw new Error(WAN_MISSING_KEY);
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i]!;
+        const chunkPath = path.join(dir, `chunk-${i}.mp4`);
+        await this.execFfmpeg(extractVideoSegmentArgs(source.path, chunkPath, chunk.startSec, chunk.durationSec));
+        const videoUrl = await this.publishForWan(video, editId, chunkPath, `wan-chunk-${i}.mp4`, "video/mp4");
+        const replaced = await wanReplaceCharacter({ videoUrl, imageUrl: still.publicUrl });
+        provider = replaced.provider;
+        const outPath = path.join(dir, `wan-${i}.mp4`);
+        await this.downloadRemoteFile(replaced.videoUrl, outPath);
+        replacedPaths.push(outPath);
+        await this.markStep(editId, "replace", {
+          progress: wanChunkProgress(i, chunks.length),
+          step: "replace",
+          stepLabel: `Đang thay người bằng Wan 2.2 (${i + 1}/${chunks.length})`,
+        });
       }
+      await this.markStep(editId, "stitch");
+      const listPath = path.join(dir, "concat.txt");
+      await writeFile(listPath, this.audioConcatList(replacedPaths));
+      const visualPath = path.join(dir, "wan-visual.mp4");
+      await this.execFfmpeg(concatNormalizedArgs(listPath, visualPath));
+      const audioPath = path.join(dir, "original.m4a");
+      await this.execFfmpeg(extractLessonAudioArgs(source.path, audioPath));
+      const lessonPath = path.join(dir, "wan-final.mp4");
+      await this.execFfmpeg(replaceAudioArgs(visualPath, audioPath, lessonPath));
       const lessonKey = buildObjectKey({
         appId: video.appId,
         type: "video-ai",
@@ -1575,40 +1491,34 @@ export class VideoAiEditService implements OnModuleInit {
         filename: "owned_abc.mp4",
       });
       const lessonSize = await this.persistFile(lessonKey, lessonPath, "video/mp4");
-
       const output: VideoAiEditOutput = {
         kind: "video",
         storageKey: lessonKey,
         contentType: "video/mp4",
         sizeBytes: lessonSize,
-        durationMs: (await this.probeDurationMs(lessonPath)) ?? video.durationMs ?? undefined,
-        providerNote:
-          characterReplace === "heygen"
-            ? `${OWNERSHIP_DISCLAIMER} Đã che người gốc bằng nhân vật HeyGen (cùng avatar), lặp clip ngắn, giữ tiếng. Không phải face-swap.`
-            : characterReplace === "minimax"
-              ? `${OWNERSHIP_DISCLAIMER} Đã che người gốc bằng nhân vật Hailuo (cùng một ảnh), lặp clip ngắn, giữ tiếng. Miệng không khớp cả bài.`
-              : characterReplace === "local"
-                ? `${OWNERSHIP_DISCLAIMER} Đã che người gốc bằng thẻ nhân vật trên máy (Ken Burns), lặp hết bài, giữ tiếng. Không phải face-swap hay người ảo HeyGen.`
-              : toonApplied
-                ? `${OWNERSHIP_DISCLAIMER} Công thức lecture_expert_v1: làm nét + lọc tiếng, cắt im lặng, rồi tô đậm người giữa khung (phong cách trend trên máy). Giữ slide và tiếng gốc. Không sinh nhân vật 3D kiểu Kling/Dreamina.`
-                : `${OWNERSHIP_DISCLAIMER} Công thức lecture_expert_v1: làm nét + lọc tiếng, cắt im lặng. Tô hoạt hình lỗi — giữ bản làm nét.`,
+        durationMs: (await this.probeDurationMs(lessonPath)) ?? durationMs,
+        providerNote: `${OWNERSHIP_DISCLAIMER} Wan 2.2 (${provider}) đã thay người trong video, giữ 100% tiếng gốc. Ảnh nhân vật: ${still.source === "nano_banana" ? "Nano Banana" : "ảnh đã lưu"}.`,
       };
-      let extras: {
-        captionsMode?: "whisper" | "heuristic" | "failed";
-        copyMode?: "llm" | "heuristic" | "failed";
-        thumbApplied: boolean;
-      } = {
-        thumbApplied: false,
-      };
-      await this.markStep(editId, "extras");
-      extras = await this.enrichOwnedAbcOutput(video, editId, ai, dir, inputPath, lessonPath, output);
+      try {
+        const thumbPath = path.join(dir, "wan-thumb.jpg");
+        const seek = thumbnailSeekSeconds(output.durationMs ?? 0);
+        await this.execFfmpeg(thumbnailArgs(lessonPath, thumbPath, seek));
+        const thumbBytes = await readFile(thumbPath);
+        const thumbKey = buildObjectKey({
+          appId: video.appId,
+          type: "video-ai",
+          id: editId,
+          filename: "auto-thumbnail.jpg",
+        });
+        await this.storage.putObject(thumbKey, thumbBytes, "image/jpeg");
+        output.thumbnailStorageKey = thumbKey;
+      } catch (err) {
+        this.log.warn(`wan thumbnail skipped: ${err instanceof Error ? err.message : "error"}`);
+      }
       const recipe = describeRecipe(await this.capabilities(), {
-        trimApplied,
-        toonApplied,
-        characterReplace,
-        captionsMode: extras.captionsMode,
-        copyMode: extras.copyMode,
-        thumbApplied: extras.thumbApplied,
+        stillSource: still.source,
+        characterReplace: provider,
+        audioKept: true,
       });
       output.recipeId = recipe.recipeId;
       output.techniques = recipe.techniques;
@@ -1869,9 +1779,139 @@ export class VideoAiEditService implements OnModuleInit {
       characterLook: presenter.look,
     };
     if (presenter.stillUrl) extra.characterImageUrl = presenter.stillUrl;
-    if (presenter.heygenAvatarId) extra.heygenAvatarId = presenter.heygenAvatarId;
-    if (presenter.heygenTalkingPhotoId) extra.heygenTalkingPhotoId = presenter.heygenTalkingPhotoId;
     return extra;
+  }
+
+  private async assertWanAutoReady(user: RequestUser): Promise<void> {
+    const caps = await this.capabilities();
+    if (!caps.wan) {
+      throw new AppError(ErrorCodes.VALIDATION, WAN_MISSING_KEY, 400);
+    }
+    const row = await this.prisma.presenterCharacter.findUnique({
+      where: { appId_userId: { appId: user.appId, userId: user.userId } },
+    });
+    if (row?.autoReplace === false) {
+      throw new AppError(ErrorCodes.VALIDATION, "Tự thay người đang tắt. Bật trong hồ sơ nhân vật.", 400);
+    }
+    if (!row?.stillUrl && !caps.nanoBanana) {
+      throw new AppError(ErrorCodes.VALIDATION, NANO_BANANA_MISSING_KEY, 400);
+    }
+  }
+
+  private async requireHttpsDownloadUrl(key: string, ttlSeconds = 7200): Promise<string> {
+    const signed = await this.storage.createDownloadUrl({ key, ttlSeconds });
+    if (!signed.url.startsWith("https://")) {
+      throw new Error("Máy chủ chưa có URL https công khai để gửi file sang Wan 2.2. Thêm FAL_KEY để tải trực tiếp lên Fal.");
+    }
+    return signed.url;
+  }
+
+  private async publishForWan(
+    video: Video,
+    editId: string,
+    filePath: string,
+    filename: string,
+    contentType: string,
+  ): Promise<string> {
+    if (falApiKey()) {
+      const bytes = await readFile(filePath);
+      return falUploadBytes({ bytes, filename, contentType });
+    }
+    const key = buildObjectKey({
+      appId: video.appId,
+      type: "video-ai",
+      id: editId,
+      filename,
+    });
+    await this.persistFile(key, filePath, contentType);
+    return this.requireHttpsDownloadUrl(key);
+  }
+
+  private async resolveWanStill(
+    video: Video,
+    editId: string,
+    presenter: {
+      id?: string;
+      name: string;
+      look: string;
+      bible: string;
+      stillUrl: string | null;
+    },
+    options: AiEditOptions,
+  ): Promise<{ publicUrl: string; source: "saved" | "nano_banana" }> {
+    const look = asCharacterLook(presenter.look);
+    const savedUrl = options.characterImageUrl || presenter.stillUrl;
+    if (savedUrl?.startsWith("https://")) {
+      const parsed = parsePublicHttpsUrl(savedUrl, "Ảnh nhân vật");
+      const res = await fetch(parsed.toString(), { signal: AbortSignal.timeout(30_000), redirect: "follow" });
+      if (!res.ok) throw new Error(`Không tải được ảnh nhân vật (${res.status})`);
+      const bytes = Buffer.from(await res.arrayBuffer());
+      if (bytes.length === 0 || bytes.length > 8 * 1024 * 1024) {
+        throw new Error("Ảnh nhân vật trống hoặc lớn hơn 8MB");
+      }
+      const contentType = res.headers.get("content-type") || "image/png";
+      if (falApiKey()) {
+        const falUrl = await falUploadBytes({
+          bytes,
+          filename: "character-still.png",
+          contentType: contentType.startsWith("image/") ? contentType : "image/png",
+        });
+        return { publicUrl: falUrl, source: "saved" };
+      }
+      return { publicUrl: parsed.toString(), source: "saved" };
+    }
+
+    const stableKey = video.ownerUserId
+      ? buildObjectKey({
+          appId: video.appId,
+          type: "character-still",
+          id: video.ownerUserId,
+          filename: "nano-banana.png",
+        })
+      : null;
+    if (stableKey) {
+      try {
+        const stored = await this.storage.getObject(stableKey);
+        if (stored && stored.bytes.length > 64) {
+          if (falApiKey()) {
+            const falUrl = await falUploadBytes({
+              bytes: stored.bytes,
+              filename: "character-still.png",
+              contentType: stored.contentType || "image/png",
+            });
+            return { publicUrl: falUrl, source: "nano_banana" };
+          }
+          return { publicUrl: await this.requireHttpsDownloadUrl(stableKey), source: "nano_banana" };
+        }
+      } catch {
+        // generate a new still
+      }
+    }
+
+    const generated = await generateNanoBananaStill({
+      name: presenter.name,
+      look,
+      bible: presenter.bible,
+    });
+    const key = buildObjectKey({
+      appId: video.appId,
+      type: "video-ai",
+      id: editId,
+      filename: "nano-banana.png",
+    });
+    await this.storage.putObject(key, generated.bytes, generated.contentType);
+    if (stableKey) {
+      await this.storage.putObject(stableKey, generated.bytes, generated.contentType);
+    }
+    if (falApiKey()) {
+      const falUrl = await falUploadBytes({
+        bytes: generated.bytes,
+        filename: "character-still.png",
+        contentType: generated.contentType,
+      });
+      return { publicUrl: falUrl, source: "nano_banana" };
+    }
+    return { publicUrl: await this.requireHttpsDownloadUrl(key), source: "nano_banana" };
   }
 
   private async createHeygenReusableAvatar(
@@ -2889,7 +2929,7 @@ export class VideoAiEditService implements OnModuleInit {
 
   private async downloadRemoteFile(url: string, dest: string, googleKey?: string): Promise<void> {
     if (!isAllowedRemoteMediaUrl(url)) {
-      throw new Error("Chỉ tải video từ máy chủ HeyGen / MiniMax / Google (https)");
+      throw new Error("Chỉ tải video từ máy chủ Fal / DashScope / Google (https)");
     }
     const fetchUrl = googleKey ? withGoogleApiKey(url, googleKey) : url;
     const res = await fetch(fetchUrl, { signal: AbortSignal.timeout(180_000), redirect: "follow" });

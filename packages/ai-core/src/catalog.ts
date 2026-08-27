@@ -26,6 +26,10 @@ export type AiEditToolId = (typeof AI_EDIT_TOOL_IDS)[number];
 
 export type AiEditToolGroup = "audio" | "image" | "copy";
 export type AiEditOutputKind = "video" | "image" | "vtt" | "copy";
+export const PUBLIC_AI_EDIT_TOOL_IDS = ["owned_abc"] as const;
+
+export type PublicAiEditToolId = (typeof PUBLIC_AI_EDIT_TOOL_IDS)[number];
+
 export type AiCapabilityName =
   | "ffmpeg"
   | "speech"
@@ -35,7 +39,11 @@ export type AiCapabilityName =
   | "heygen"
   | "minimax"
   | "veo"
-  | "elevenlabs";
+  | "elevenlabs"
+  | "fal"
+  | "dashscope"
+  | "nanoBanana"
+  | "wan";
 
 export interface AiEditToolDef {
   id: AiEditToolId;
@@ -52,13 +60,13 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
   {
     id: "owned_abc",
     group: "image",
-    label: "A+C — bài của tôi",
+    label: "Wan 2.2 thay người",
     description:
-      "Công thức lecture_expert_v1: làm nét nhẹ + lọc tiếng giảng, cắt im lặng, rồi tự che người gốc bằng người dẫn ảo trên mọi video tải lên (HeyGen nếu có khóa; không thì thẻ nhân vật Ken Burns trên máy). Ảnh bìa và phụ đề. Giữ slide hai bên và tiếng gốc. Không sinh nhân vật 3D kiểu Kling/Dreamina. Chỉ video bạn sở hữu.",
-    market: "Descript Studio Sound + Premiere Enhance Speech / Auto Color",
+      "Học từ Short Nano Banana + Wan 2.2: vẽ một ảnh nhân vật (Gemini Nano Banana) rồi Wan 2.2 animate replace từng đoạn ~20 giây — giữ chuyển động và cảnh, thay người trong video. Ghép lại tiếng gốc. Không thẻ chữ, không Ken Burns, không tô hoạt hình trên máy. Cần FAL_KEY hoặc DASHSCOPE_API_KEY, và ảnh https hoặc GEMINI_API_KEY. Chỉ video bạn sở hữu.",
+    market: "Wan 2.2 Animate Replace + Google Nano Banana",
     outputKind: "video",
-    needs: ["ffmpeg"],
-    prefers: ["speech", "llm"],
+    needs: ["ffmpeg", "wan"],
+    prefers: ["nanoBanana"],
   },
   {
     id: "studio_sound",
@@ -250,10 +258,18 @@ export interface AiCapabilities {
   minimax: boolean;
   veo: boolean;
   elevenlabs: boolean;
+  fal: boolean;
+  dashscope: boolean;
+  nanoBanana: boolean;
+  wan: boolean;
 }
 
 export function isAiEditToolId(value: string): value is AiEditToolId {
   return (AI_EDIT_TOOL_IDS as readonly string[]).includes(value);
+}
+
+export function isPublicAiEditToolId(value: string): value is PublicAiEditToolId {
+  return (PUBLIC_AI_EDIT_TOOL_IDS as readonly string[]).includes(value);
 }
 
 export function getAiEditTool(id: string): AiEditToolDef | null {
@@ -264,17 +280,24 @@ export function envAiCapabilities(ffmpeg: boolean): AiCapabilities {
   const enabled = process.env.AI_EDIT_ENABLED !== "false";
   const openai = Boolean(process.env.OPENAI_API_KEY?.trim());
   const elevenlabs = Boolean(process.env.ELEVENLABS_API_KEY?.trim());
+  const fal = Boolean(process.env.FAL_KEY?.trim());
+  const dashscope = Boolean(process.env.DASHSCOPE_API_KEY?.trim());
+  const nanoBanana = Boolean(process.env.GEMINI_API_KEY?.trim());
   return {
     enabled,
     ffmpeg,
     speech: Boolean(process.env.OPENAI_API_KEY?.trim() || process.env.GROQ_API_KEY?.trim()),
-    imageGen: openai,
+    imageGen: openai || nanoBanana,
     llm: Boolean(process.env.OPENAI_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim()),
     tts: openai || elevenlabs,
     heygen: Boolean(process.env.HEYGEN_API_KEY?.trim()),
     minimax: Boolean(process.env.MINIMAX_API_KEY?.trim()),
     veo: Boolean(process.env.VEO_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim()),
     elevenlabs,
+    fal,
+    dashscope,
+    nanoBanana,
+    wan: fal || dashscope,
   };
 }
 
@@ -293,100 +316,22 @@ export function toolAvailability(
         mode: "fallback",
         note:
           need === "ffmpeg"
-            ? "Máy chủ chưa có ffmpeg — cần cài để sửa hình/tiếng."
-            : `Thiếu khả năng ${need}.`,
+            ? "Máy chủ chưa có ffmpeg — cần cài để cắt đoạn và ghép tiếng gốc."
+            : need === "wan"
+              ? "Cần FAL_KEY (Fal) hoặc DASHSCOPE_API_KEY (Alibaba) để gọi Wan 2.2. Không thay người bằng thẻ chữ trên máy."
+              : `Thiếu khả năng ${need}.`,
       };
     }
   }
-  if (tool.id === "avatar_presenter") {
-    if (caps.heygen) return { available: true, mode: "full", note: null };
-    if (!caps.ffmpeg) {
-      return { available: false, mode: "fallback", note: "Máy chủ chưa có ffmpeg — cần cài để che người bằng nhân vật." };
-    }
-    if (caps.tts) {
-      return {
-        available: true,
-        mode: "fallback",
-        note: "Chưa có HeyGen — sẽ dựng thẻ nhân vật + TTS, không phải người ảo HeyGen.",
-      };
-    }
-    return {
-      available: true,
-      mode: "fallback",
-      note: "Chưa có HeyGen — sẽ che người bằng thẻ nhân vật trên máy (Ken Burns), giữ tiếng bài.",
-    };
-  }
-  if (tool.id === "hailuo_character") {
-    if (!caps.minimax) {
-      return {
-        available: false,
-        mode: "fallback",
-        note: "Cần MINIMAX_API_KEY để gọi Hailuo / MiniMax. ffmpeg không sinh nhân vật 3D.",
-      };
-    }
-    return {
-      available: true,
-      mode: caps.tts ? "full" : "fallback",
-      note: caps.tts ? null : "Chưa có TTS — clip Hailuo sẽ giữ tiếng MiniMax (thường không khớp lời bài).",
-    };
-  }
-  if (tool.id === "veo_intro") {
-    if (!caps.veo) {
-      return {
-        available: false,
-        mode: "fallback",
-        note: "Cần GEMINI_API_KEY hoặc VEO_API_KEY (Veo 3.1 trả phí). Không giả clip Veo trên máy.",
-      };
-    }
-    return {
-      available: true,
-      mode: "full",
-      note: "Veo 3.1 trên Gemini API — khóa miễn phí thường bị từ chối. Clip ~8 giây, nối trước bài.",
-    };
-  }
-  if (tool.id === "video_translate") {
-    if (!hasSource) {
-      return { available: false, mode: "fallback", note: "Chưa có file video gốc. Hãy tải lại video." };
-    }
-    if (caps.heygen) return { available: true, mode: "full", note: null };
-    if (caps.speech && caps.tts && caps.llm) {
-      return {
-        available: true,
-        mode: "fallback",
-        note: "Chưa có HeyGen — lồng tiếng mới, giữ hình gốc, miệng không khớp.",
-      };
-    }
+  if (tool.id !== "owned_abc") {
     return {
       available: false,
       mode: "fallback",
-      note: "Cần HEYGEN_API_KEY, hoặc Whisper + TTS + LLM để lồng tiếng trên máy.",
+      note: "Công cụ này đã gỡ. Chỉ còn Wan 2.2 + Nano Banana khi tải video.",
     };
   }
-  if (tool.id === "eye_contact") {
-    if (!hasSource) {
-      return { available: false, mode: "fallback", note: "Chưa có file video gốc. Hãy tải lại video." };
-    }
-    return {
-      available: true,
-      mode: "fallback",
-      note: "Bản trên máy: canh mặt/mắt vào giữa khung. Không sửa hướng nhìn từng frame.",
-    };
-  }
-  if (tool.id === "overdub") {
-    if (!hasSource) {
-      return { available: false, mode: "fallback", note: "Chưa có file video gốc. Hãy tải lại video." };
-    }
-    if (caps.elevenlabs) return { available: true, mode: "full", note: null };
-    return {
-      available: true,
-      mode: "fallback",
-      note: "Chưa có ElevenLabs — TTS sẽ khác giọng giáo viên.",
-    };
-  }
-  if (tool.outputKind === "video" || tool.id === "auto_thumbnail") {
-    if (!hasSource) {
-      return { available: false, mode: "fallback", note: "Chưa có file video gốc. Hãy tải lại video." };
-    }
+  if (!hasSource) {
+    return { available: false, mode: "fallback", note: "Chưa có file video gốc. Hãy tải lại video." };
   }
   const missingPrefer = tool.prefers.filter((name) => !caps[name]);
   if (missingPrefer.length > 0) {
@@ -396,10 +341,14 @@ export function toolAvailability(
       imageGen: "Chưa có khóa ảnh AI — sẽ tạo poster chữ.",
       llm: "Chưa có khóa LLM — sẽ gợi ý từ tiêu đề.",
       tts: "Chưa có khóa TTS — không đọc được lời mới.",
-      heygen: "Chưa có HEYGEN_API_KEY — chạy bản trên máy.",
-      minimax: "Chưa có MINIMAX_API_KEY — không gọi Hailuo.",
-      veo: "Chưa có khóa Veo/Gemini — không sinh clip mở bài.",
-      elevenlabs: "Chưa có ElevenLabs — TTS sẽ khác giọng giáo viên.",
+      heygen: "Chưa có HEYGEN_API_KEY — công cụ này đã gỡ.",
+      minimax: "Chưa có MINIMAX_API_KEY — công cụ này đã gỡ.",
+      veo: "Chưa có khóa Veo/Gemini — công cụ này đã gỡ.",
+      elevenlabs: "Chưa có ElevenLabs — công cụ này đã gỡ.",
+      fal: "Chưa có FAL_KEY — sẽ thử DashScope nếu có.",
+      dashscope: "Chưa có DASHSCOPE_API_KEY — sẽ dùng Fal nếu có.",
+      nanoBanana: "Chưa có GEMINI_API_KEY — cần ảnh nhân vật https sẵn.",
+      wan: "Chưa có FAL_KEY hoặc DASHSCOPE_API_KEY — không gọi Wan 2.2.",
     };
     return { available: true, mode: "fallback", note: notes[missingPrefer[0]!] };
   }

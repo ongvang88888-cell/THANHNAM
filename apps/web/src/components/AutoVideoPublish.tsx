@@ -5,7 +5,7 @@ import { FileDrop } from "@/components/FileDrop";
 import { RecipeChecklist } from "@/components/LectureRecipeProgress";
 import { VideoQuickAdjust } from "@/components/VideoQuickAdjust";
 import { ApiError, apiGet, apiPatch, apiPost, apiPut, apiPutBinaryProgress } from "@/lib/api";
-import { PIPELINE_STEPS, pipelineStepById, type PipelineStepId, type RecipeRow } from "@/lib/lecture-recipe";
+import { PIPELINE_STEPS, WAN_EDIT_POLL_MS, pipelineStepById, type PipelineStepId, type RecipeRow } from "@/lib/lecture-recipe";
 
 type StepId = PipelineStepId;
 
@@ -165,7 +165,7 @@ export function AutoVideoPublish(props: {
   }
 
   async function pollEdit(videoId: string, editId: string): Promise<AutoEdit> {
-    const deadline = Date.now() + 15 * 60 * 1000;
+    const deadline = Date.now() + WAN_EDIT_POLL_MS;
     let last: AutoEdit | null = null;
     while (Date.now() < deadline) {
       const edit = await withThrottleRetry(() =>
@@ -343,7 +343,7 @@ export function AutoVideoPublish(props: {
         accept="video/mp4,video/*,application/octet-stream"
         disabled={!ready}
         label="Chọn video để lên bài"
-        hint="Chọn một file. Máy chủ làm nét, lọc tiếng, cắt im lặng, rồi tự che người gốc bằng người dẫn ảo (HeyGen nếu có khóa; không thì thẻ nhân vật trên máy). Giữ slide và tiếng gốc. Khi xong, xem lại rồi bấm Lưu vào bài."
+        hint="Chọn một file. Máy chủ vẽ ảnh nhân vật bằng Nano Banana (nếu chưa có ảnh), rồi Wan 2.2 thay người trong video — giữ chuyển động và tiếng gốc. Không thẻ chữ, không Ken Burns. Bài dài chạy từng đoạn ~20 giây. Khi xong, xem lại rồi bấm Lưu vào bài."
         onFile={(file) => void handleFile(file)}
       />
       <p className="muted auto-publish-legal">
@@ -379,7 +379,7 @@ export function AutoVideoPublish(props: {
           {phase === "saved" && <p className="ok">Đã lưu vào bài.</p>}
           {sourceVideoId && (phase === "ready" || phase === "saving" || phase === "saved") && (
             <>
-            <div className="muted">Bài học đã chỉnh — người dẫn ảo che người gốc, giữ tiếng</div>
+            <div className="muted">Bài học đã chỉnh — Wan 2.2 thay người, giữ tiếng gốc</div>
             <VideoQuickAdjust
               token={props.token}
               videoId={sourceVideoId}

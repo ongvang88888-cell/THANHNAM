@@ -32,6 +32,8 @@ describe("remote media allowlists", () => {
     expect(isAllowedMinimaxMediaUrl("https://filecdn.minimax.chat/out.mp4")).toBe(true);
     expect(isAllowedMinimaxMediaUrl("https://cdn.hailuoai.com/out.mp4")).toBe(true);
     expect(isAllowedVeoMediaUrl("https://generativelanguage.googleapis.com/v1beta/files/x")).toBe(true);
+    expect(isAllowedRemoteMediaUrl("https://v3.fal.media/files/out.mp4")).toBe(true);
+    expect(isAllowedRemoteMediaUrl("https://cdn.aliyuncs.com/out.mp4")).toBe(true);
     expect(isAllowedRemoteMediaUrl("https://evil.example/out.mp4")).toBe(false);
     expect(isAllowedCharacterImageUrl("https://ideogram.ai/a.png")).toBe(true);
     expect(isAllowedCharacterImageUrl("https://127.0.0.1/a.png")).toBe(false);

@@ -821,6 +821,29 @@ export function fitAudioDurationArgs(inputPath: string, outputPath: string, dura
   ];
 }
 
+export function extractVideoSegmentArgs(inputPath: string, outputPath: string, startSec: number, durationSec: number): string[] {
+  return [
+    "-y",
+    "-ss",
+    Math.max(0, startSec).toFixed(3),
+    "-t",
+    Math.max(0.2, durationSec).toFixed(3),
+    "-i",
+    inputPath,
+    "-an",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "23",
+    "-pix_fmt",
+    "yuv420p",
+    ...ffmpegThreadArgs(),
+    outputPath,
+  ];
+}
+
 export function extractAudioSegmentArgs(inputPath: string, outputPath: string, startSec: number, durationSec: number): string[] {
   return [
     "-y",

@@ -146,23 +146,27 @@ export function characterReadyForAutoReplace(profile: PresenterIdentity): boolea
   return shouldAutoInsertPresenter(profile);
 }
 
-export function describeCharacterGap(profile: PresenterIdentity, caps: { heygen: boolean; minimax: boolean }): string {
+export type CharacterPipelineCaps = {
+  wan?: boolean;
+  nanoBanana?: boolean;
+  heygen?: boolean;
+  minimax?: boolean;
+};
+
+export function describeCharacterGap(profile: PresenterIdentity, caps: CharacterPipelineCaps): string {
   if (!profile.autoReplace) {
-    return "Tự thay người đang tắt — bật để mọi video dùng cùng nhân vật.";
+    return "Tự thay người đang tắt — bật để mọi video chạy Wan 2.2.";
   }
-  if (!profile.confirmOwned || !profile.confirmLikeness) {
-    return "Mọi video tải lên sẽ che người gốc bằng nhân vật ảo mặc định (Cô Minh). Tick quyền nếu bạn dùng ảnh/kịch bản riêng.";
+  if (!caps.wan) {
+    return "Cần FAL_KEY hoặc DASHSCOPE_API_KEY trên máy chủ để gọi Wan 2.2. Không có khóa thì không thay người — không dùng thẻ chữ / Ken Burns.";
   }
-  if (caps.heygen && (profile.heygenAvatarId || profile.heygenTalkingPhotoId || profile.stillUrl)) {
-    return "Nhân vật đủ để tự che người khi tải video (HeyGen tái dùng).";
+  if (profile.stillUrl) {
+    return "Sẵn sàng: ảnh nhân vật đã lưu + Wan 2.2 thay người trong video, giữ tiếng gốc.";
   }
-  if (caps.minimax && profile.stillUrl) {
-    return "Nhân vật đủ để tự che người khi tải video (Hailuo, cùng một ảnh).";
+  if (caps.nanoBanana) {
+    return "Sẵn sàng: Nano Banana sẽ vẽ ảnh nhân vật, rồi Wan 2.2 thay người trong video.";
   }
-  if (caps.heygen || caps.minimax) {
-    return "Sẽ tự che người khi tải video. Có khóa: HeyGen dùng mô tả/ảnh; Hailuo cần cùng một ảnh https.";
-  }
-  return "Sẽ tự che người bằng thẻ nhân vật trên máy khi tải video. Có HEYGEN_API_KEY thì dùng avatar tái dùng; MINIMAX_API_KEY + ảnh thì dùng Hailuo.";
+  return "Cần ảnh nhân vật https, hoặc GEMINI_API_KEY để Nano Banana vẽ ảnh. Wan 2.2 đã có khóa.";
 }
 
 export function parsePresenterCharacterInput(input: unknown): PresenterCharacterInput {
@@ -230,7 +234,7 @@ export function presentPresenterCharacter(
     heygenAvatarId?: string | null;
     heygenTalkingPhotoId?: string | null;
   },
-  caps: { heygen: boolean; minimax: boolean },
+  caps: CharacterPipelineCaps,
 ): PresenterCharacterView {
   const look = asCharacterLook(row.look);
   const identity: PresenterIdentity = {
@@ -256,7 +260,7 @@ export function presentPresenterCharacter(
   };
 }
 
-export function emptyPresenterCharacter(caps: { heygen: boolean; minimax: boolean }): PresenterCharacterView {
+export function emptyPresenterCharacter(caps: CharacterPipelineCaps): PresenterCharacterView {
   return presentPresenterCharacter(
     {
       name: "Cô Minh",

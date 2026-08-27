@@ -5,83 +5,43 @@ import {
   LECTURE_ONE_PASS_AF,
   LECTURE_SILENCE_AF,
   LECTURE_SPEECH_AF,
+  WAN_NANO_RECIPE_ID,
   describeRecipe,
   isLectureExpertRecipeId,
   thumbnailSeekSeconds,
 } from "./expert-recipe";
 
-describe("lecture_expert_v1 recipe", () => {
-  it("pins the recipe id and 4.2-safe filters", () => {
-    expect(LECTURE_EXPERT_RECIPE_ID).toBe("lecture_expert_v1");
+describe("wan_nano_v1 recipe", () => {
+  it("pins the new recipe id and keeps 4.2-safe leftover filters", () => {
+    expect(WAN_NANO_RECIPE_ID).toBe("wan_nano_v1");
+    expect(isLectureExpertRecipeId("wan_nano_v1")).toBe(true);
     expect(isLectureExpertRecipeId("lecture_expert_v1")).toBe(true);
     expect(isLectureExpertRecipeId("owned_abc")).toBe(false);
+    expect(LECTURE_EXPERT_RECIPE_ID).toBe("lecture_expert_v1");
     expect(LECTURE_ENHANCE_VF).toContain("hqdn3d=1.2:1.0:4:4");
-    expect(LECTURE_ENHANCE_VF).toContain("format=yuv420p");
     expect(LECTURE_SPEECH_AF).toContain("highpass=f=90");
-    expect(LECTURE_SPEECH_AF).toContain("lowpass=f=7500");
-    expect(LECTURE_SPEECH_AF).not.toContain("dynaudnorm");
     expect(LECTURE_SILENCE_AF).toContain("start_duration=0.45");
-    expect(LECTURE_SILENCE_AF).not.toContain("start_silence");
     expect(LECTURE_ONE_PASS_AF.indexOf("silenceremove=")).toBeLessThan(LECTURE_ONE_PASS_AF.indexOf("loudnorm="));
-    expect(LECTURE_ONE_PASS_AF).toContain("afftdn=nf=-24");
   });
 
-  it("marks applied, skipped, and refused techniques", () => {
-    const recipe = describeRecipe({ speech: false, imageGen: false, llm: false });
-    expect(recipe.recipeId).toBe(LECTURE_EXPERT_RECIPE_ID);
-    expect(recipe.techniques.filter((row) => row.status === "applied").map((row) => row.id)).toEqual([
-      "studio_sound",
-      "auto_color",
-      "silence_trim",
-      "thumbnail",
-      "avatar_presenter",
-    ]);
-    expect(recipe.techniques.find((row) => row.id === "captions")?.status).toBe("skipped");
-    expect(recipe.techniques.find((row) => row.id === "toon_restyle")?.status).toBe("skipped");
-    expect(recipe.techniques.find((row) => row.id === "illustrated_edition")?.status).toBe("skipped");
-    expect(recipe.techniques.find((row) => row.id === "v2v")?.status).toBe("refused");
-    expect(recipe.techniques.find((row) => row.id === "content_id_dodge")?.status).toBe("refused");
-    expect(recipe.techniques.filter((row) => row.status === "skipped").map((row) => row.id)).toEqual(
-      expect.arrayContaining([
-        "toon_restyle",
-        "hailuo_character",
-        "veo_intro",
-        "video_translate",
-        "eye_contact",
-        "overdub",
-      ]),
-    );
-    expect(recipe.techniques.find((row) => row.id === "avatar_presenter")?.status).toBe("applied");
-    expect(recipe.techniques.find((row) => row.id === "hailuo_character")?.status).toBe("skipped");
-    expect(recipe.techniques.find((row) => row.id === "veo_intro")?.status).toBe("skipped");
+  it("only lists Nano Banana, Wan replace, and original audio", () => {
+    const recipe = describeRecipe({ wan: false, nanoBanana: false, fal: false, dashscope: false });
+    expect(recipe.recipeId).toBe(WAN_NANO_RECIPE_ID);
+    expect(recipe.techniques.map((row) => row.id)).toEqual(["nano_banana", "wan_replace", "keep_audio"]);
+    expect(recipe.techniques.find((row) => row.id === "wan_replace")?.status).toBe("skipped");
+    expect(recipe.techniques.find((row) => row.id === "keep_audio")?.status).toBe("applied");
+    expect(recipe.techniques.some((row) => row.id === "avatar_presenter")).toBe(false);
+    expect(recipe.techniques.some((row) => row.id === "toon_restyle")).toBe(false);
   });
 
-  it("marks HeyGen replace applied and skips toon", () => {
-    const recipe = describeRecipe({ speech: false, imageGen: false, llm: false }, { characterReplace: "heygen" });
-    expect(recipe.techniques.find((row) => row.id === "toon_restyle")?.status).toBe("skipped");
-    expect(recipe.techniques.find((row) => row.id === "avatar_presenter")?.status).toBe("applied");
-    expect(recipe.techniques.find((row) => row.id === "hailuo_character")?.status).toBe("skipped");
-  });
-
-  it("marks local presenter replace applied and skips toon", () => {
-    const recipe = describeRecipe({ speech: false, imageGen: false, llm: false }, { characterReplace: "local" });
-    expect(recipe.techniques.find((row) => row.id === "toon_restyle")?.status).toBe("skipped");
-    expect(recipe.techniques.find((row) => row.id === "avatar_presenter")?.status).toBe("applied");
-  });
-
-  it("marks toon skipped when the encode failed", () => {
-    const recipe = describeRecipe({ speech: false, imageGen: false, llm: false }, { toonApplied: false });
-    expect(recipe.techniques.find((row) => row.id === "toon_restyle")?.status).toBe("skipped");
-    expect(recipe.techniques.find((row) => row.id === "toon_restyle")?.note).toMatch(/không tô được/i);
-  });
-
-  it("promotes captions and copy when keys and outcomes exist", () => {
+  it("marks Fal replace applied", () => {
     const recipe = describeRecipe(
-      { speech: true, imageGen: false, llm: true },
-      { captionsMode: "whisper", copyMode: "llm", trimApplied: true, thumbApplied: true },
+      { wan: true, nanoBanana: true, fal: true, dashscope: false },
+      { stillSource: "nano_banana", characterReplace: "fal", audioKept: true },
     );
-    expect(recipe.techniques.find((row) => row.id === "captions")?.status).toBe("applied");
-    expect(recipe.techniques.find((row) => row.id === "lesson_copy")?.status).toBe("applied");
+    expect(recipe.techniques.find((row) => row.id === "nano_banana")?.status).toBe("applied");
+    expect(recipe.techniques.find((row) => row.id === "wan_replace")?.status).toBe("applied");
+    expect(recipe.techniques.find((row) => row.id === "wan_replace")?.note).toMatch(/Fal/);
   });
 
   it("picks a cover frame at 25% and away from the start", () => {

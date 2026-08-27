@@ -45,6 +45,8 @@ export const MINIMAX_MEDIA_HOSTS = [
   "hailuo.ai",
 ] as const;
 export const VEO_MEDIA_HOSTS = ["googleapis.com", "googleusercontent.com"] as const;
+export const FAL_MEDIA_HOSTS = ["fal.ai", "fal.media"] as const;
+export const DASHSCOPE_MEDIA_HOSTS = ["aliyuncs.com", "dashscope.com"] as const;
 
 export function isAllowedHeygenMediaUrl(url: string): boolean {
   return hostAllowed(url, HEYGEN_MEDIA_HOSTS);
@@ -58,8 +60,25 @@ export function isAllowedVeoMediaUrl(url: string): boolean {
   return hostAllowed(url, VEO_MEDIA_HOSTS);
 }
 
+export function isAllowedFalMediaUrl(url: string): boolean {
+  return hostAllowed(url, FAL_MEDIA_HOSTS);
+}
+
+export function isAllowedDashscopeMediaUrl(url: string): boolean {
+  return hostAllowed(url, DASHSCOPE_MEDIA_HOSTS);
+}
+
+export function isAllowedWanMediaUrl(url: string): boolean {
+  return isAllowedFalMediaUrl(url) || isAllowedDashscopeMediaUrl(url);
+}
+
 export function isAllowedRemoteMediaUrl(url: string): boolean {
-  return isAllowedHeygenMediaUrl(url) || isAllowedMinimaxMediaUrl(url) || isAllowedVeoMediaUrl(url);
+  return (
+    isAllowedHeygenMediaUrl(url) ||
+    isAllowedMinimaxMediaUrl(url) ||
+    isAllowedVeoMediaUrl(url) ||
+    isAllowedWanMediaUrl(url)
+  );
 }
 
 export function isAllowedCharacterImageUrl(url: string): boolean {

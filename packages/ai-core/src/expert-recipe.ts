@@ -1,6 +1,7 @@
 import type { AiCapabilities } from "./catalog";
 
 export const LECTURE_EXPERT_RECIPE_ID = "lecture_expert_v1";
+export const WAN_NANO_RECIPE_ID = "wan_nano_v1";
 
 export const LECTURE_ENHANCE_VF =
   "hqdn3d=1.2:1.0:4:4,unsharp=3:3:0.35:3:3:0.0,eq=contrast=1.04:brightness=0.012:saturation=1.04:gamma=1.01,scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p,setsar=1";
@@ -30,21 +31,18 @@ export interface RecipeTechnique {
 }
 
 export interface RecipeOutcome {
-  trimApplied?: boolean;
-  toonApplied?: boolean;
-  characterReplace?: false | "heygen" | "minimax" | "local";
-  captionsMode?: "whisper" | "heuristic" | "failed";
-  copyMode?: "llm" | "heuristic" | "failed";
-  thumbApplied?: boolean;
+  stillSource?: "saved" | "nano_banana" | "failed";
+  characterReplace?: false | "fal" | "dashscope";
+  audioKept?: boolean;
 }
 
 export interface LectureExpertRecipe {
-  recipeId: typeof LECTURE_EXPERT_RECIPE_ID;
+  recipeId: typeof WAN_NANO_RECIPE_ID | typeof LECTURE_EXPERT_RECIPE_ID;
   techniques: RecipeTechnique[];
 }
 
 export function isLectureExpertRecipeId(value: string): boolean {
-  return value === LECTURE_EXPERT_RECIPE_ID;
+  return value === WAN_NANO_RECIPE_ID || value === LECTURE_EXPERT_RECIPE_ID;
 }
 
 export function thumbnailSeekSeconds(durationMs: number): number {
@@ -52,169 +50,52 @@ export function thumbnailSeekSeconds(durationMs: number): number {
   return Math.min(12, Math.max(1.2, (durationMs / 1000) * 0.25));
 }
 
-export function describeRecipe(caps: Pick<AiCapabilities, "speech" | "imageGen" | "llm">, outcome: RecipeOutcome = {}): LectureExpertRecipe {
-  const captionsStatus: RecipeTechniqueStatus =
-    outcome.captionsMode === "failed" ? "skipped" : caps.speech && outcome.captionsMode !== "heuristic" ? "applied" : "skipped";
-  const copyStatus: RecipeTechniqueStatus =
-    outcome.copyMode === "failed" ? "skipped" : caps.llm && outcome.copyMode !== "heuristic" ? "applied" : "skipped";
-  const trimStatus: RecipeTechniqueStatus = outcome.trimApplied === false ? "skipped" : "applied";
-  const hasReplaceOutcome = outcome.characterReplace !== undefined;
-  const hasToonOutcome = outcome.toonApplied !== undefined;
-  const replaced =
-    outcome.characterReplace === "heygen" ||
-    outcome.characterReplace === "minimax" ||
-    outcome.characterReplace === "local";
-  const plannedAutoPresenter = !hasReplaceOutcome && !hasToonOutcome;
-  const toonStatus: RecipeTechniqueStatus =
-    replaced || plannedAutoPresenter || outcome.toonApplied === false ? "skipped" : "applied";
-  const avatarStatus: RecipeTechniqueStatus =
-    outcome.characterReplace === "heygen" || outcome.characterReplace === "local" || plannedAutoPresenter
-      ? "applied"
-      : "skipped";
-  const hailuoStatus: RecipeTechniqueStatus = outcome.characterReplace === "minimax" ? "applied" : "skipped";
-  const thumbStatus: RecipeTechniqueStatus = outcome.thumbApplied === false ? "skipped" : "applied";
+export function describeRecipe(
+  caps: Pick<AiCapabilities, "wan" | "nanoBanana" | "fal" | "dashscope">,
+  outcome: RecipeOutcome = {},
+): LectureExpertRecipe {
+  const stillStatus: RecipeTechniqueStatus =
+    outcome.stillSource === "failed" ? "skipped" : outcome.stillSource === "saved" || outcome.stillSource === "nano_banana" || caps.nanoBanana ? "applied" : "skipped";
+  const replaced = outcome.characterReplace === "fal" || outcome.characterReplace === "dashscope";
+  const wanStatus: RecipeTechniqueStatus = replaced || caps.wan ? "applied" : "skipped";
+  const audioStatus: RecipeTechniqueStatus = outcome.audioKept === false ? "skipped" : "applied";
 
   return {
-    recipeId: LECTURE_EXPERT_RECIPE_ID,
+    recipeId: WAN_NANO_RECIPE_ID,
     techniques: [
       {
-        id: "studio_sound",
-        source: "Descript Studio Sound / Adobe Enhance Speech",
-        status: "applied",
-        label: "Lọc tạp và cân âm lượng lời giảng",
-      },
-      {
-        id: "auto_color",
-        source: "Premiere Auto Color / CapCut Enhance",
-        status: "applied",
-        label: "Làm nét nhẹ, an toàn cho slide",
-      },
-      {
-        id: "silence_trim",
-        source: "Descript / CapCut silence remove",
-        status: trimStatus,
-        label: "Cắt khoảng lặng dài",
-        note: trimStatus === "skipped" ? "ffmpeg không cắt được — giữ nguyên độ dài." : undefined,
-      },
-      {
-        id: "captions",
-        source: "CapCut / VEED / chuẩn Netflix–YouTube",
-        status: captionsStatus,
-        label: "Phụ đề 2 dòng, tối đa 42 ký tự",
+        id: "nano_banana",
+        source: "Google Gemini / Nano Banana (gemini-2.5-flash-image)",
+        status: stillStatus,
+        label: "Ảnh nhân vật Nano Banana",
         note:
-          captionsStatus === "skipped"
-            ? "Chưa có khóa Whisper — VTT nháp từ tiêu đề, không giả transcript."
-            : undefined,
+          outcome.stillSource === "saved"
+            ? "Dùng ảnh https đã lưu — không vẽ lại."
+            : outcome.stillSource === "nano_banana"
+              ? "Đã vẽ một ảnh nhân vật bằng Nano Banana (Gemini image)."
+              : stillStatus === "skipped"
+                ? "Chưa có ảnh nhân vật và chưa có GEMINI_API_KEY."
+                : "Sẽ vẽ ảnh nhân vật bằng Nano Banana nếu chưa có ảnh https.",
       },
       {
-        id: "thumbnail",
-        source: "YouTube / CapCut cover",
-        status: thumbStatus,
-        label: "Ảnh bìa ở 25% thời lượng, tránh frame đen đầu clip",
+        id: "wan_replace",
+        source: "Wan 2.2 Animate Replace (Fal / DashScope)",
+        status: wanStatus,
+        label: "Wan 2.2 thay người trong video",
+        note: replaced
+          ? outcome.characterReplace === "fal"
+            ? "Fal Wan 2.2 animate replace — giữ chuyển động, thay nhân vật, ghép tiếng gốc."
+            : "DashScope Wan 2.2 animate-mix — giữ chuyển động, thay nhân vật, ghép tiếng gốc."
+          : caps.wan
+            ? "Sẽ gọi Wan 2.2 trên từng đoạn 20 giây. Không có khóa thì không chạy."
+            : "Chưa có FAL_KEY hoặc DASHSCOPE_API_KEY — không thay người được.",
       },
       {
-        id: "lesson_copy",
-        source: "Descript / GPT lesson copy",
-        status: copyStatus,
-        label: "Gợi ý tiêu đề và mô tả bài",
-        note: copyStatus === "skipped" ? "Chưa có khóa LLM — mô tả từ tiêu đề." : undefined,
-      },
-      {
-        id: "illustrated_edition",
-        source: "Pictory scene cards",
-        status: "skipped",
-        label: "Bản minh họa Ken Burns trên tiếng gốc",
-        note: "Không tự dựng trong auto-publish — tránh mất hình giáo viên. Chạy thủ công nếu cần.",
-      },
-      {
-        id: "toon_restyle",
-        source: "DomoAI / CapCut Restyle / Runway Aleph",
-        status: toonStatus,
-        label: "Tô đậm người thành hoạt hình (trên máy)",
-        note:
-          toonStatus === "skipped"
-            ? replaced || plannedAutoPresenter
-              ? "Đã che người bằng nhân vật — không tô người thật."
-              : "ffmpeg không tô được — giữ bản làm nét, slide và tiếng gốc."
-            : "Tô đậm người giữa khung trên máy. Không đổi tóc/áo hay sinh nhân vật 3D kiểu Kling/Dreamina.",
-      },
-      {
-        id: "avatar_presenter",
-        source: "HeyGen Instant Avatar / v3 Photo + prompt",
-        status: avatarStatus,
-        label: "Người dẫn ảo thay người trong bài",
-        note:
-          avatarStatus === "applied"
-            ? outcome.characterReplace === "heygen"
-              ? "Học từ HeyGen Instant Avatar / v3: tạo một lần, tái dùng avatar_id. Clip ngắn lặp, giữ tiếng gốc. Không phải face-swap."
-              : "Tự chạy trên mọi video tải lên. Không khóa HeyGen: thẻ nhân vật Ken Burns trên máy che người gốc, giữ tiếng. Có khóa thì dùng avatar tái dùng."
-            : "Tắt vì bạn tắt tự thay người, hoặc bước nhân vật lỗi — giữ bản làm nét.",
-      },
-      {
-        id: "hailuo_character",
-        source: "Hailuo / MiniMax H3",
-        status: hailuoStatus,
-        label: "Nhân vật 3D Hailuo thay người trong bài",
-        note:
-          hailuoStatus === "applied"
-            ? "Cùng một ảnh + mô tả khóa mặt. Clip ngắn lặp, miệng không khớp cả bài."
-            : "Tự chạy nếu chưa có HeyGen nhưng có MINIMAX_API_KEY và cùng một ảnh. ffmpeg không sinh nhân vật 3D.",
-      },
-      {
-        id: "veo_intro",
-        source: "Google Veo 3.1 / Gemini",
-        status: "skipped",
-        label: "Clip mở bài Veo 8 giây",
-        note: "Không mặc định. Cần khóa Gemini/Veo trả phí. Không thay cả bài giảng.",
-      },
-      {
-        id: "video_translate",
-        source: "HeyGen Video Translate",
-        status: "skipped",
-        label: "Dịch / lồng tiếng",
-        note: "Không mặc định. HeyGen lip-sync hoặc lồng tiếng trên máy.",
-      },
-      {
-        id: "eye_contact",
-        source: "Descript Eye Contact",
-        status: "skipped",
-        label: "Canh mắt nhìn camera",
-        note: "Không mặc định. Bản trên máy canh mặt, không warp ngươi mắt.",
-      },
-      {
-        id: "overdub",
-        source: "Descript Overdub / ElevenLabs",
-        status: "skipped",
-        label: "Sửa câu bằng giọng",
-        note: "Không mặc định. Chỉ clone giọng bạn sở hữu.",
-      },
-      {
-        id: "filler_cut",
-        source: "Descript filler / Overdub / Eye Contact",
-        status: "refused",
-        label: "Cắt um/à và sửa lời",
-        note: "Cần word-level Whisper và model mặt.",
-      },
-      {
-        id: "shorts_reframe",
-        source: "OpusClip / Submagic",
-        status: "refused",
-        label: "Cắt short 9:16, chữ nhảy",
-        note: "Sai hình khóa học ngang.",
-      },
-      {
-        id: "v2v",
-        source: "Runway / Firefly / Sora",
-        status: "refused",
-        label: "Sinh hoặc biến hình video bằng GPU",
-        note: "Máy chủ không có khóa Kling/Dreamina/Fal/Runway — không làm được video AI trend 3D như YouTube.",
-      },
-      {
-        id: "content_id_dodge",
-        source: "—",
-        status: "refused",
-        label: "Né Content ID",
-        note: "Cấm. Giảm nhạc nền không xóa bản quyền nội dung người khác.",
+        id: "keep_audio",
+        source: "ffmpeg mux tiếng gốc",
+        status: audioStatus,
+        label: "Giữ 100% tiếng bài giảng gốc",
+        note: audioStatus === "applied" ? "Wan chỉ sửa hình. Tiếng lấy lại từ file gốc." : "Không ghép được tiếng gốc.",
       },
     ],
   };

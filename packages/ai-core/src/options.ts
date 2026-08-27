@@ -214,7 +214,7 @@ export function parseAiEditOptions(input: unknown): AiEditOptions {
   }
   if (rec.recipeId !== undefined) {
     if (typeof rec.recipeId !== "string" || !isLectureExpertRecipeId(rec.recipeId)) {
-      throw new Error("recipeId phải là lecture_expert_v1");
+      throw new Error("recipeId phải là wan_nano_v1 hoặc lecture_expert_v1");
     }
     out.recipeId = rec.recipeId;
   }
@@ -258,7 +258,7 @@ export function parseAiEditOptions(input: unknown): AiEditOptions {
 export function assertOwnedAbcReady(toolId: string, options: AiEditOptions): void {
   if (toolId !== "owned_abc") return;
   if (options.confirmOwned !== true) {
-    throw new Error("Gói A+C cần bạn xác nhận video là của bạn (confirmOwned).");
+    throw new Error("Wan 2.2 cần bạn xác nhận video là của bạn (confirmOwned).");
   }
 }
 

@@ -13,6 +13,7 @@ import {
   kenBurnsStillArgs,
   quickTrimCopyArgs,
   extractSpeechAudioArgs,
+  extractVideoSegmentArgs,
   ffmpegThreadArgs,
   ffmpegThreadCount,
   illustratedConcatArgs,
@@ -171,6 +172,16 @@ describe("ffmpeg arg builders", () => {
     expect(args).toContain("concat");
     expect(args).toContain("voice.m4a");
     expect(args).toContain("-shortest");
+  });
+
+  it("cuts a silent video chunk for Wan", () => {
+    const args = extractVideoSegmentArgs("/tmp/in.mp4", "/tmp/chunk.mp4", 20, 8);
+    expect(args).toContain("-ss");
+    expect(args).toContain("20.000");
+    expect(args).toContain("-t");
+    expect(args).toContain("8.000");
+    expect(args).toContain("-an");
+    expect(args).toContain("libx264");
   });
 
   it("replaceAudioArgs copies video so mux is cheap", () => {

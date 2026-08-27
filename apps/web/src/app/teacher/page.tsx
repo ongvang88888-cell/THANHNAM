@@ -239,7 +239,8 @@ export default function TeacherPage() {
       <div className="page-head">
         <h1>Studio giảng viên</h1>
         <p className="muted">
-          Tạo khóa, soạn chương–bài, chọn video để hệ thống tự chỉnh và gắn vào bài. Admin duyệt trước khi lên cửa hàng.
+          Tạo khóa, soạn chương–bài, chọn video. Máy chủ thay người bằng Wan 2.2 + Nano Banana rồi gắn vào bài. Admin
+          duyệt trước khi lên cửa hàng.
         </p>
       </div>
 
@@ -399,8 +400,8 @@ export default function TeacherPage() {
         <div className="panel" style={{ maxWidth: 860 }}>
           <h2>Tải video vào bài</h2>
           <p className="muted">
-            Chọn khóa, chọn bài, rồi chọn một video để gắn ngay. Kho hàng loạt bên dưới chạy đủ cùng công thức chuyên
-            gia; xem lại trên từng hàng rồi Lưu vào bài.
+            Chọn khóa, chọn bài, rồi chọn một video. Máy chủ chạy Nano Banana + Wan 2.2 thay người, giữ tiếng gốc. Kho
+            hàng loạt bên dưới cùng công thức; xem lại trên từng hàng rồi Lưu vào bài.
           </p>
           <label>Khóa học</label>
           <select value={attachCourseId} onChange={(e) => setAttachCourseId(e.target.value)}>

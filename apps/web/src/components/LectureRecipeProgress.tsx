@@ -18,9 +18,10 @@ export function LectureRecipeProgress(props: {
 }) {
   const steps = props.hideApply ? PIPELINE_STEPS.filter((step) => step.id !== "apply") : PIPELINE_STEPS;
   const currentIndex = pipelineIndex(props.currentStep);
-  const shiftedIndex = props.hideApply && currentIndex > pipelineIndex("apply")
-    ? currentIndex - 1
-    : Math.min(currentIndex, steps.length - 1);
+  const shiftedIndex =
+    props.hideApply && currentIndex > pipelineIndex("apply")
+      ? currentIndex - 1
+      : Math.min(currentIndex, steps.length - 1);
   const progress = Math.max(0, Math.min(100, Math.round(props.progress ?? 0)));
   const rows = props.techniques && props.techniques.length > 0 ? props.techniques : RECIPE_CHECKLIST;
 
@@ -65,12 +66,12 @@ export function RecipeChecklist(props: { rows?: RecipeRow[] | null; compact?: bo
     <div className={`auto-publish-recipe${props.compact ? " is-compact" : ""}`}>
       {props.compact ? (
         <details>
-          <summary>Công thức chuyên gia v1 — cùng phân tích như tải 1 video</summary>
+          <summary>Công thức Wan 2.2 + Nano Banana — cùng pipeline như tải 1 video</summary>
           {body}
         </details>
       ) : (
         <>
-          <h4>Công thức chuyên gia v1</h4>
+          <h4>Công thức Wan 2.2 + Nano Banana</h4>
           {body}
         </>
       )}

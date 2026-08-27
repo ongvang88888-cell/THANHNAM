@@ -1,12 +1,10 @@
 export const AI_EDIT_STEPS = [
   { id: "upload", label: "Đang tải video lên máy chủ", percent: 8 },
-  { id: "queue", label: "Đã nhận video — xếp hàng chỉnh", percent: 12 },
+  { id: "queue", label: "Đã nhận video — xếp hàng Wan 2.2", percent: 12 },
   { id: "source", label: "Đang đọc file gốc", percent: 18 },
-  { id: "enhance", label: "Đang làm nét hình và giảm nhạc nền", percent: 36 },
-  { id: "trim", label: "Đang cắt đoạn im lặng", percent: 48 },
-  { id: "toon", label: "Đang tô đậm người thành hoạt hình", percent: 68 },
-  { id: "character", label: "Đang thay người bằng nhân vật AI", percent: 74 },
-  { id: "extras", label: "Đang tạo ảnh bìa, phụ đề và mô tả", percent: 82 },
+  { id: "still", label: "Đang lấy / vẽ ảnh nhân vật Nano Banana", percent: 28 },
+  { id: "replace", label: "Đang thay người bằng Wan 2.2", percent: 62 },
+  { id: "stitch", label: "Đang ghép đoạn và tiếng gốc", percent: 82 },
   { id: "apply", label: "Đang gắn video vào bài học", percent: 92 },
   { id: "done", label: "Xong — sẵn sàng lưu vào bài", percent: 100 },
 ] as const;
@@ -50,4 +48,12 @@ export function progressForStatus(status: string): AiEditProgress {
     default:
       return progressFields("upload");
   }
+}
+
+export function wanChunkProgress(index: number, total: number): number {
+  const start = 28;
+  const end = 82;
+  if (total <= 0) return start;
+  const ratio = Math.min(1, Math.max(0, (index + 1) / total));
+  return Math.round(start + (end - start) * ratio);
 }

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   assertOwnedAbcReady,
-  assertStudioConsent,
   clampQuickTrim,
   describeRecipe,
   enhanceSpeechTrimArgs,
   isAiEditStepId,
   isAiEditToolId,
+  isPublicAiEditToolId,
   parseAiEditOptions,
   progressFields,
   toolAvailability,
@@ -14,95 +14,70 @@ import {
 } from "@edu/ai-core";
 
 describe("video AI edit contract", () => {
-  it("only accepts catalog tools", () => {
+  it("keeps historical ids but only publishes Wan replace", () => {
     expect(isAiEditToolId("studio_sound")).toBe(true);
-    expect(isAiEditToolId("course_enhance")).toBe(true);
-    expect(isAiEditToolId("toon_talking_head")).toBe(true);
-    expect(isAiEditToolId("illustrated_edition")).toBe(true);
-    expect(isAiEditToolId("speech_focus")).toBe(true);
     expect(isAiEditToolId("owned_abc")).toBe(true);
     expect(isAiEditToolId("avatar_presenter")).toBe(true);
-    expect(isAiEditToolId("hailuo_character")).toBe(true);
-    expect(isAiEditToolId("veo_intro")).toBe(true);
-    expect(isAiEditToolId("video_translate")).toBe(true);
-    expect(isAiEditToolId("eye_contact")).toBe(true);
-    expect(isAiEditToolId("overdub")).toBe(true);
+    expect(isPublicAiEditToolId("owned_abc")).toBe(true);
+    expect(isPublicAiEditToolId("studio_sound")).toBe(false);
+    expect(isPublicAiEditToolId("avatar_presenter")).toBe(false);
     expect(isAiEditToolId("elevenlabs_overdub")).toBe(false);
   });
 
-  it("requires a source file for picture/audio ffmpeg tools", () => {
+  it("requires a source file and Wan keys", () => {
     const caps = {
       enabled: true,
       ffmpeg: true,
-      speech: true,
-      imageGen: true,
-      llm: true,
-      tts: true,
+      speech: false,
+      imageGen: false,
+      llm: false,
+      tts: false,
       heygen: false,
       minimax: false,
       veo: false,
       elevenlabs: false,
+      fal: true,
+      dashscope: false,
+      nanoBanana: true,
+      wan: true,
     };
-    const enhance = getAiEditTool("picture_enhance")!;
-    expect(toolAvailability(enhance, caps, false).available).toBe(false);
-    expect(toolAvailability(enhance, caps, true).available).toBe(true);
+    const tool = getAiEditTool("owned_abc")!;
+    expect(toolAvailability(tool, caps, false).available).toBe(false);
+    expect(toolAvailability(tool, caps, true).available).toBe(true);
+    expect(toolAvailability(tool, { ...caps, wan: false, fal: false }, true).available).toBe(false);
   });
 
   it("parses start options the API will accept", () => {
     expect(parseAiEditOptions({})).toEqual({});
-    expect(parseAiEditOptions({ region: "pip_br", style: "anime" })).toEqual({
-      region: "pip_br",
-      style: "anime",
-    });
-    expect(parseAiEditOptions({ region: "speaker", toonStrength: "medium" })).toEqual({
-      region: "speaker",
-      toonStrength: "medium",
-    });
-    expect(parseAiEditOptions({ confirmOwned: true, style: "flat" })).toEqual({
-      confirmOwned: true,
-      style: "flat",
-    });
     expect(
       parseAiEditOptions({
         autoApply: true,
         lessonId: "clxxxxxxxxxxxxxxxxxxx1",
         courseId: "clxxxxxxxxxxxxxxxxxxx2",
-        recipeId: "lecture_expert_v1",
-        region: "speaker",
-        style: "trend",
-        toonStrength: "high",
+        recipeId: "wan_nano_v1",
       }),
     ).toEqual({
       autoApply: true,
       lessonId: "clxxxxxxxxxxxxxxxxxxx1",
       courseId: "clxxxxxxxxxxxxxxxxxxx2",
-      recipeId: "lecture_expert_v1",
-      region: "speaker",
-      style: "trend",
-      toonStrength: "high",
+      recipeId: "wan_nano_v1",
     });
     expect(() => parseAiEditOptions({ seekSeconds: 90_000 })).toThrow(/seekSeconds/);
-    expect(() => assertOwnedAbcReady("owned_abc", { region: "pip_br" })).toThrow(/confirmOwned/);
+    expect(() => assertOwnedAbcReady("owned_abc", {})).toThrow(/confirmOwned/);
+    expect(() => assertOwnedAbcReady("owned_abc", { confirmOwned: true })).not.toThrow();
     expect(progressFields("apply")).toMatchObject({ progress: 92, step: "apply" });
     expect(progressFields("done").stepLabel).toMatch(/sẵn sàng lưu/i);
-    expect(progressFields("enhance").progress).toBe(36);
-    expect(isAiEditStepId("toon")).toBe(true);
-    expect(progressFields("toon").progress).toBe(68);
-    expect(isAiEditStepId("character")).toBe(true);
-    expect(progressFields("character").progress).toBe(74);
-    const recipe = describeRecipe({ speech: false, imageGen: false, llm: false });
-    expect(recipe.recipeId).toBe("lecture_expert_v1");
-    expect(recipe.techniques.some((row) => row.id === "toon_restyle" && row.status === "skipped")).toBe(true);
-    expect(recipe.techniques.some((row) => row.id === "content_id_dodge" && row.status === "refused")).toBe(true);
-    expect(recipe.techniques.some((row) => row.id === "avatar_presenter" && row.status === "applied")).toBe(true);
-    expect(recipe.techniques.some((row) => row.id === "hailuo_character" && row.status === "skipped")).toBe(true);
-    expect(recipe.techniques.some((row) => row.id === "veo_intro" && row.status === "skipped")).toBe(true);
-    expect(recipe.techniques.some((row) => row.id === "overdub" && row.status === "skipped")).toBe(true);
-    expect(() => assertStudioConsent("toon_talking_head", { confirmOwned: true })).toThrow(/confirmFaceEdit/);
-    expect(() => assertStudioConsent("avatar_presenter", { confirmOwned: true })).toThrow(/confirmLikeness/);
-    expect(() =>
-      assertStudioConsent("overdub", { confirmOwned: true, confirmVoiceClone: true, script: "Xin chào" }),
-    ).not.toThrow();
+    expect(progressFields("still").progress).toBe(28);
+    expect(progressFields("replace").progress).toBe(62);
+    expect(isAiEditStepId("toon")).toBe(false);
+    expect(isAiEditStepId("enhance")).toBe(false);
+    expect(isAiEditStepId("replace")).toBe(true);
+    expect(isAiEditStepId("stitch")).toBe(true);
+    const recipe = describeRecipe({ wan: false, nanoBanana: false, fal: false, dashscope: false });
+    expect(recipe.recipeId).toBe("wan_nano_v1");
+    expect(recipe.techniques.map((row) => row.id)).toEqual(["nano_banana", "wan_replace", "keep_audio"]);
+    expect(recipe.techniques.some((row) => row.id === "toon_restyle")).toBe(false);
+    expect(recipe.techniques.some((row) => row.id === "avatar_presenter")).toBe(false);
     const onePass = enhanceSpeechTrimArgs("in.mp4", "out.mp4").find((arg) => arg.includes("silenceremove="));
     expect(onePass).toContain("start_duration");
     expect(onePass).not.toContain("start_silence");

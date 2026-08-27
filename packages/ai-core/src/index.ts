@@ -1,9 +1,11 @@
 export {
   AI_EDIT_TOOL_IDS,
   AI_EDIT_TOOLS,
+  PUBLIC_AI_EDIT_TOOL_IDS,
   envAiCapabilities,
   getAiEditTool,
   isAiEditToolId,
+  isPublicAiEditToolId,
   OWNERSHIP_DISCLAIMER,
   toolAvailability,
   type AiCapabilities,
@@ -12,7 +14,37 @@ export {
   type AiEditToolDef,
   type AiEditToolGroup,
   type AiEditToolId,
+  type PublicAiEditToolId,
 } from "./catalog";
+export {
+  NANO_BANANA_FALLBACK_MODEL,
+  NANO_BANANA_MISSING_KEY,
+  NANO_BANANA_MODEL,
+  geminiImageApiKey,
+  generateNanoBananaStill,
+  nanoBananaGenerateUrl,
+  nanoBananaStillPrompt,
+  parseNanoBananaImage,
+} from "./nano-banana";
+export {
+  WAN_CHUNK_SEC,
+  WAN_DASHSCOPE_MODEL,
+  WAN_FAL_MODEL,
+  WAN_MAX_SEC,
+  WAN_MIN_SEC,
+  WAN_MISSING_KEY,
+  dashscopeApiKey,
+  dashscopeReplaceCharacter,
+  falApiKey,
+  falReplaceCharacter,
+  falUploadBytes,
+  planWanChunks,
+  wanProviderFromEnv,
+  wanReadyFromEnv,
+  wanReplaceCharacter,
+  type WanChunk,
+  type WanProvider,
+} from "./wan";
 export {
   TARGET_LANGUAGES,
   TARGET_LANGUAGE_IDS,
@@ -66,7 +98,10 @@ export {
 export {
   isAllowedCharacterImageUrl,
   isAllowedMinimaxMediaUrl,
+  isAllowedDashscopeMediaUrl,
+  isAllowedFalMediaUrl,
   isAllowedRemoteMediaUrl,
+  isAllowedWanMediaUrl,
   isAllowedVeoMediaUrl,
   isBlockedDownloadHost,
   parsePublicHttpsUrl,
@@ -106,6 +141,7 @@ export {
 } from "./character-identity";
 export type {
   AutoPresenterProfile,
+  CharacterPipelineCaps,
   PresenterCharacterInput,
   PresenterCharacterView,
   PresenterIdentity,
@@ -151,6 +187,7 @@ export {
   LECTURE_ONE_PASS_AF,
   LECTURE_SILENCE_AF,
   LECTURE_SPEECH_AF,
+  WAN_NANO_RECIPE_ID,
   describeRecipe,
   isLectureExpertRecipeId,
   thumbnailSeekSeconds,
@@ -176,6 +213,7 @@ export {
   clampQuickTrim,
   concatAudioArgs,
   extractAudioSegmentArgs,
+  extractVideoSegmentArgs,
   eyeContactReframeArgs,
   fitAudioDurationArgs,
   replaceAudioArgs,
@@ -232,6 +270,7 @@ export {
   isAiEditStepId,
   progressFields,
   progressForStatus,
+  wanChunkProgress,
   type AiEditProgress,
   type AiEditStepId,
 } from "./progress";

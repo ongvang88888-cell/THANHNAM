@@ -5,19 +5,18 @@ import {
   isAiEditStepId,
   progressFields,
   progressForStatus,
+  wanChunkProgress,
 } from "./progress";
 
 describe("AI edit progress steps", () => {
-  it("exposes a complete owned-upload pipeline", () => {
+  it("exposes the Wan + Nano Banana pipeline", () => {
     expect(AI_EDIT_STEPS.map((step) => step.id)).toEqual([
       "upload",
       "queue",
       "source",
-      "enhance",
-      "trim",
-      "toon",
-      "character",
-      "extras",
+      "still",
+      "replace",
+      "stitch",
       "apply",
       "done",
     ]);
@@ -28,25 +27,18 @@ describe("AI edit progress steps", () => {
   });
 
   it("looks up labels and percents by step id", () => {
-    expect(isAiEditStepId("enhance")).toBe(true);
-    expect(isAiEditStepId("render")).toBe(false);
+    expect(isAiEditStepId("still")).toBe(true);
+    expect(isAiEditStepId("toon")).toBe(false);
+    expect(isAiEditStepId("enhance")).toBe(false);
     expect(getAiEditStep("apply")?.label).toMatch(/gắn video/i);
-    expect(isAiEditStepId("toon")).toBe(true);
-    expect(progressFields("toon")).toEqual({
-      progress: 68,
-      step: "toon",
-      stepLabel: "Đang tô đậm người thành hoạt hình",
+    expect(progressFields("replace")).toEqual({
+      progress: 62,
+      step: "replace",
+      stepLabel: "Đang thay người bằng Wan 2.2",
     });
-    expect(progressFields("character")).toEqual({
-      progress: 74,
-      step: "character",
-      stepLabel: "Đang thay người bằng nhân vật AI",
-    });
-    expect(progressFields("extras")).toEqual({
-      progress: 82,
-      step: "extras",
-      stepLabel: "Đang tạo ảnh bìa, phụ đề và mô tả",
-    });
+    expect(progressFields("stitch").stepLabel).toMatch(/tiếng gốc/i);
+    expect(wanChunkProgress(0, 4)).toBeGreaterThan(28);
+    expect(wanChunkProgress(3, 4)).toBe(82);
   });
 
   it("maps edit status to a default step", () => {

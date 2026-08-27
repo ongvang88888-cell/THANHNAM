@@ -13,15 +13,20 @@ type CharacterView = {
   autoReplace: boolean;
   confirmOwned: boolean;
   confirmLikeness: boolean;
-  hasHeygenAvatar: boolean;
-  hasHeygenTalkingPhoto: boolean;
   ready: boolean;
   gap: string;
 };
 
+type CharacterCaps = {
+  wan: boolean;
+  nanoBanana: boolean;
+  fal: boolean;
+  dashscope: boolean;
+};
+
 type CharacterResponse = {
   character: CharacterView;
-  capabilities: { heygen: boolean; minimax: boolean };
+  capabilities: CharacterCaps;
   provisionNote?: string;
 };
 
@@ -58,7 +63,7 @@ function defaultBible(look: CharacterLook, name: string): string {
 
 export function CharacterIdentityPanel(props: { token: string }) {
   const [row, setRow] = useState<CharacterView | null>(null);
-  const [caps, setCaps] = useState<{ heygen: boolean; minimax: boolean }>({ heygen: false, minimax: false });
+  const [caps, setCaps] = useState<CharacterCaps>({ wan: false, nanoBanana: false, fal: false, dashscope: false });
   const [name, setName] = useState("Cô Minh");
   const [look, setLook] = useState<CharacterLook>("teacher");
   const [bible, setBible] = useState(defaultBible("teacher", "Cô Minh"));
@@ -133,16 +138,20 @@ export function CharacterIdentityPanel(props: { token: string }) {
     <div className="panel" style={{ maxWidth: 860, marginBottom: 24 }}>
       <h2>Nhân vật dùng cho mọi video</h2>
       <p className="muted">
-        Mọi video tải lên tự che người gốc bằng người dẫn ảo. Học từ HeyGen Instant Avatar / v3: lưu một khuôn mặt rồi
-        tái dùng. Không khóa HeyGen thì máy dựng thẻ nhân vật (Ken Burns) và che người giữa khung, giữ tiếng gốc. Có
-        MINIMAX_API_KEY + cùng một ảnh thì dùng Hailuo. Không phải face-swap từng pixel. Synthesia, Hedra, D-ID cùng ý
-        tưởng nhưng chưa gắn API.
+        Học từ Short Nano Banana + Wan 2.2: lưu một ảnh nhân vật (hoặc để Nano Banana vẽ), rồi Wan 2.2 thay người trong
+        video — giữ chuyển động, cảnh và tiếng gốc. Không thẻ chữ, không Ken Burns. Cần FAL_KEY hoặc DASHSCOPE_API_KEY
+        trên máy chủ; nếu chưa có ảnh https thì cần GEMINI_API_KEY.
       </p>
       <div className="ai-edit-caps">
-        <span className={`badge ${caps.heygen ? "ok" : ""}`}>HeyGen {caps.heygen ? "sẵn" : "chưa khóa"}</span>
-        <span className={`badge ${caps.minimax ? "ok" : ""}`}>Hailuo {caps.minimax ? "sẵn" : "chưa khóa"}</span>
-        {row?.hasHeygenAvatar ? <span className="badge ok">Đã có avatar tái dùng</span> : null}
-        {row?.hasHeygenTalkingPhoto ? <span className="badge ok">Đã có talking photo</span> : null}
+        <span className={`badge ${caps.wan ? "ok" : ""}`}>Wan 2.2 {caps.wan ? "sẵn" : "chưa khóa"}</span>
+        <span className={`badge ${caps.fal ? "ok" : ""}`}>Fal {caps.fal ? "sẵn" : "chưa FAL_KEY"}</span>
+        <span className={`badge ${caps.dashscope ? "ok" : ""}`}>
+          DashScope {caps.dashscope ? "sẵn" : "chưa khóa"}
+        </span>
+        <span className={`badge ${caps.nanoBanana ? "ok" : ""}`}>
+          Nano Banana {caps.nanoBanana ? "sẵn" : "chưa GEMINI_API_KEY"}
+        </span>
+        {row?.stillUrl ? <span className="badge ok">Đã có ảnh nhân vật</span> : null}
         {row?.ready ? <span className="badge ok">Sẽ tự thay người</span> : <span className="badge">Chưa tự thay</span>}
       </div>
       <label htmlFor="character-name">Tên nhân vật</label>
@@ -163,12 +172,12 @@ export function CharacterIdentityPanel(props: { token: string }) {
           </option>
         ))}
       </select>
-      <label htmlFor="character-bible">Mô tả khóa mặt (dùng lại mọi bài)</label>
+      <label htmlFor="character-bible">Mô tả khóa mặt (Nano Banana dùng lại mọi bài)</label>
       <textarea id="character-bible" maxLength={2000} rows={5} value={bible} onChange={(e) => setBible(e.target.value)} />
       <button type="button" className="secondary btn-sm" onClick={fillBible}>
         Điền lại mô tả mẫu
       </button>
-      <label htmlFor="character-still">Ảnh https công khai (tùy chọn, cùng một ảnh cho Hailuo / HeyGen photo)</label>
+      <label htmlFor="character-still">Ảnh https công khai (tùy chọn — bỏ qua nếu để Nano Banana vẽ)</label>
       <input
         id="character-still"
         type="url"
@@ -179,7 +188,7 @@ export function CharacterIdentityPanel(props: { token: string }) {
       />
       <label className="ai-edit-owned">
         <input type="checkbox" checked={autoReplace} onChange={(e) => setAutoReplace(e.target.checked)} />
-        Tự che người trong mọi video tải lên
+        Tự thay người bằng Wan 2.2 trên mọi video tải lên
       </label>
       <label className="ai-edit-owned">
         <input type="checkbox" checked={confirmOwned} onChange={(e) => setConfirmOwned(e.target.checked)} />

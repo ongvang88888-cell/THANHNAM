@@ -6,7 +6,7 @@ export function VideoStudioHint(props: { courseId?: string | null; compact?: boo
   return (
     <div className="note-box">
       <strong>Tải video không nằm ở trang quản trị này.</strong> CSV / danh sách khóa chỉ nhập tên, giá, chương. Vào
-      studio, chọn bài, chọn video — hệ thống tự chỉnh hình + tiếng và gắn vào bài.
+      studio, chọn bài, chọn video — hệ thống chạy Wan 2.2 + Nano Banana (thay người, giữ tiếng gốc) rồi gắn vào bài.
       {!props.compact && (
         <div className="admin-actions" style={{ marginTop: 12 }}>
           <a className="btn" href={videoStudioHref(props.courseId)}>

@@ -75,15 +75,15 @@ describe("character identity", () => {
     expect(
       describeCharacterGap(
         { autoReplace: true, confirmOwned: false, confirmLikeness: false },
-        { heygen: true, minimax: false },
+        { wan: false, nanoBanana: false },
       ),
-    ).toMatch(/mặc định/i);
+    ).toMatch(/FAL_KEY|DASHSCOPE/i);
     expect(
       describeCharacterGap(
         { autoReplace: true, confirmOwned: true, confirmLikeness: true, stillUrl: "https://cdn.example/a.png" },
-        { heygen: false, minimax: false },
+        { wan: true, nanoBanana: false },
       ),
-    ).toMatch(/thẻ nhân vật trên máy/i);
+    ).toMatch(/Wan 2\.2/);
   });
 
   it("parses a save payload and fills a missing bible", () => {
@@ -122,12 +122,12 @@ describe("character identity", () => {
         confirmLikeness: true,
         heygenAvatarId: "look_abc1",
       },
-      { heygen: true, minimax: false },
+      { wan: true, nanoBanana: true },
     );
     expect(view.ready).toBe(true);
     expect(view.hasHeygenAvatar).toBe(true);
-    expect(view.gap).toMatch(/đủ để tự che người/);
-    expect(emptyPresenterCharacter({ heygen: false, minimax: false }).ready).toBe(true);
+    expect(view.gap).toMatch(/Wan 2\.2/);
+    expect(emptyPresenterCharacter({ wan: false, nanoBanana: false }).ready).toBe(true);
     expect(presenterGreeting("Cô Minh", "teacher")).toMatch(/Cô Minh/);
   });
 });
