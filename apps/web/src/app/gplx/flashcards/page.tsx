@@ -85,17 +85,52 @@ export default function GplxFlashcardsPage() {
             <div className="gx-flash-inner">
               <div className="gx-flash-face">
                 <p className="muted" style={{ marginTop: 0 }}>
-                  {card.kind} · {idx + 1}/{cards.length}
+                  {card.kind} · {idx + 1}/{cards.length} · chạm để lật
                 </p>
-                <p style={{ fontSize: "1.2rem", lineHeight: 1.5, fontWeight: 700, margin: 0 }}>
-                  {card.front}
+                {card.kind === "sign" && (
+                  <div
+                    aria-hidden
+                    style={{
+                      width: 72,
+                      height: 72,
+                      borderRadius: "50%",
+                      border: "6px solid #c0392b",
+                      background: "#fff",
+                      marginBottom: 14,
+                      boxShadow: "0 8px 24px rgba(192,57,43,0.2)",
+                      animation: "brandPop 0.6s var(--ease-out) both",
+                    }}
+                  />
+                )}
+                <p
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: "clamp(1.25rem, 3.5vw, 1.65rem)",
+                    lineHeight: 1.35,
+                    fontWeight: 800,
+                    margin: 0,
+                    letterSpacing: "-0.02em",
+                    color: "var(--brand-deep)",
+                  }}
+                >
+                  {card.front || "(Không có nội dung mặt trước)"}
                 </p>
               </div>
               <div className="gx-flash-face back">
                 <p className="muted" style={{ marginTop: 0 }}>
                   Đáp án / giải thích
                 </p>
-                <p style={{ fontSize: "1.15rem", lineHeight: 1.55, margin: 0 }}>{card.back}</p>
+                <p
+                  style={{
+                    fontSize: "1.15rem",
+                    lineHeight: 1.55,
+                    margin: 0,
+                    fontWeight: 600,
+                    color: "var(--ink)",
+                  }}
+                >
+                  {card.back || "(Chưa có giải thích)"}
+                </p>
               </div>
             </div>
           </button>
