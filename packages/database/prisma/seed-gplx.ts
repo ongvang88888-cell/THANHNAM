@@ -25,8 +25,17 @@ const HEAVY: string[] = ["C1","C","D1","D2","D","BE","CE","DE","E","F"];
 
 const EXAM_QUESTION_COUNT: Record<string, number> = {
   A1: 25,
+  A: 25,
+  B1: 25,
   B: 30,
   C1: 35,
+  C: 40,
+  D1: 45,
+  D2: 45,
+  D: 45,
+  BE: 45,
+  CE: 45,
+  DE: 45,
 };
 
 
@@ -1621,11 +1630,17 @@ export async function seedGplx(prisma: PrismaClient, appId: string) {
     licenseClass: string;
     kind: "full" | "critical";
   }> = [
+    { code: "set-a1-01", title: "Đề cố định A1 #01", licenseClass: "A1", kind: "full" },
+    { code: "set-a-01", title: "Đề cố định A #01", licenseClass: "A", kind: "full" },
+    { code: "set-b1-01", title: "Đề cố định B1 #01", licenseClass: "B1", kind: "full" },
     { code: "set-b-01", title: "Đề cố định B #01", licenseClass: "B", kind: "full" },
     { code: "set-b-02", title: "Đề cố định B #02", licenseClass: "B", kind: "full" },
-    { code: "set-a1-01", title: "Đề cố định A1 #01", licenseClass: "A1", kind: "full" },
     { code: "set-c1-01", title: "Đề cố định C1 #01", licenseClass: "C1", kind: "full" },
+    { code: "set-c-01", title: "Đề cố định C #01", licenseClass: "C", kind: "full" },
+    { code: "set-d-01", title: "Đề cố định D #01", licenseClass: "D", kind: "full" },
+    { code: "set-de-01", title: "Đề cố định DE #01", licenseClass: "DE", kind: "full" },
     { code: "set-critical-b", title: "Ôn điểm liệt (hạng B)", licenseClass: "B", kind: "critical" },
+    { code: "set-critical-a1", title: "Ôn điểm liệt (hạng A1)", licenseClass: "A1", kind: "critical" },
   ];
 
   for (let i = 0; i < fixedSpecs.length; i += 1) {
