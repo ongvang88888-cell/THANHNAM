@@ -6,7 +6,7 @@ export const PIPELINE_STEPS = [
   { id: "replace", label: "Đang thay người bằng Wan 2.2", percent: 62 },
   { id: "stitch", label: "Đang ghép đoạn và tiếng gốc", percent: 82 },
   { id: "apply", label: "Đang gắn video vào bài học", percent: 92 },
-  { id: "done", label: "Xong — sẵn sàng lưu vào bài", percent: 100 },
+  { id: "done", label: "Xong — đã gắn vào bài", percent: 100 },
 ] as const;
 
 export type PipelineStepId = (typeof PIPELINE_STEPS)[number]["id"];

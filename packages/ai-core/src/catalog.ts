@@ -1,3 +1,6 @@
+import { geminiImageApiKey } from "./nano-banana";
+import { dashscopeApiKey, falApiKey } from "./wan";
+
 export const OWNERSHIP_DISCLAIMER =
   "Chỉ dùng video bạn sở hữu. Đổi phong cách hay giảm nhạc nền không xóa bản quyền nội dung người khác.";
 
@@ -280,19 +283,19 @@ export function envAiCapabilities(ffmpeg: boolean): AiCapabilities {
   const enabled = process.env.AI_EDIT_ENABLED !== "false";
   const openai = Boolean(process.env.OPENAI_API_KEY?.trim());
   const elevenlabs = Boolean(process.env.ELEVENLABS_API_KEY?.trim());
-  const fal = Boolean(process.env.FAL_KEY?.trim());
-  const dashscope = Boolean(process.env.DASHSCOPE_API_KEY?.trim());
-  const nanoBanana = Boolean(process.env.GEMINI_API_KEY?.trim());
+  const fal = Boolean(falApiKey());
+  const dashscope = Boolean(dashscopeApiKey());
+  const nanoBanana = Boolean(geminiImageApiKey());
   return {
     enabled,
     ffmpeg,
     speech: Boolean(process.env.OPENAI_API_KEY?.trim() || process.env.GROQ_API_KEY?.trim()),
     imageGen: openai || nanoBanana,
-    llm: Boolean(process.env.OPENAI_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim()),
+    llm: Boolean(process.env.OPENAI_API_KEY?.trim() || geminiImageApiKey()),
     tts: openai || elevenlabs,
     heygen: Boolean(process.env.HEYGEN_API_KEY?.trim()),
     minimax: Boolean(process.env.MINIMAX_API_KEY?.trim()),
-    veo: Boolean(process.env.VEO_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim()),
+    veo: Boolean(process.env.VEO_API_KEY?.trim() || geminiImageApiKey()),
     elevenlabs,
     fal,
     dashscope,

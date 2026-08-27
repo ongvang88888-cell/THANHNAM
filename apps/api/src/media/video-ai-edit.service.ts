@@ -547,6 +547,27 @@ export class VideoAiEditService implements OnModuleInit {
     });
   }
 
+  async startOnUploadComplete(
+    user: RequestUser,
+    videoId: string,
+    body: { lessonId?: string; courseId?: string },
+  ) {
+    const existing = await this.prisma.videoAiEdit.findFirst({
+      where: {
+        videoId,
+        tool: "owned_abc",
+        status: { in: ["QUEUED", "PROCESSING", "READY"] },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (existing) return this.presentEdit(existing);
+    const lessonId = String(body.lessonId || "").trim();
+    if (lessonId) {
+      return this.startAutoPublish(user, videoId, { lessonId, courseId: body.courseId });
+    }
+    return this.startPrepare(user, videoId);
+  }
+
   async getPresenterCharacter(user: RequestUser) {
     this.assertTeacher(user);
     const caps = await this.capabilities();

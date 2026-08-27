@@ -316,12 +316,19 @@ export function VideoInbox(props: {
         label: PIPELINE_STEPS[0].label,
       });
     });
-    await apiPost(`/videos/${session.videoId}/complete`, { sizeBytes: file.size }, props.token, { retry429: true });
-    patchQueue(localId, { phase: "prepare", progress: 12, stepId: "queue", label: PIPELINE_STEPS[1].label });
-    const started = await withThrottleRetry(
-      () => apiPost<LibraryEdit>(`/videos/${session.videoId}/ai/prepare`, {}, props.token, { retry429: true }),
-      5,
+    const completed = await apiPost<{ edit?: LibraryEdit }>(
+      `/videos/${session.videoId}/complete`,
+      { sizeBytes: file.size },
+      props.token,
+      { retry429: true },
     );
+    patchQueue(localId, { phase: "prepare", progress: 12, stepId: "queue", label: PIPELINE_STEPS[1].label });
+    const started =
+      completed.edit ??
+      (await withThrottleRetry(
+        () => apiPost<LibraryEdit>(`/videos/${session.videoId}/ai/prepare`, {}, props.token, { retry429: true }),
+        5,
+      ));
     applyEditToQueue(localId, started);
     await refreshLibrary().catch(() => undefined);
     const edit = await pollEdit(localId, session.videoId, started.id);
@@ -464,7 +471,7 @@ export function VideoInbox(props: {
         multiple
         disabled={queue.length >= 40}
         label="Chọn nhiều video vào kho"
-        hint="Chọn hàng loạt. Mỗi video xếp hàng Wan 2.2 + Nano Banana. Tối đa 2 video đang chỉnh cùng lúc, các video khác chờ. Gắn bài trên từng hàng sau khi xem lại."
+        hint="Chọn hàng loạt. Máy chủ tự xếp hàng Wan 2.2 + Nano Banana ngay khi mỗi file lên xong. Tối đa 2 video đang chỉnh cùng lúc. Gắn bài trên từng hàng khi xong."
         onFile={(file) => enqueue([file])}
         onFiles={(files) => enqueue(files)}
       />

@@ -6,7 +6,7 @@ export const NANO_BANANA_MISSING_KEY =
   "Cần GEMINI_API_KEY trên máy chủ để Nano Banana vẽ ảnh nhân vật, hoặc dán một ảnh https sẵn có. Không dùng thẻ chữ trên máy.";
 
 export function geminiImageApiKey(): string | null {
-  const key = process.env.GEMINI_API_KEY?.trim();
+  const key = process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim();
   return key || null;
 }
 

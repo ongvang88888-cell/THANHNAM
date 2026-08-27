@@ -457,7 +457,7 @@ export default function TeacherCourseStudioPage() {
                   <div className="block" id="video-studio">
                     <h3>2. Video bài học</h3>
                     <p className="muted">
-                      Chọn video. Theo dõi thanh tiến trình (hình, tiếng, phụ đề, ảnh bìa). Khi xong, bấm Lưu vào bài.
+                      Chọn video. Máy chủ tự chạy Wan 2.2 + Nano Banana ngay khi file lên xong, rồi gắn vào bài.
                     </p>
                     {token && (
                       <AutoVideoPublish

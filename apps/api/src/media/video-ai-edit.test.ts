@@ -66,7 +66,7 @@ describe("video AI edit contract", () => {
     expect(() => assertOwnedAbcReady("owned_abc", {})).toThrow(/confirmOwned/);
     expect(() => assertOwnedAbcReady("owned_abc", { confirmOwned: true })).not.toThrow();
     expect(progressFields("apply")).toMatchObject({ progress: 92, step: "apply" });
-    expect(progressFields("done").stepLabel).toMatch(/sẵn sàng lưu/i);
+    expect(progressFields("done").stepLabel).toMatch(/đã gắn vào bài/i);
     expect(progressFields("still").progress).toBe(28);
     expect(progressFields("replace").progress).toBe(62);
     expect(isAiEditStepId("toon")).toBe(false);

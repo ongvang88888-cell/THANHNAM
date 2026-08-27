@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   WAN_CHUNK_SEC,
   WAN_MISSING_KEY,
+  falApiKey,
   falQueueUrl,
   parseDashscopeTask,
   parseDashscopeTaskId,
@@ -16,13 +17,19 @@ import {
 
 describe("wan 2.2 replace", () => {
   const prevFal = process.env.FAL_KEY;
+  const prevFalAlias = process.env.FAL_API_KEY;
   const prevDash = process.env.DASHSCOPE_API_KEY;
+  const prevDashAlias = process.env.DASHSCOPE_KEY;
 
   afterEach(() => {
     if (prevFal === undefined) delete process.env.FAL_KEY;
     else process.env.FAL_KEY = prevFal;
+    if (prevFalAlias === undefined) delete process.env.FAL_API_KEY;
+    else process.env.FAL_API_KEY = prevFalAlias;
     if (prevDash === undefined) delete process.env.DASHSCOPE_API_KEY;
     else process.env.DASHSCOPE_API_KEY = prevDash;
+    if (prevDashAlias === undefined) delete process.env.DASHSCOPE_KEY;
+    else process.env.DASHSCOPE_KEY = prevDashAlias;
   });
 
   it("splits lectures into Wan-sized chunks", () => {
@@ -41,13 +48,26 @@ describe("wan 2.2 replace", () => {
 
   it("prefers Fal then DashScope", () => {
     delete process.env.FAL_KEY;
+    delete process.env.FAL_API_KEY;
     delete process.env.DASHSCOPE_API_KEY;
+    delete process.env.DASHSCOPE_KEY;
     expect(wanProviderFromEnv()).toBeNull();
     process.env.DASHSCOPE_API_KEY = "dash";
     expect(wanProviderFromEnv()).toBe("dashscope");
     process.env.FAL_KEY = "fal";
     expect(wanProviderFromEnv()).toBe("fal");
     expect(falQueueUrl()).toContain("wan/v2.2-14b/animate/replace");
+  });
+
+  it("reads common key aliases", () => {
+    delete process.env.FAL_KEY;
+    delete process.env.DASHSCOPE_API_KEY;
+    process.env.FAL_API_KEY = "fal-alias";
+    expect(falApiKey()).toBe("fal-alias");
+    expect(wanProviderFromEnv()).toBe("fal");
+    delete process.env.FAL_API_KEY;
+    process.env.DASHSCOPE_KEY = "dash-alias";
+    expect(wanProviderFromEnv()).toBe("dashscope");
   });
 
   it("parses Fal and DashScope envelopes", () => {

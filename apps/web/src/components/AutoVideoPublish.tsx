@@ -242,39 +242,31 @@ export function AutoVideoPublish(props: {
       await apiPutBinaryProgress(session.upload.url, file, file.type || "video/mp4", (ratio) => {
         applyClientStep("upload", Math.max(2, Math.round(ratio * 8)));
       });
-      await apiPost(
+      const completed = await apiPost<{ videoId: string; edit?: AutoEdit }>(
         `/videos/${session.videoId}/complete`,
-        { sizeBytes: file.size },
+        {
+          sizeBytes: file.size,
+          lessonId: props.lessonId,
+          courseId: props.courseId,
+        },
         props.token,
         { retry429: true },
       );
       applyClientStep("queue");
-      const started = await withThrottleRetry(
-        () =>
-          apiPost<AutoEdit>(
-            `/videos/${session.videoId}/ai/auto-publish`,
-            { lessonId: props.lessonId, courseId: props.courseId },
-            props.token,
-            { retry429: true },
-          ),
-        4,
-      );
-      applyServerEdit(started);
-      let edit = await pollEdit(session.videoId, started.id);
-      if (edit.status === "READY" && edit.output?.autoApplyError && !edit.output.appliedAt) {
-        applyClientStep("apply");
-        edit = await withThrottleRetry(
+      const started =
+        completed.edit ??
+        (await withThrottleRetry(
           () =>
             apiPost<AutoEdit>(
-              `/videos/${session.videoId}/ai/edits/${edit.id}/apply`,
+              `/videos/${session.videoId}/ai/auto-publish`,
               { lessonId: props.lessonId, courseId: props.courseId },
               props.token,
               { retry429: true },
             ),
-          3,
-        );
-        applyServerEdit(edit);
-      }
+          4,
+        ));
+      applyServerEdit(started);
+      const edit = await pollEdit(session.videoId, started.id);
       if (edit.status === "FAILED") {
         throw new Error(edit.error || "Không chỉnh được video");
       }
@@ -284,48 +276,53 @@ export function AutoVideoPublish(props: {
       applyClientStep("done");
       setPhase("ready");
       props.onReady?.(next);
+      await attachToLesson(next, edit, session.videoId);
     } catch (err) {
       setPhase("failed");
       setError(friendlyError(err));
     }
   }
 
-  async function handleSave() {
-    if (!result || !props.lessonId || !sourceVideoId) return;
+  async function attachToLesson(next: AutoPublishResult, edit: AutoEdit | null, videoId: string) {
     setPhase("saving");
     setError(null);
     applyClientStep("apply");
     try {
-      let edit = pendingEdit;
-      if (edit && !edit.output?.appliedAt) {
-        const editId = edit.id;
-        edit = await withThrottleRetry(
+      let current = edit;
+      if (current && !current.output?.appliedAt) {
+        const editId = current.id;
+        current = await withThrottleRetry(
           () =>
             apiPost<AutoEdit>(
-              `/videos/${sourceVideoId}/ai/edits/${editId}/apply`,
+              `/videos/${videoId}/ai/edits/${editId}/apply`,
               { lessonId: props.lessonId, courseId: props.courseId },
               props.token,
               { retry429: true },
             ),
           3,
         );
-        applyServerEdit(edit);
+        applyServerEdit(current);
       }
-      const next = edit ? resultFromEdit(sourceVideoId, edit) : result;
-      setPendingEdit(edit);
-      setResult(next);
+      const attached = current ? resultFromEdit(videoId, current) : next;
+      setPendingEdit(current);
+      setResult(attached);
       if (props.onSave) {
-        await props.onSave(next);
+        await props.onSave(attached);
       } else {
-        await persistLesson(next);
+        await persistLesson(attached);
       }
       applyClientStep("done");
       setPhase("saved");
-      props.onDone?.(next);
+      props.onDone?.(attached);
     } catch (err) {
       setPhase("ready");
       setError(friendlyError(err));
     }
+  }
+
+  async function handleSave() {
+    if (!result || !props.lessonId || !sourceVideoId) return;
+    await attachToLesson(result, pendingEdit, sourceVideoId);
   }
 
   return (
@@ -343,7 +340,7 @@ export function AutoVideoPublish(props: {
         accept="video/mp4,video/*,application/octet-stream"
         disabled={!ready}
         label="Chọn video để lên bài"
-        hint="Chọn một file. Máy chủ vẽ ảnh nhân vật bằng Nano Banana (nếu chưa có ảnh), rồi Wan 2.2 thay người trong video — giữ chuyển động và tiếng gốc. Không thẻ chữ, không Ken Burns. Bài dài chạy từng đoạn ~20 giây. Khi xong, xem lại rồi bấm Lưu vào bài."
+        hint="Chọn một file. Máy chủ tự chạy ngay: Nano Banana vẽ ảnh (nếu chưa có), Wan 2.2 thay người, giữ tiếng gốc, rồi gắn vào bài. Không thẻ chữ, không Ken Burns. Bài dài chạy từng đoạn ~20 giây."
         onFile={(file) => void handleFile(file)}
       />
       <p className="muted auto-publish-legal">
@@ -373,7 +370,7 @@ export function AutoVideoPublish(props: {
       {(phase === "ready" || phase === "saving" || phase === "saved") && result && (
         <div className="auto-publish-done">
           {phase === "ready" && (
-            <p className="ok">Đã chỉnh xong. Kiểm tra video rồi bấm Lưu vào bài.</p>
+            <p className="ok">Đã chỉnh xong. Nếu chưa gắn vào bài, bấm Lưu vào bài.</p>
           )}
           {phase === "saving" && <p className="auto-publish-status">Đang lưu video vào bài học…</p>}
           {phase === "saved" && <p className="ok">Đã lưu vào bài.</p>}

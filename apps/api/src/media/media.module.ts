@@ -81,6 +81,14 @@ class CompleteUploadDto {
   @IsInt()
   @Min(0)
   sizeBytes?: number;
+
+  @IsOptional()
+  @IsString()
+  lessonId?: string;
+
+  @IsOptional()
+  @IsString()
+  courseId?: string;
 }
 
 @Injectable()
@@ -91,6 +99,7 @@ export class MediaService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(AccessService) private readonly access: AccessService,
+    @Inject(VideoAiEditService) private readonly edits: VideoAiEditService,
   ) {}
 
   private assertTeacher(user: RequestUser) {
@@ -187,7 +196,13 @@ export class MediaService {
       where: { videoId: video.id, status: "QUEUED" },
       data: { status: "READY" },
     });
-    return { videoId: video.id, status: "READY" };
+    const lessonId = String(dto.lessonId || "").trim();
+    const courseId = String(dto.courseId || "").trim();
+    const edit = await this.edits.startOnUploadComplete(user, video.id, {
+      lessonId: lessonId || undefined,
+      courseId: courseId || undefined,
+    });
+    return { videoId: video.id, status: "READY", edit };
   }
 
   async createDocumentUpload(user: RequestUser, dto: DocumentUploadDto) {

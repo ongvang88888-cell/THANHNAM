@@ -15,14 +15,20 @@ export type WanChunk = {
   durationSec: number;
 };
 
+function firstEnv(...names: string[]): string | null {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return null;
+}
+
 export function falApiKey(): string | null {
-  const key = process.env.FAL_KEY?.trim();
-  return key || null;
+  return firstEnv("FAL_KEY", "FAL_API_KEY");
 }
 
 export function dashscopeApiKey(): string | null {
-  const key = process.env.DASHSCOPE_API_KEY?.trim();
-  return key || null;
+  return firstEnv("DASHSCOPE_API_KEY", "DASHSCOPE_KEY");
 }
 
 export function wanProviderFromEnv(): WanProvider | null {

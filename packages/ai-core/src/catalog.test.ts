@@ -76,6 +76,7 @@ describe("AI edit catalog", () => {
 
   it("detects Wan and Nano Banana keys", () => {
     const prevFal = process.env.FAL_KEY;
+    const prevFalAlias = process.env.FAL_API_KEY;
     const prevGemini = process.env.GEMINI_API_KEY;
     process.env.FAL_KEY = "fal-test";
     process.env.GEMINI_API_KEY = "gemini-test";
@@ -90,6 +91,16 @@ describe("AI edit catalog", () => {
       else process.env.FAL_KEY = prevFal;
       if (prevGemini === undefined) delete process.env.GEMINI_API_KEY;
       else process.env.GEMINI_API_KEY = prevGemini;
+    }
+    delete process.env.FAL_KEY;
+    process.env.FAL_API_KEY = "fal-alias";
+    try {
+      expect(envAiCapabilities(true).wan).toBe(true);
+    } finally {
+      if (prevFalAlias === undefined) delete process.env.FAL_API_KEY;
+      else process.env.FAL_API_KEY = prevFalAlias;
+      if (prevFal === undefined) delete process.env.FAL_KEY;
+      else process.env.FAL_KEY = prevFal;
     }
   });
 });
