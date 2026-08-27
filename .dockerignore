@@ -6,7 +6,6 @@
 **/dist
 **/.turbo
 **/coverage
-apps/mobile-student
 **/*.md
 !README.md
 .env
@@ -14,3 +13,7 @@ apps/mobile-student
 !.env.example
 **/.DS_Store
 artifacts
+apps/mobile-student/**
+!apps/mobile-student/package.json
+apps/workers/**
+!apps/workers/package.json

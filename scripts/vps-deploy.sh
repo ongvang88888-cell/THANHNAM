@@ -66,7 +66,10 @@ rsync -az --delete \
   --exclude '**/dist' \
   --exclude '.env' \
   --exclude '.cursor' \
-  --exclude 'apps/mobile-student' \
+  --exclude 'apps/mobile-student/node_modules' \
+  --exclude 'apps/mobile-student/.expo' \
+  --exclude 'apps/mobile-student/android' \
+  --exclude 'apps/mobile-student/ios' \
   -e "$rsync_ssh" \
   "$ROOT/" "${VPS_USER}@${VPS_HOST}:${REMOTE_DIR}/"
 
