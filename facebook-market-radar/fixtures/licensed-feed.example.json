@@ -1,0 +1,14 @@
+{
+  "ads": [
+    {
+      "libraryId": "licensed-demo-1",
+      "pageId": "800001",
+      "pageName": "Licensed Demo Page",
+      "startDate": "2026-08-01",
+      "productHint": "Serum Niacinamide 10% 30ml",
+      "nicheHint": "my-pham",
+      "isActive": true,
+      "platforms": ["facebook"]
+    }
+  ]
+}

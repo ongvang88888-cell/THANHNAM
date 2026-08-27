@@ -13,3 +13,6 @@ coverage/
 agent-tools/
 .playwright-mcp/
 *.tsbuildinfo
+*.db
+*.db-journal
+facebook-market-radar/src/generated/

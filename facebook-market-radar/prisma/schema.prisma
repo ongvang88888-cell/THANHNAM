@@ -1,0 +1,182 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("FMR_DATABASE_URL")
+}
+
+model Niche {
+  id        String           @id @default(cuid())
+  appId     String
+  slug      String
+  nameVi    String
+  nameEn    String
+  clusters  ProductCluster[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([appId, slug])
+  @@index([appId])
+  @@map("niches")
+}
+
+model AdvertiserPage {
+  id         String   @id @default(cuid())
+  appId      String
+  pageId     String
+  pageName   String
+  firstSeen  DateTime
+  lastSeen   DateTime
+  ads        Ad[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([appId, pageId])
+  @@index([appId])
+  @@map("advertiser_pages")
+}
+
+model ProductCluster {
+  id           String                 @id @default(cuid())
+  appId        String
+  slug         String
+  title        String
+  nicheId      String
+  niche        Niche                  @relation(fields: [nicheId], references: [id])
+  ads          Ad[]
+  links        AdProductLink[]
+  snapshots    MarketSnapshot[]
+  salesProxies SalesProxyObservation[]
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  @@unique([appId, slug])
+  @@index([appId])
+  @@index([nicheId])
+  @@map("product_clusters")
+}
+
+model AdCreative {
+  id        String   @id @default(cuid())
+  appId     String
+  hash      String
+  body      String?
+  title     String?
+  ads       Ad[]
+  createdAt DateTime @default(now())
+
+  @@unique([appId, hash])
+  @@index([appId])
+  @@map("ad_creatives")
+}
+
+model Ad {
+  id           String          @id @default(cuid())
+  appId        String
+  libraryId    String
+  pageId       String
+  page         AdvertiserPage  @relation(fields: [pageId], references: [id])
+  clusterId    String
+  cluster      ProductCluster  @relation(fields: [clusterId], references: [id])
+  creativeId   String
+  creative     AdCreative      @relation(fields: [creativeId], references: [id])
+  startDate    String
+  isActive     Boolean         @default(true)
+  platforms    String
+  landingUrl   String?
+  snapshotUrl  String?
+  firstSeen    DateTime
+  lastSeen     DateTime
+  links        AdProductLink[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@unique([appId, libraryId])
+  @@index([appId])
+  @@index([pageId])
+  @@index([clusterId])
+  @@map("ads")
+}
+
+model AdProductLink {
+  id        String         @id @default(cuid())
+  adId      String
+  clusterId String
+  ad        Ad             @relation(fields: [adId], references: [id])
+  cluster   ProductCluster @relation(fields: [clusterId], references: [id])
+  createdAt DateTime       @default(now())
+
+  @@unique([adId, clusterId])
+  @@index([clusterId])
+  @@map("ad_product_links")
+}
+
+model SalesProxyObservation {
+  id          String         @id @default(cuid())
+  appId       String
+  clusterId   String
+  cluster     ProductCluster @relation(fields: [clusterId], references: [id])
+  source      String
+  soldCount   Int
+  observedAt  DateTime
+  createdAt   DateTime       @default(now())
+
+  @@index([appId, clusterId])
+  @@map("sales_proxy_observations")
+}
+
+model MarketSnapshot {
+  id                String         @id @default(cuid())
+  appId             String
+  clusterId         String
+  cluster           ProductCluster @relation(fields: [clusterId], references: [id])
+  weekStart         DateTime
+  intensity         Float
+  longevity         Float
+  velocity          Float
+  salesProxy        Float
+  heat              Float
+  activeAdCount     Int
+  distinctPageCount Int
+  createdAt         DateTime       @default(now())
+
+  @@unique([appId, clusterId, weekStart])
+  @@index([appId, weekStart])
+  @@map("market_snapshots")
+}
+
+model OwnInsightsDaily {
+  id                 String   @id @default(cuid())
+  appId              String
+  adAccountId        String
+  campaignId         String
+  campaignName       String
+  date               String
+  spendMinor         Int
+  impressions        Int
+  purchases          Int
+  purchaseValueMinor Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([appId, adAccountId, date, campaignId])
+  @@index([appId, adAccountId])
+  @@map("own_insights_daily")
+}
+
+model Alert {
+  id          String   @id @default(cuid())
+  appId       String
+  type        String
+  title       String
+  detail      String
+  pageFbId    String?
+  clusterSlug String?
+  createdAt   DateTime
+
+  @@index([appId, createdAt])
+  @@map("alerts")
+}

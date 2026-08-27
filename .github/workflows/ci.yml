@@ -28,3 +28,6 @@ jobs:
       - run: pnpm --filter @edu/monetization-core exec vitest run
       - run: pnpm --filter @edu/api test
       - run: pnpm --filter @edu/api build
+      - run: pnpm --filter facebook-market-radar db:generate
+      - run: pnpm --filter facebook-market-radar test
+      - run: pnpm --filter facebook-market-radar typecheck

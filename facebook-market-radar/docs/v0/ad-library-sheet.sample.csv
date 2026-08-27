@@ -1,0 +1,25 @@
+week,nicheSlug,libraryId,pageId,pageName,productTitle,startDate,isActive,creativeVariantCount,platforms,landingUrl,shopeeSold,tiktokSold,notes
+2026-W34,my-pham,111000001,900001,LanHa Skin Lab,Serum Niacinamide 10% 30ml,2026-06-20,true,8,facebook|instagram,https://example.com/serum-nia,4200,1800,Ads bền 9 tuần — nhiều biến thể video UGC
+2026-W34,my-pham,111000002,900001,LanHa Skin Lab,Serum Niacinamide 10% 30ml,2026-07-12,true,3,facebook,https://example.com/serum-nia,4200,1800,Cùng SKU; test góc trước/sau
+2026-W34,my-pham,111000003,900002,Dưỡng Da Nhà Mình,Kem chống nắng SPF50 PA++++,2026-08-10,true,5,facebook|instagram,https://example.com/kem-chong-nang,890,,Mới scale 2 tuần
+2026-W34,my-pham,111000004,900003,TocDep Studio,Dầu gội phủ bạc thảo mộc,2026-08-22,true,2,facebook,https://example.com/phu-bac,,120,Mới test; chưa đối chiếu Shopee
+2026-W34,my-pham,111000005,900004,Glow Night VN,Retinol 0.3% night cream,2026-05-01,true,11,facebook|instagram|messenger,https://example.com/retinol,2100,640,Bền 16 tuần; creative fatigue — vẫn chạy
+2026-W34,me-be,111000011,900011,BeBim Mart,Bỉm quần size M 76 miếng,2026-06-01,true,6,facebook|instagram,https://example.com/bim-m,15000,3200,Nhiều page bán cùng mẫu
+2026-W34,me-be,111000012,900012,Mẹ Tròn Con Vuông Shop,Bỉm quần size M 76 miếng,2026-06-15,true,4,facebook,https://example.com/bim-m-2,9800,,Cùng cụm sản phẩm — intensity cao
+2026-W34,me-be,111000013,900013,AnNhien Baby,Máy hút sữa không dây,2026-08-01,true,7,facebook|instagram,https://example.com/hut-sua,760,410,Video demo 15s lặp
+2026-W34,me-be,111000014,900014,BepBe Yeu,Bột ăn dặm rau củ 8 tháng,2026-08-18,true,2,instagram,https://example.com/an-dam,,95,Mới; ít biến thể
+2026-W34,me-be,111000015,900011,BeBim Mart,Sữa công thức số 2 800g,2026-04-10,false,3,facebook,https://example.com/sua-2,5400,,"Inactive — không tính intensity; giữ lịch sử"
+2026-W34,gadget,111000021,900021,NhaGo Tien Ich,Đèn LED cảm ứng tủ bếp,2026-05-20,true,9,facebook|instagram,https://example.com/den-led,6300,2700,Classic dropship; 14+ tuần
+2026-W34,gadget,111000022,900022,Smart Home Mini,Đèn LED cảm ứng tủ bếp,2026-07-01,true,4,facebook,https://example.com/den-led-2,2100,800,Page thứ 2 cùng SKU
+2026-W34,gadget,111000023,900023,BepGon VN,Kệ gia vị nhà bếp đa năng,2026-08-05,true,5,facebook|instagram,https://example.com/ke-gia-vi,1500,220,
+2026-W34,gadget,111000024,900024,TaiNghe Tot,Tai nghe chống ồn văn phòng,2026-08-24,true,1,facebook,https://example.com/tai-nghe,,,Test 3 ngày — velocity cao chưa bền
+2026-W34,gadget,111000025,900021,NhaGo Tien Ich,Ổ cắm thông minh Wi-Fi,2026-08-12,true,3,facebook|instagram,https://example.com/o-cam,980,150,
+2026-W34,tpcn,111000031,900031,VitaDaily VN,Collagen peptide 5000mg 30 gói,2026-04-01,true,12,facebook|instagram,https://example.com/collagen,8700,1900,Bền lâu; claim cần rà soát
+2026-W34,tpcn,111000032,900032,KhoeDep Homelab,Viên uống trắng da glutathione,2026-07-20,true,6,facebook,https://example.com/glutathione,1200,,
+2026-W34,tpcn,111000033,900033,Omega SongKhoe,Omega 3 fish oil 1000mg,2026-08-20,true,2,facebook|instagram,https://example.com/omega3,340,40,Mới
+2026-W34,tpcn,111000034,900031,VitaDaily VN,Vitamin tổng hợp nữ 60 viên,2026-06-10,true,4,facebook,https://example.com/multi-nu,2600,310,
+2026-W34,khoa-hoc,111000041,900041,HocNhanh Studio,Khóa Excel cho nhân sự 14 buổi,2026-06-08,true,5,facebook|instagram,https://example.com/excel-hr,0,0,Digital — sold proxy để trống; dùng longevity
+2026-W34,khoa-hoc,111000042,900042,Anh Ngu 30 Ngay,Tiếng Anh giao tiếp buổi tối,2026-08-08,true,8,facebook|instagram,https://example.com/ta-toi,,,Nhiều creative giảng viên
+2026-W34,khoa-hoc,111000043,900043,Figma Fast,Khóa Figma từ zero đến junior,2026-08-21,true,3,instagram,https://example.com/figma,,,Mới test
+2026-W34,khoa-hoc,111000044,900044,OnThi Nhanh,Ôn thi THPT môn Toán 2026,2026-03-15,true,6,facebook,https://example.com/toan-thpt,,,Bền theo mùa thi
+2026-W34,khoa-hoc,111000045,900041,HocNhanh Studio,Khóa Excel cho nhân sự 14 buổi,2026-07-28,true,2,facebook,https://example.com/excel-hr,,,Biến thể testimonial

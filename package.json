@@ -11,7 +11,9 @@
     "db:generate": "pnpm --filter @edu/database generate",
     "db:migrate": "pnpm --filter @edu/database migrate:dev",
     "db:push": "pnpm --filter @edu/database push",
-    "db:seed": "pnpm --filter @edu/database seed"
+    "db:seed": "pnpm --filter @edu/database seed",
+    "fmr:test": "pnpm --filter facebook-market-radar test",
+    "fmr:dev": "pnpm --filter facebook-market-radar dev"
   },
   "devDependencies": {
     "turbo": "^2.5.0",
