@@ -19,7 +19,13 @@ COPY apps/mobile-student/package.json ./apps/mobile-student/package.json
 COPY apps/workers/package.json ./apps/workers/package.json
 
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @edu/web build
+RUN pnpm --filter @edu/shared-core build \
+  && pnpm --filter @edu/education-core build \
+  && pnpm --filter @edu/media-core build \
+  && pnpm --filter @edu/monetization-core build \
+  && pnpm --filter @edu/database build \
+  && pnpm db:generate \
+  && pnpm --filter @edu/web build
 
 ENV NODE_ENV=production
 EXPOSE 3000
