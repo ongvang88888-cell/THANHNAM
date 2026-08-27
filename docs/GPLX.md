@@ -4,6 +4,8 @@
 
 Study + mock exam for Vietnamese driver's license theory (GPLX), reusing Shared/Education Core scoring patterns — **not** a forked quiz engine.
 
+Feature set aligned with common store apps (GPLX Pro, ViGPLX, dtlx, Ôn thi 600 câu): topic practice, critical drills, fixed exam sets, bookmarks, search, flashcards, streak, weak-topic analytics, timed mocks.
+
 ## Domain
 
 | Entity | Role |
@@ -11,15 +13,20 @@ Study + mock exam for Vietnamese driver's license theory (GPLX), reusing Shared/
 | `GplxTopic` | Chapters (concepts, signs, situations, ethics, technique) |
 | `GplxBankQuestion` / `GplxBankAnswer` | App-scoped question bank (`licenseClassesJson`, `isCritical`) |
 | `GplxStudyProgress` | Per-user mastery / wrong tracking |
-| `GplxMockAttempt` | Timed mock exam with server start/`expiresAt` |
+| `GplxMockAttempt` | Timed mock (`mode`: `random` \| `fixed` \| `critical_only`) |
+| `GplxFixedSet` | Pre-built exam sets (bộ đề cố định) |
+| `GplxBookmark` | Saved questions |
+| `GplxStudyStreak` | Consecutive study-day streak |
 
 ## Exam rules (education-core)
 
 `getGplxExamRules(class)` — question count, pass correct count, duration, critical-fail.
 
-`scoreGplxExam` — server-authoritative; **wrong critical ⇒ fail** when enabled.
+`scoreGplxExam` / `scoreGplxMockByMode` — server-authoritative; **wrong critical ⇒ fail** when enabled; critical-only short drills require all correct.
 
-`pickMockQuestionIds` — random draw preferring ~20% critical.
+`pickMockQuestionIds` · `pickCriticalOnlyQuestionIds` · `resolveFixedSetQuestionIds`
+
+`applyGplxStudyStreak` · `rankWeakTopics`
 
 Content helpers: `GPLX_TIPS`, `GPLX_SIGNS`, `buildGplxSevenDayPlan`, `GPLX_PRO_PRODUCT_SLUG`, `GPLX_FREE_MOCKS_PER_DAY`.
 
@@ -28,31 +35,34 @@ Content helpers: `GPLX_TIPS`, `GPLX_SIGNS`, `buildGplxSevenDayPlan`, `GPLX_PRO_P
 All routes require auth (`X-App-Id` + Bearer).
 
 - `GET /license-classes`
-- `GET /tips` · `GET /signs?group=` · `GET /plan?licenseClass=`
-- `GET /overview?licenseClass=B` (includes `isPro`, mock quota, plan preview)
-- `GET /topics`
-- `GET /topics/:id/questions?licenseClass=`
-- `GET /critical`, `GET /wrong`
-- `POST /practice/answer`
-- `POST /mock/start` `{ licenseClass }` — free tier limited to **2 mocks/day** unless entitled to product `gplx-pro`
+- `GET /tips` · `GET /signs?group=&q=` · `GET /plan?licenseClass=`
+- `GET /overview?licenseClass=B` — stats, Pro quota, **streak**, **bookmarkCount**, **weakTopics** (top 3), plan preview
+- `GET /topics` · `GET /topics/:id/questions?licenseClass=`
+- `GET /critical` · `GET /wrong` · `GET /hardest` · `GET /weak-topics`
+- `GET /search?q=&licenseClass=`
+- `GET/POST /bookmarks` · `DELETE /bookmarks/:questionId`
+- `GET /fixed-sets?licenseClass=`
+- `GET /flashcards?licenseClass=&kind=signs|critical|wrong`
+- `POST /practice/answer` (updates streak)
+- `POST /mock/start` `{ licenseClass, mode?, fixedSetId? }` — free tier **2 mocks/day** unless `gplx-pro`
 - `GET /mock/:attemptId`
 - `POST /mock/:attemptId/submit` `{ answers }`
 
 ## Clients
 
-- Web: `/gplx`, tips, signs, 7-day plan, topic practice, timed exam
-- Mobile: `apps/mobile-student` routes `/gplx`, `/gplx/topic/[id]`, `/gplx/exam/[attemptId]`
+- Web: `/gplx`, search, bookmarks, flashcards, fixed sets, hardest, tips, signs, plan, topic practice, timed exam (grid + flag for review)
+- Mobile: `/gplx`, `/gplx/topic/[id]`, `/gplx/exam/[attemptId]`, `/gplx/flashcards`, `/gplx/sets`
 
 ## Monetization
 
 - Product slug **`gplx-pro`** (`OTHER_DIGITAL_PRODUCT`)
 - Entitlement SoR: `resourceType=product`, `resourceId=<gplx-pro id>`
-- Free: unlimited study; **2 mock exams / calendar day**
+- Free: unlimited study; **2 mock exams / calendar day** (all modes count)
 - Pro: unlimited mocks (checkout via existing commerce)
 
 ## Content note
 
-Seed ships a **demo bank** of original sample items for development. Replace with a licensed/official bank before production store listing. Do not scrape copyrighted 600-question sets.
+Seed ships a **demo bank** of original sample items + demo fixed sets for development. Replace with a licensed/official bank before production store listing. Do not scrape copyrighted 600-question sets.
 
 ## Module flag
 

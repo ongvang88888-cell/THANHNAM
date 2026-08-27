@@ -34,6 +34,7 @@ function TopicPracticeInner() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
 
   useEffect(() => {
     if (!ready || !token) return;
@@ -46,6 +47,7 @@ function TopicPracticeInner() {
         setIdx(0);
         setSelected([]);
         setFeedback(null);
+        setBookmarked(false);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Lỗi"));
   }, [ready, token, topicId, licenseClass]);
@@ -70,9 +72,20 @@ function TopicPracticeInner() {
     }
   }
 
+  async function bookmark() {
+    if (!token || !q) return;
+    try {
+      await apiPost("/gplx/bookmarks", { questionId: q.id }, token);
+      setBookmarked(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Không bookmark được");
+    }
+  }
+
   function next() {
     setFeedback(null);
     setSelected([]);
+    setBookmarked(false);
     setIdx((i) => Math.min(i + 1, (data?.questions.length ?? 1) - 1));
   }
 
@@ -124,6 +137,11 @@ function TopicPracticeInner() {
             );
           })}
         </ul>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+          <button type="button" className="secondary" onClick={() => void bookmark()}>
+            {bookmarked ? "Đã bookmark" : "Bookmark"}
+          </button>
+        </div>
         {!feedback ? (
           <button type="button" onClick={() => void check()} disabled={busy || !selected.length}>
             {busy ? "Đang chấm…" : "Kiểm tra"}

@@ -418,7 +418,12 @@ export class GplxService {
     const bookmarks = await this.prisma.gplxBookmark.findMany({
       where: { appId: user.appId, userId: user.userId },
       include: {
-        question: { include: { topic: true } },
+        question: {
+          include: {
+            topic: true,
+            answers: { orderBy: { position: "asc" } },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -429,17 +434,15 @@ export class GplxService {
     return {
       licenseClass: cls,
       items: filtered.map((b) => ({
-        id: b.id,
-        questionId: b.questionId,
+        id: b.question.id,
+        bookmarkId: b.id,
+        stem: b.question.stem,
+        explanation: b.question.explanation,
+        isCritical: b.question.isCritical,
+        topicTitle: b.question.topic.title,
         note: b.note,
-        createdAt: b.createdAt,
-        question: {
-          id: b.question.id,
-          stem: b.question.stem,
-          isCritical: b.question.isCritical,
-          officialNo: b.question.officialNo,
-          topicTitle: b.question.topic.title,
-        },
+        officialNo: b.question.officialNo,
+        answers: b.question.answers.map((a) => ({ id: a.id, body: a.body })),
       })),
     };
   }
@@ -560,7 +563,12 @@ export class GplxService {
         wrongCount: { gt: 0 },
       },
       include: {
-        question: { include: { topic: true } },
+        question: {
+          include: {
+            topic: true,
+            answers: { orderBy: { position: "asc" } },
+          },
+        },
       },
       orderBy: { wrongCount: "desc" },
       take: 100,
@@ -582,6 +590,7 @@ export class GplxService {
         topicTitle: r.question.topic.title,
         wrongCount: r.wrongCount,
         officialNo: r.question.officialNo,
+        answers: r.question.answers.map((a) => ({ id: a.id, body: a.body })),
       })),
     };
   }

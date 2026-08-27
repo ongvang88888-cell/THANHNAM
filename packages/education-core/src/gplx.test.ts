@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   getGplxExamRules,
   scoreGplxExam,
+  scoreGplxMockByMode,
   pickMockQuestionIds,
+  pickCriticalOnlyQuestionIds,
   gplxProgressStatus,
+  applyGplxStudyStreak,
+  rankWeakTopics,
 } from "./gplx";
 
 describe("getGplxExamRules", () => {
@@ -82,5 +86,88 @@ describe("gplxProgressStatus", () => {
     expect(gplxProgressStatus(0, 2)).toBe("wrong");
     expect(gplxProgressStatus(2, 0)).toBe("mastered");
     expect(gplxProgressStatus(1, 1)).toBe("learning");
+  });
+});
+
+describe("applyGplxStudyStreak", () => {
+  it("starts and continues consecutive days", () => {
+    const d1 = applyGplxStudyStreak(
+      { currentStreak: 0, longestStreak: 0, lastStudyDate: "" },
+      "2026-08-01",
+    );
+    expect(d1.currentStreak).toBe(1);
+    const d2 = applyGplxStudyStreak(d1, "2026-08-02");
+    expect(d2.currentStreak).toBe(2);
+    expect(d2.longestStreak).toBe(2);
+  });
+
+  it("is idempotent same day and resets after gap", () => {
+    const base = { currentStreak: 5, longestStreak: 5, lastStudyDate: "2026-08-01" };
+    expect(applyGplxStudyStreak(base, "2026-08-01").currentStreak).toBe(5);
+    expect(applyGplxStudyStreak(base, "2026-08-03").currentStreak).toBe(1);
+  });
+});
+
+describe("pickCriticalOnlyQuestionIds", () => {
+  it("returns all critical when fewer than exam size", () => {
+    const pool = [
+      { id: "c1", isCritical: true },
+      { id: "c2", isCritical: true },
+      { id: "n1", isCritical: false },
+    ];
+    const ids = pickCriticalOnlyQuestionIds(pool, getGplxExamRules("B"), () => 0.5);
+    expect(ids).toHaveLength(2);
+  });
+});
+
+describe("scoreGplxMockByMode", () => {
+  it("requires all correct for short critical drill", () => {
+    const questions = [
+      { id: "c1", isCritical: true, correctAnswerIds: ["a1"] },
+      { id: "c2", isCritical: true, correctAnswerIds: ["a2"] },
+    ];
+    const ok = scoreGplxMockByMode(
+      questions,
+      [
+        { questionId: "c1", selectedAnswerIds: ["a1"] },
+        { questionId: "c2", selectedAnswerIds: ["a2"] },
+      ],
+      getGplxExamRules("B"),
+      "critical_only",
+    );
+    expect(ok.passed).toBe(true);
+    const bad = scoreGplxMockByMode(
+      questions,
+      [
+        { questionId: "c1", selectedAnswerIds: ["a1"] },
+        { questionId: "c2", selectedAnswerIds: ["x"] },
+      ],
+      getGplxExamRules("B"),
+      "critical_only",
+    );
+    expect(bad.passed).toBe(false);
+    expect(bad.failedCritical).toBe(true);
+  });
+});
+
+describe("rankWeakTopics", () => {
+  it("sorts by wrong rate", () => {
+    const ranked = rankWeakTopics([
+      {
+        topicId: "t1",
+        topicCode: "a",
+        topicTitle: "A",
+        correctCount: 8,
+        wrongCount: 2,
+      },
+      {
+        topicId: "t2",
+        topicCode: "b",
+        topicTitle: "B",
+        correctCount: 1,
+        wrongCount: 4,
+      },
+    ]);
+    expect(ranked[0]?.topicId).toBe("t2");
   });
 });
