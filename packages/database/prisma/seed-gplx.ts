@@ -719,18 +719,22 @@ export async function seedGplx(prisma: PrismaClient, appId: string) {
   }
 
   // Replace demo bank idempotently by wiping previous demo stems for this app then recreating.
+  await prisma.gplxBookmark.deleteMany({ where: { appId } });
+  await prisma.gplxMockAttempt.deleteMany({ where: { appId } });
+  await prisma.gplxFixedSet.deleteMany({ where: { appId } });
   await prisma.gplxStudyProgress.deleteMany({
     where: { question: { appId } },
   });
-  await prisma.gplxMockAttempt.deleteMany({ where: { appId } });
   await prisma.gplxBankQuestion.deleteMany({ where: { appId } });
 
   let position = 0;
+  const createdIds: string[] = [];
+  const createdByClass = new Map<string, string[]>();
   for (const q of QUESTIONS) {
     const topicId = topicIds.get(q.topic);
     if (!topicId) continue;
     position += 1;
-    await prisma.gplxBankQuestion.create({
+    const row = await prisma.gplxBankQuestion.create({
       data: {
         appId,
         topicId,
@@ -749,7 +753,49 @@ export async function seedGplx(prisma: PrismaClient, appId: string) {
         },
       },
     });
+    createdIds.push(row.id);
+    for (const cls of q.classes) {
+      const list = createdByClass.get(cls) ?? [];
+      list.push(row.id);
+      createdByClass.set(cls, list);
+    }
   }
 
-  return { topicCount: TOPICS.length, questionCount: QUESTIONS.length };
+  // Bộ đề cố định (demo): cắt theo số câu chuẩn từng hạng.
+  const fixedSpecs: Array<{ code: string; title: string; licenseClass: string }> = [
+    { code: "set-b-01", title: "Đề cố định B #01", licenseClass: "B" },
+    { code: "set-b-02", title: "Đề cố định B #02", licenseClass: "B" },
+    { code: "set-a1-01", title: "Đề cố định A1 #01", licenseClass: "A1" },
+    { code: "set-critical-b", title: "Ôn liệt (rút từ ngân hàng B)", licenseClass: "B" },
+  ];
+  for (let i = 0; i < fixedSpecs.length; i += 1) {
+    const spec = fixedSpecs[i]!;
+    const rules =
+      spec.licenseClass === "A1"
+        ? { questionCount: 25 }
+        : { questionCount: 30 };
+    const pool = createdByClass.get(spec.licenseClass) ?? createdIds;
+    const offset = (i * 7) % Math.max(1, pool.length);
+    const rotated = [...pool.slice(offset), ...pool.slice(0, offset)];
+    const questionIds =
+      spec.code === "set-critical-b"
+        ? createdIds.slice(0, Math.min(15, createdIds.length))
+        : rotated.slice(0, Math.min(rules.questionCount, rotated.length));
+    await prisma.gplxFixedSet.create({
+      data: {
+        appId,
+        code: spec.code,
+        title: spec.title,
+        licenseClass: spec.licenseClass,
+        questionIdsJson: questionIds,
+        position: i,
+      },
+    });
+  }
+
+  return {
+    topicCount: TOPICS.length,
+    questionCount: QUESTIONS.length,
+    fixedSetCount: fixedSpecs.length,
+  };
 }

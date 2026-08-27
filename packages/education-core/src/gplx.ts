@@ -198,3 +198,155 @@ export function gplxProgressStatus(correctCount: number, wrongCount: number): st
   if (correctCount >= 2 && wrongCount === 0) return "mastered";
   return "learning";
 }
+
+export type GplxMockMode = "random" | "fixed" | "critical_only";
+
+/**
+ * Critical-only drill: all critical questions shuffled, capped at rules.questionCount
+ * (or all critical if fewer — caller may use custom pass rules).
+ */
+export function pickCriticalOnlyQuestionIds(
+  pool: Array<{ id: string; isCritical: boolean }>,
+  rules: GplxExamRules,
+  rng: () => number = Math.random,
+): string[] {
+  const critical = shuffleIds(
+    pool.filter((q) => q.isCritical).map((q) => q.id),
+    rng,
+  );
+  if (critical.length === 0) return [];
+  // Prefer full critical bank when smaller than exam size; else sample exam-sized set.
+  if (critical.length <= rules.questionCount) return critical;
+  return critical.slice(0, rules.questionCount);
+}
+
+/** Validate fixed-set ids exist in pool and return ordered subset (no shuffle). */
+export function resolveFixedSetQuestionIds(
+  setQuestionIds: string[],
+  poolIds: Set<string>,
+): string[] {
+  return setQuestionIds.filter((id) => poolIds.has(id));
+}
+
+/**
+ * Score a mock by mode.
+ * - random/fixed (full size): official pass threshold + critical fail
+ * - critical_only (partial bank): must answer all correctly
+ * - critical_only (full exam size): official threshold (any miss is also critical fail)
+ */
+export function scoreGplxMockByMode(
+  questions: GplxQuestionKey[],
+  answers: GplxAnswerInput[],
+  rules: GplxExamRules,
+  mode: GplxMockMode,
+): GplxExamScoreResult {
+  const base = scoreGplxExam(questions, answers, {
+    ...rules,
+    // For critical drills shorter than exam, relax length check in base then override pass.
+    questionCount:
+      mode === "critical_only" && questions.length !== rules.questionCount
+        ? questions.length
+        : rules.questionCount,
+    passCorrectCount:
+      mode === "critical_only" && questions.length !== rules.questionCount
+        ? questions.length
+        : rules.passCorrectCount,
+  });
+
+  if (mode === "critical_only" && questions.length !== rules.questionCount) {
+    const passed = base.correctCount === base.total && base.total > 0 && !base.failedCritical;
+    return { ...base, passed };
+  }
+  return base;
+}
+
+/** UTC calendar date YYYY-MM-DD. */
+export function gplxUtcDateString(d: Date = new Date()): string {
+  return d.toISOString().slice(0, 10);
+}
+
+export type GplxStreakState = {
+  currentStreak: number;
+  longestStreak: number;
+  lastStudyDate: string;
+};
+
+/**
+ * Apply a study activity on `today` (YYYY-MM-DD UTC). Idempotent same day.
+ * Gap > 1 day resets current streak to 1.
+ */
+export function applyGplxStudyStreak(
+  prev: GplxStreakState,
+  today: string,
+): GplxStreakState {
+  if (prev.lastStudyDate === today) {
+    return { ...prev };
+  }
+  if (!prev.lastStudyDate) {
+    return {
+      currentStreak: 1,
+      longestStreak: Math.max(1, prev.longestStreak),
+      lastStudyDate: today,
+    };
+  }
+  const prevMs = Date.parse(`${prev.lastStudyDate}T00:00:00.000Z`);
+  const todayMs = Date.parse(`${today}T00:00:00.000Z`);
+  const dayDiff = Math.round((todayMs - prevMs) / 86_400_000);
+  const currentStreak = dayDiff === 1 ? prev.currentStreak + 1 : 1;
+  return {
+    currentStreak,
+    longestStreak: Math.max(prev.longestStreak, currentStreak),
+    lastStudyDate: today,
+  };
+}
+
+export type GplxWeakTopicStat = {
+  topicId: string;
+  topicCode: string;
+  topicTitle: string;
+  attempted: number;
+  wrong: number;
+  wrongRate: number;
+};
+
+/** Rank topics by personal wrong rate (min 1 attempt). */
+export function rankWeakTopics(
+  rows: Array<{
+    topicId: string;
+    topicCode: string;
+    topicTitle: string;
+    correctCount: number;
+    wrongCount: number;
+  }>,
+): GplxWeakTopicStat[] {
+  const byTopic = new Map<
+    string,
+    { topicId: string; topicCode: string; topicTitle: string; correct: number; wrong: number }
+  >();
+  for (const r of rows) {
+    const cur = byTopic.get(r.topicId) ?? {
+      topicId: r.topicId,
+      topicCode: r.topicCode,
+      topicTitle: r.topicTitle,
+      correct: 0,
+      wrong: 0,
+    };
+    cur.correct += r.correctCount;
+    cur.wrong += r.wrongCount;
+    byTopic.set(r.topicId, cur);
+  }
+  return [...byTopic.values()]
+    .map((t) => {
+      const attempted = t.correct + t.wrong;
+      return {
+        topicId: t.topicId,
+        topicCode: t.topicCode,
+        topicTitle: t.topicTitle,
+        attempted,
+        wrong: t.wrong,
+        wrongRate: attempted === 0 ? 0 : t.wrong / attempted,
+      };
+    })
+    .filter((t) => t.attempted > 0)
+    .sort((a, b) => b.wrongRate - a.wrongRate || b.wrong - a.wrong);
+}

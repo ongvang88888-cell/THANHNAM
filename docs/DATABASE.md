@@ -33,6 +33,7 @@ apps ─┬─ users ─┬─ user_roles ─ roles ─ role_permissions ─ per
       ├─ payments / transactions / refunds
       ├─ quizzes / questions / answers / quiz_attempts
       ├─ gplx_topics / gplx_bank_questions / gplx_bank_answers / gplx_study_progress / gplx_mock_attempts
+      ├─ gplx_fixed_sets / gplx_bookmarks / gplx_study_streaks
       ├─ certificates
       ├─ reviews
       ├─ affiliates / referrals / commissions

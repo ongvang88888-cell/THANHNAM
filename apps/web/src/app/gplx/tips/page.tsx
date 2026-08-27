@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiGet } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
+import { GplxCrumb } from "@/components/gplx/GplxChrome";
 
 type Tip = { id: string; title: string; body: string; topicCode?: string };
 
@@ -19,20 +20,28 @@ export default function GplxTipsPage() {
   }, [ready, token]);
 
   return (
-    <section>
-      <p className="muted">
-        <a href="/gplx">Ôn GPLX</a> · Mẹo
-      </p>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Mẹo ghi nhớ</h1>
+    <div className="gx-page">
+      <GplxCrumb trail={[{ label: "Mẹo" }]} />
+      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.03em", marginTop: 0 }}>
+        Mẹo ghi nhớ
+      </h1>
       {error && <p className="error">{error}</p>}
       {items.map((t) => (
         <div className="panel" key={t.id} style={{ marginBottom: 12 }}>
-          <h3 style={{ marginTop: 0 }}>{t.title}</h3>
+          <h3
+            style={{
+              marginTop: 0,
+              fontFamily: "var(--font-display)",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            {t.title}
+          </h3>
           <p className="muted" style={{ marginBottom: 0 }}>
             {t.body}
           </p>
         </div>
       ))}
-    </section>
+    </div>
   );
 }

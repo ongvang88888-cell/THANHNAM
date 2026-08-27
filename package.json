@@ -10,6 +10,7 @@
     "typecheck": "turbo run typecheck",
     "db:generate": "pnpm --filter @edu/database generate",
     "db:migrate": "pnpm --filter @edu/database migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @edu/database migrate:deploy",
     "db:push": "pnpm --filter @edu/database push",
     "db:seed": "pnpm --filter @edu/database seed"
   },
