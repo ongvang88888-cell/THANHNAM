@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="Lùi xe">
+  <rect width="640" height="400" fill="#e8f2ef"/>
+  <rect x="80" y="140" width="480" height="140" fill="#5a6570"/>
+  <rect x="300" y="180" width="80" height="40" rx="8" fill="#0b6e63"/>
+  <path d="M300,200 L240,200" stroke="#f5d547" stroke-width="4" marker-end="url(#arr)"/>
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#f5d547"/>
+    </marker>
+  </defs>
+  <circle cx="200" cy="200" r="18" fill="#c45c26" opacity="0.8"/>
+  <text x="193" y="206" fill="#fff" font-family="system-ui,sans-serif" font-size="14" font-weight="700">!</text>
+  <text x="24" y="40" fill="#0c1f24" font-family="system-ui,sans-serif" font-size="18" font-weight="700">Lùi xe</text>
+  <text x="24" y="68" fill="#2a454c" font-family="system-ui,sans-serif" font-size="14">Quan sát phía sau, tín hiệu, không lùi trên cao tốc / nơi cấm</text>
+</svg>

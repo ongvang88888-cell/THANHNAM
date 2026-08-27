@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="Vạch vàng liền giữa đường">
+  <rect width="640" height="400" fill="#e8f2ef"/>
+  <rect x="0" y="120" width="640" height="160" fill="#5a6570"/>
+  <line x1="0" y1="200" x2="640" y2="200" stroke="#f5d547" stroke-width="8"/>
+  <rect x="80" y="140" width="70" height="36" rx="8" fill="#0b6e63"/>
+  <polygon points="150,140 175,158 150,176" fill="#0b6e63"/>
+  <rect x="400" y="224" width="70" height="36" rx="8" fill="#c45c26"/>
+  <polygon points="400,224 375,242 400,260" fill="#c45c26"/>
+  <text x="24" y="40" fill="#0c1f24" font-family="system-ui,sans-serif" font-size="18" font-weight="700">Vạch vàng liền — không vượt / không sang phần đường ngược chiều</text>
+  <text x="24" y="68" fill="#2a454c" font-family="system-ui,sans-serif" font-size="14">Giữ đúng phần đường; chỉ vượt khi có vạch đứt cho phép</text>
+</svg>

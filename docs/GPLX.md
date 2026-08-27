@@ -42,8 +42,8 @@ Seed là **ngân hàng demo gốc** (100+ câu), đủ để thi thử mọi h�
 
 ## Illustrations (biển báo & tình huống)
 
-- Biển báo SVG: Wikimedia Commons (PD-VietnamGov / QCVN 41 diagrams) dưới `apps/web/public/gplx/signs/` — xem `SOURCES.md`.
-- Tình huống: SVG giáo dục gốc tại `apps/web/public/gplx/situations/` (không dùng ảnh đề thi chính thức).
+- Biển báo SVG (~180): Wikimedia Commons (PD-VietnamGov / QCVN 41 diagrams) dưới `apps/web/public/gplx/signs/` — xem `SOURCES.md`; tải lại bằng `scripts/fetch-gplx-signs.py`.
+- Tình huống (~25 SVG giáo dục gốc) tại `apps/web/public/gplx/situations/` (không dùng ảnh đề thi chính thức 600 câu).
 - `GplxBankQuestion.imageUrl` được seed tự gắn theo từ khóa; API trả về trên practice/mock/flashcards.
 - Web: `/gplx/signs`, `/gplx/situations`, flashcard + đề thi hiển thị hình khi có.
 

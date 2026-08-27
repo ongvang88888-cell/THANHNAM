@@ -11,9 +11,9 @@ import {
 describe("gplx content", () => {
   it("exposes tips, signs with images, and situations", () => {
     expect(GPLX_TIPS.length).toBeGreaterThan(5);
-    expect(GPLX_SIGNS.length).toBeGreaterThan(30);
+    expect(GPLX_SIGNS.length).toBeGreaterThan(150);
     expect(GPLX_SIGNS.every((s) => s.imageUrl.startsWith("/gplx/signs/"))).toBe(true);
-    expect(GPLX_SITUATIONS.length).toBeGreaterThanOrEqual(8);
+    expect(GPLX_SITUATIONS.length).toBeGreaterThanOrEqual(20);
   });
 
   it("matches illustrations from stems", () => {

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="Vạch trắng đứt">
+  <rect width="640" height="400" fill="#e8f2ef"/>
+  <rect x="0" y="120" width="640" height="160" fill="#5a6570"/>
+  <line x1="20" y1="200" x2="620" y2="200" stroke="#fff" stroke-width="6" stroke-dasharray="28 18"/>
+  <rect x="100" y="148" width="70" height="36" rx="8" fill="#0b6e63"/>
+  <polygon points="170,148 195,166 170,184" fill="#0b6e63"/>
+  <text x="24" y="40" fill="#0c1f24" font-family="system-ui,sans-serif" font-size="18" font-weight="700">Vạch trắng đứt — được vượt khi bảo đảm an toàn</text>
+  <text x="24" y="68" fill="#2a454c" font-family="system-ui,sans-serif" font-size="14">Quan sát ngược chiều, đủ tầm nhìn trước khi vượt</text>
+</svg>

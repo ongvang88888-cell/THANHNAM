@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="Xe trước phanh gấp">
+  <rect width="640" height="400" fill="#e8f2ef"/>
+  <rect x="0" y="140" width="640" height="140" fill="#5a6570"/>
+  <line x1="0" y1="210" x2="640" y2="210" stroke="#fff" stroke-width="4" stroke-dasharray="18 14"/>
+  <rect x="380" y="160" width="80" height="40" rx="8" fill="#c45c26"/>
+  <rect x="120" y="220" width="80" height="40" rx="8" fill="#0b6e63"/>
+  <text x="400" y="186" fill="#fff" font-family="system-ui,sans-serif" font-size="12" font-weight="700">STOP</text>
+  <path d="M200,200 L280,180" stroke="#f5d547" stroke-width="3"/>
+  <text x="24" y="40" fill="#0c1f24" font-family="system-ui,sans-serif" font-size="18" font-weight="700">Xe trước phanh gấp</text>
+  <text x="24" y="68" fill="#2a454c" font-family="system-ui,sans-serif" font-size="14">Giảm tốc kịp thời, giữ khoảng cách an toàn, tránh đánh lái đột ngột</text>
+</svg>

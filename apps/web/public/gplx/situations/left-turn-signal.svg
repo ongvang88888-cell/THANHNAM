@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="Rẽ trái tại đèn">
+  <rect width="640" height="400" fill="#e8f2ef"/>
+  <rect x="0" y="150" width="640" height="100" fill="#5a6570"/>
+  <rect x="270" y="0" width="100" height="400" fill="#5a6570"/>
+  <rect x="400" y="100" width="28" height="70" rx="4" fill="#1a1a1a"/>
+  <circle cx="414" cy="114" r="8" fill="#e11"/>
+  <circle cx="414" cy="134" r="8" fill="#f5d547"/>
+  <circle cx="414" cy="154" r="8" fill="#22c55e"/>
+  <rect x="290" y="300" width="36" height="70" rx="8" fill="#0b6e63"/>
+  <path d="M308,280 Q250,250 200,200" fill="none" stroke="#0b6e63" stroke-width="4" stroke-dasharray="8 6"/>
+  <polygon points="190,195 210,210 205,185" fill="#0b6e63"/>
+  <text x="24" y="40" fill="#0c1f24" font-family="system-ui,sans-serif" font-size="18" font-weight="700">Rẽ trái tại giao lộ có đèn</text>
+  <text x="24" y="68" fill="#2a454c" font-family="system-ui,sans-serif" font-size="14">Theo tín hiệu / mũi tên; nhường xe ưu tiên và người đi bộ</text>
+</svg>
