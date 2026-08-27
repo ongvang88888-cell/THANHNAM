@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="Đèn tín hiệu">
+  <rect width="640" height="400" fill="#e8f2ef"/>
+  <rect x="0" y="170" width="640" height="90" fill="#5a6570"/>
+  <rect x="470" y="40" width="54" height="140" rx="12" fill="#1a1a1a"/>
+  <circle cx="497" cy="70" r="16" fill="#e74c3c"/>
+  <circle cx="497" cy="110" r="16" fill="#555"/>
+  <circle cx="497" cy="150" r="16" fill="#555"/>
+  <line x1="497" y1="180" x2="497" y2="260" stroke="#333" stroke-width="6"/>
+  <rect x="120" y="188" width="100" height="42" rx="8" fill="#0b6e63"/>
+  <rect x="430" y="250" width="40" height="8" fill="#f1c40f"/>
+  <text x="24" y="36" fill="#0c1f24" font-family="system-ui,sans-serif" font-size="18" font-weight="700">Đèn đỏ — dừng trước vạch</text>
+  <text x="24" y="62" fill="#2a454c" font-family="system-ui,sans-serif" font-size="14">Chưa vượt vạch dừng khi đèn đỏ/vàng (nếu còn dừng an toàn)</text>
+</svg>

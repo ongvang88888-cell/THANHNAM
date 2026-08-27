@@ -192,6 +192,9 @@ model App {
   gplxTopics GplxTopic[]
   gplxQuestions GplxBankQuestion[]
   gplxMockAttempts GplxMockAttempt[]
+  gplxFixedSets GplxFixedSet[]
+  gplxBookmarks GplxBookmark[]
+  gplxStudyStreaks GplxStudyStreak[]
 }
 
 enum AuthTokenPurpose {
@@ -237,6 +240,8 @@ model User {
   affiliateCodes     AffiliateCode[]
   gplxStudyProgress  GplxStudyProgress[]
   gplxMockAttempts   GplxMockAttempt[]
+  gplxBookmarks      GplxBookmark[]
+  gplxStudyStreaks   GplxStudyStreak[]
   wishlistItems      WishlistItem[]
   affiliatePayouts   AffiliatePayout[]
   lessonComments     LessonComment[]
@@ -1257,10 +1262,11 @@ model GplxBankQuestion {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  app      App                 @relation(fields: [appId], references: [id])
-  topic    GplxTopic           @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  answers  GplxBankAnswer[]
-  progress GplxStudyProgress[]
+  app       App                 @relation(fields: [appId], references: [id])
+  topic     GplxTopic           @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  answers   GplxBankAnswer[]
+  progress  GplxStudyProgress[]
+  bookmarks GplxBookmark[]
 
   @@index([appId, topicId])
   @@index([appId, isCritical])
@@ -1301,6 +1307,9 @@ model GplxMockAttempt {
   appId           String
   userId          String
   licenseClass    String
+  /// random | fixed | critical_only
+  mode            String    @default("random")
+  fixedSetId      String?
   questionIdsJson Json      @default("[]")
   score           Int       @default(0)
   correctCount    Int       @default(0)
@@ -1312,9 +1321,65 @@ model GplxMockAttempt {
   submittedAt     DateTime?
   detailJson      Json      @default("{}")
 
-  app  App  @relation(fields: [appId], references: [id])
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  app      App          @relation(fields: [appId], references: [id])
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fixedSet GplxFixedSet? @relation(fields: [fixedSetId], references: [id], onDelete: SetNull)
 
   @@index([appId, userId, startedAt])
   @@index([userId, licenseClass])
+  @@index([fixedSetId])
+}
+
+/// Pre-built exam sets (bộ đề cố định) — competitor parity.
+model GplxFixedSet {
+  id               String   @id @default(cuid())
+  appId            String
+  code             String
+  title            String
+  licenseClass     String
+  /// Ordered question ids for this set
+  questionIdsJson  Json     @default("[]")
+  position         Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  app      App              @relation(fields: [appId], references: [id])
+  attempts GplxMockAttempt[]
+
+  @@unique([appId, code])
+  @@index([appId, licenseClass, position])
+}
+
+/// Bookmarked questions (bookmark câu hỏi / câu cần nhớ).
+model GplxBookmark {
+  id         String   @id @default(cuid())
+  appId      String
+  userId     String
+  questionId String
+  note       String   @default("")
+  createdAt  DateTime @default(now())
+
+  app      App              @relation(fields: [appId], references: [id])
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question GplxBankQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+  @@index([appId, userId, createdAt])
+}
+
+/// Daily study streak (chuỗi ngày học liên tiếp).
+model GplxStudyStreak {
+  id            String   @id @default(cuid())
+  appId         String
+  userId        String
+  currentStreak Int      @default(0)
+  longestStreak Int      @default(0)
+  /// YYYY-MM-DD in app local calendar (UTC date used server-side)
+  lastStudyDate String   @default("")
+  updatedAt     DateTime @updatedAt
+
+  app  App  @relation(fields: [appId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([appId, userId])
+  @@index([appId, userId])
 }

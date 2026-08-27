@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="Chuyển làn">
+  <rect width="640" height="400" fill="#e8f2ef"/>
+  <rect x="40" y="80" width="560" height="260" fill="#5a6570"/>
+  <line x1="320" y1="80" x2="320" y2="340" stroke="#fff" stroke-width="4" stroke-dasharray="18 14"/>
+  <rect x="120" y="200" width="70" height="36" rx="8" fill="#0b6e63"/>
+  <path d="M190,218 Q260,180 340,160" fill="none" stroke="#f5d547" stroke-width="3" stroke-dasharray="8 6"/>
+  <polygon points="340,160 325,155 330,175" fill="#f5d547"/>
+  <rect x="400" y="140" width="70" height="36" rx="8" fill="#c45c26"/>
+  <text x="24" y="40" fill="#0c1f24" font-family="system-ui,sans-serif" font-size="18" font-weight="700">Chuyển làn trên đường nhiều làn</text>
+  <text x="24" y="68" fill="#2a454c" font-family="system-ui,sans-serif" font-size="14">Báo hiệu sớm, quan sát gương/điểm mù, nhường xe đã ở làn đích</text>
+</svg>

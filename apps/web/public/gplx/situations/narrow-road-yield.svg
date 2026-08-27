@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="Đường hẹp tránh xe ngược chiều">
+  <rect width="640" height="400" fill="#e8f2ef"/>
+  <path d="M180,0 L280,0 L360,400 L220,400 Z" fill="#5a6570"/>
+  <path d="M360,0 L460,0 L420,400 L280,400 Z" fill="#5a6570"/>
+  <rect x="210" y="80" width="36" height="70" rx="8" fill="#c45c26"/>
+  <polygon points="210,150 228,175 246,150" fill="#c45c26"/>
+  <text x="218" y="120" fill="#fff" font-family="system-ui,sans-serif" font-size="14" font-weight="700">A</text>
+  <rect x="350" y="250" width="36" height="70" rx="8" fill="#0b6e63"/>
+  <polygon points="350,250 368,225 386,250" fill="#0b6e63"/>
+  <text x="358" y="295" fill="#fff" font-family="system-ui,sans-serif" font-size="14" font-weight="700">B</text>
+  <text x="24" y="40" fill="#0c1f24" font-family="system-ui,sans-serif" font-size="18" font-weight="700">Đường hẹp — tránh xe ngược chiều</text>
+  <text x="24" y="68" fill="#2a454c" font-family="system-ui,sans-serif" font-size="14">Nhường / dừng đúng chỗ để hai xe qua được an toàn</text>
+</svg>

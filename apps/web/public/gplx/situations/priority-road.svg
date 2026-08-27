@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="Đường ưu tiên">
+  <rect width="640" height="400" fill="#eef6f4"/>
+  <rect x="0" y="175" width="640" height="70" fill="#5a6570"/>
+  <rect x="300" y="40" width="50" height="320" fill="#7a8690"/>
+  <!-- priority diamond sign -->
+  <g transform="translate(120,70)">
+    <rect x="28" y="0" width="44" height="44" rx="4" transform="rotate(45 50 22)" fill="#fff" stroke="#e09b14" stroke-width="6"/>
+  </g>
+  <text x="90" y="160" fill="#0c1f24" font-family="system-ui,sans-serif" font-size="13">Biển đường ưu tiên</text>
+  <rect x="60" y="190" width="80" height="36" rx="7" fill="#0b6e63"/>
+  <rect x="310" y="90" width="30" height="60" rx="6" fill="#e09b14"/>
+  <text x="24" y="36" fill="#0c1f24" font-family="system-ui,sans-serif" font-size="18" font-weight="700">Nhập đường ưu tiên</text>
+  <text x="24" y="62" fill="#2a454c" font-family="system-ui,sans-serif" font-size="14">Xe từ đường nhánh phải nhường xe trên đường ưu tiên</text>
+</svg>

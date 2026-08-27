@@ -1,8 +1,9 @@
-# Production-shaped compose for self-host. Not a substitute for AWS ECS/RDS.
-# Set secrets via environment or a private .env — never commit live keys.
+# Production-shaped compose for self-host VPS (Vietnix / generic Ubuntu).
+# Secrets live in .env on the server — never commit live keys.
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-edu}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
@@ -12,24 +13,30 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-edu} -d ${POSTGRES_DB:-edu_commerce}"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 20
 
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
     env_file: .env
     environment:
       NODE_ENV: production
       API_PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-edu}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-edu_commerce}?schema=public
+      REDIS_URL: redis://redis:6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports: ["3001:3001"]
     depends_on:
       postgres:
@@ -41,10 +48,14 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_APP_ID: ${NEXT_PUBLIC_APP_ID:-education_app}
+    restart: unless-stopped
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://127.0.0.1:3001/api/v1}
-      NEXT_PUBLIC_APP_ID: education_app
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_APP_ID: ${NEXT_PUBLIC_APP_ID:-education_app}
     ports: ["3000:3000"]
     depends_on:
       - api

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="Ra khỏi cao tốc">
+  <rect width="640" height="400" fill="#dfece8"/>
+  <path d="M0,140 H420 Q500,140 560,220 L640,300 V360 H0 Z" fill="#5a6570"/>
+  <path d="M420,140 Q480,140 540,80 H640 V140 Q560,160 500,200 Z" fill="#6b7680"/>
+  <line x1="40" y1="250" x2="400" y2="250" stroke="#fff" stroke-width="4" stroke-dasharray="20 14"/>
+  <rect x="160" y="200" width="70" height="36" rx="8" fill="#0b6e63"/>
+  <path d="M230,218 Q300,200 360,160" fill="none" stroke="#f5d547" stroke-width="3" stroke-dasharray="6 5"/>
+  <text x="24" y="40" fill="#0c1f24" font-family="system-ui,sans-serif" font-size="18" font-weight="700">Ra khỏi đường cao tốc</text>
+  <text x="24" y="68" fill="#2a454c" font-family="system-ui,sans-serif" font-size="14">Chuyển sớm sang làn giảm tốc, giảm tốc dần trước khi ra</text>
+</svg>

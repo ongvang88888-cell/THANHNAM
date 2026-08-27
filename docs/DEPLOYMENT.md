@@ -32,3 +32,19 @@ OpenTelemetry traces · metrics · structured JSON logs · error tracking (Sentr
 ## Scaling knobs
 
 Horizontal API replicas · worker concurrency per queue · DB read replicas for reports · CDN for media
+
+## Self-host VPS (Docker Compose)
+
+For Ubuntu VPS (e.g. Vietnix):
+
+```bash
+VPS_HOST=<ip> VPS_PASS='***' ./scripts/vps-deploy.sh
+# or SSH key: VPS_HOST=<ip> VPS_SSH_KEY=~/.ssh/id_ed25519 ./scripts/vps-deploy.sh
+```
+
+What it does: install/enable Docker → rsync repo to `/opt/edu-commerce` → generate `.env` once → `docker compose -f docker-compose.prod.yml up -d --build` → migrate → seed.
+
+Services: web `:3000`, API `:3001`, Postgres + Redis (internal).
+
+Never commit `.env` or VPS passwords. Rotate root password after sharing credentials via chat/email. Prefer SSH keys for subsequent deploys.
+
