@@ -32,6 +32,8 @@ Play/pause/seek · speed · resume · auto-next · fullscreen · subtitles · qu
 
 States: `QUEUED` · `PROCESSING` · `READY` · `FAILED` (retry + DLQ)
 
+Lecture auto-edit after upload is Wan 2.2 Replace + Nano Banana + original audio — see `docs/AI.md` and `presentProviderFeatures()`. Do not treat ffmpeg restyle as character replace.
+
 ## Providers
 
 `TranscodePort`: **AWS MediaConvert (MVP, D6)** · MuxAdapter (optional later) · FfmpegWorkerAdapter (optional later).

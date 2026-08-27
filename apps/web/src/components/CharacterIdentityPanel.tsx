@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiGet, apiPut } from "@/lib/api";
+import { ProviderFeatureList, type ProviderFeatureCatalog } from "@/components/ProviderFeatureList";
 
 type CharacterLook = "teacher" | "cartoon_kid" | "custom";
 
@@ -27,6 +28,7 @@ type CharacterCaps = {
 type CharacterResponse = {
   character: CharacterView;
   capabilities: CharacterCaps;
+  providers?: ProviderFeatureCatalog;
   provisionNote?: string;
 };
 
@@ -64,6 +66,7 @@ function defaultBible(look: CharacterLook, name: string): string {
 export function CharacterIdentityPanel(props: { token: string }) {
   const [row, setRow] = useState<CharacterView | null>(null);
   const [caps, setCaps] = useState<CharacterCaps>({ wan: false, nanoBanana: false, fal: false, dashscope: false });
+  const [providers, setProviders] = useState<ProviderFeatureCatalog | null>(null);
   const [name, setName] = useState("Cô Minh");
   const [look, setLook] = useState<CharacterLook>("teacher");
   const [bible, setBible] = useState(defaultBible("teacher", "Cô Minh"));
@@ -82,6 +85,7 @@ export function CharacterIdentityPanel(props: { token: string }) {
         if (cancelled) return;
         applyView(res.character);
         setCaps(res.capabilities);
+        setProviders(res.providers ?? null);
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : "Không tải được hồ sơ nhân vật");
@@ -126,6 +130,7 @@ export function CharacterIdentityPanel(props: { token: string }) {
       );
       applyView(res.character);
       setCaps(res.capabilities);
+      setProviders(res.providers ?? null);
       setMsg(res.provisionNote || res.character.gap);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không lưu được nhân vật");
@@ -154,6 +159,7 @@ export function CharacterIdentityPanel(props: { token: string }) {
         {row?.stillUrl ? <span className="badge ok">Đã có ảnh nhân vật</span> : null}
         {row?.ready ? <span className="badge ok">Sẽ tự thay người</span> : <span className="badge">Chưa tự thay</span>}
       </div>
+      {providers ? <ProviderFeatureList providers={providers} /> : null}
       <label htmlFor="character-name">Tên nhân vật</label>
       <input id="character-name" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
       <label htmlFor="character-look">Kiểu</label>

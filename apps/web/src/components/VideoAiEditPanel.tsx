@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiGet, apiPost } from "@/lib/api";
+import { ProviderFeatureList, type ProviderFeatureCatalog } from "@/components/ProviderFeatureList";
 
 type VideoAiEditPanelProps = {
   videoId: string;
@@ -42,6 +43,7 @@ type Catalog = {
     fal?: boolean;
     dashscope?: boolean;
   };
+  providers?: ProviderFeatureCatalog;
   video: { id: string; title: string; status: string; hasSource: boolean; thumbnailUrl: string | null };
   tools: CatalogTool[];
 };
@@ -200,6 +202,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
           Nano Banana {catalog.capabilities.nanoBanana ? "sẵn" : "chưa GEMINI_API_KEY"}
         </span>
       </div>
+      {catalog.providers ? <ProviderFeatureList providers={catalog.providers} /> : null}
       {error && <p className="toast error">{error}</p>}
       {msg && <p className="toast ok">{msg}</p>}
 

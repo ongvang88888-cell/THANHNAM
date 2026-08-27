@@ -11,6 +11,8 @@ import {
   progressFields,
   toolAvailability,
   getAiEditTool,
+  lectureAutoFeatureIds,
+  presentProviderFeatures,
 } from "@edu/ai-core";
 
 describe("video AI edit contract", () => {
@@ -82,5 +84,20 @@ describe("video AI edit contract", () => {
     expect(onePass).toContain("start_duration");
     expect(onePass).not.toContain("start_silence");
     expect(clampQuickTrim(0, 12_000, 10_000)).toEqual({ startMs: 0, endMs: 10_000 });
+  });
+
+  it("exposes official Wan / Fal / Nano Banana features without auto-running reserved models", () => {
+    const providers = presentProviderFeatures({
+      fal: true,
+      dashscope: false,
+      nanoBanana: true,
+      wan: true,
+      ffmpeg: true,
+    });
+    expect(providers.autoOnUpload).toEqual(lectureAutoFeatureIds());
+    expect(providers.autoOnUpload).toContain("fal_wan_replace");
+    expect(providers.autoOnUpload).not.toContain("fal_wan_move");
+    expect(providers.fallbackOnUpload).toEqual(["dashscope_wan_replace"]);
+    expect(providers.features.some((row) => row.id === "nano_banana_2_still" && !row.usedOnUpload)).toBe(true);
   });
 });

@@ -98,6 +98,7 @@ import {
   parseHeygenVideoId,
   parsePresenterCharacterInput,
   presentPresenterCharacter,
+  presentProviderFeatures,
   presenterGreeting,
   parseMinimaxStatus,
   parseMinimaxTaskId,
@@ -348,6 +349,7 @@ export class VideoAiEditService implements OnModuleInit {
       recipe: describeRecipe(caps),
       character: await this.presenterView(user, caps),
       capabilities: caps,
+      providers: presentProviderFeatures(caps),
       video: {
         id: video.id,
         title: video.title,
@@ -579,6 +581,7 @@ export class VideoAiEditService implements OnModuleInit {
         fal: caps.fal,
         dashscope: caps.dashscope,
       },
+      providers: presentProviderFeatures(caps),
     };
   }
 
@@ -632,6 +635,7 @@ export class VideoAiEditService implements OnModuleInit {
         fal: caps.fal,
         dashscope: caps.dashscope,
       },
+      providers: presentProviderFeatures(caps),
       provisionNote,
     };
   }

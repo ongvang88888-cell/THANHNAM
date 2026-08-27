@@ -1,0 +1,39 @@
+---
+description: Official Wan 2.2 / Fal / Nano Banana lecture pipeline — wired vs reserved
+alwaysApply: true
+globs:
+  - "packages/ai-core/**"
+  - "apps/api/src/media/video-ai-edit*"
+  - "apps/web/src/components/CharacterIdentityPanel.tsx"
+  - "apps/web/src/components/VideoAiEditPanel.tsx"
+  - "apps/web/src/components/AutoVideoPublish.tsx"
+  - "apps/web/src/components/ProviderFeatureList.tsx"
+---
+
+# Wan 2.2 · Fal · Nano Banana
+
+Lecture upload is **Nano Banana still + Fal Wan Replace + ffmpeg mux original audio**. Query `presentProviderFeatures()` or API `providers` instead of re-researching.
+
+## Wired on upload
+
+- Still: `gemini-2.5-flash-image` (`GEMINI_API_KEY`), generateContent `TEXT`+`IMAGE`. Skip if a stable public https still exists. Do not persist expiring signed URLs.
+- Replace: Fal `fal-ai/wan/v2.2-14b/animate/replace` (`FAL_KEY`). Required `video_url` + `image_url`. Chunk ~20s (min 2s, max 28s).
+- Fallback replace only: DashScope `wan2.2-animate-mix` when Fal is missing.
+- Always mux the original lecture soundtrack. Wan/Fal output is not trusted for audio.
+
+## Reserved — never auto-run
+
+`fal_wan_move`, `fal_wan_speech_to_video`, `fal_wan_image_to_video`, Gemini 3 Nano Banana 2/Pro (`gemini-3.1-flash-lite-image`, `gemini-3.1-flash-image`, `gemini-3-pro-image`), still-edit, video-to-image, Search grounding.
+
+These invent motion, drop the filmed scene, or change the still model. Call them only with an explicit product request.
+
+## Fail honestly
+
+Missing keys → Vietnamese `WAN_MISSING_KEY` / `NANO_BANANA_MISSING_KEY`. No Ken Burns nameplate, toon filter, or HeyGen/Hailuo/D-ID as a working fallback.
+
+## Official docs
+
+- Fal Replace: https://fal.ai/models/fal-ai/wan/v2.2-14b/animate/replace/api
+- Gemini image gen: https://ai.google.dev/gemini-api/docs/image-generation
+- Wan modes: https://huggingface.co/Wan-AI/Wan2.2-Animate-14B
+- Catalog source: `packages/ai-core/src/provider-features.ts`

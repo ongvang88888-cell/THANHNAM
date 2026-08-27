@@ -1154,6 +1154,13 @@ label { display: block; font-size: 13px; color: #6b7280; margin-bottom: 6px; }
 .ai-edit-panel h3, .ai-edit-panel h4 { margin: 16px 0 8px; }
 .ai-edit-caps { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
 .ai-edit-legal { font-size: 13px; line-height: 1.45; }
+.provider-features { margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.provider-features summary { cursor: pointer; font-weight: 650; color: #1e3a8a; }
+.provider-features h4 { margin: 12px 0 6px; font-size: 0.92rem; }
+.provider-features ul { margin: 0; padding-left: 1.15rem; }
+.provider-features li { margin-bottom: 8px; font-size: 13px; line-height: 1.4; }
+.provider-features li small { display: block; color: var(--muted); font-size: 12px; }
+.provider-features .is-reserved { color: #4b5563; }
 .ai-edit-options {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
