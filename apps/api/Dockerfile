@@ -13,7 +13,14 @@ COPY apps/mobile-student/package.json ./apps/mobile-student/package.json
 COPY apps/workers/package.json ./apps/workers/package.json
 
 RUN pnpm install --frozen-lockfile
-RUN pnpm db:generate && pnpm --filter @edu/api build \
+# Build dependency graph for API (shared/education/media/monetization/database) then API
+RUN pnpm db:generate \
+  && pnpm --filter @edu/shared-core build \
+  && pnpm --filter @edu/education-core build \
+  && pnpm --filter @edu/media-core build \
+  && pnpm --filter @edu/monetization-core build \
+  && pnpm --filter @edu/database build \
+  && pnpm --filter @edu/api build \
   && chmod +x apps/api/docker-entrypoint.sh
 
 ENV NODE_ENV=production
