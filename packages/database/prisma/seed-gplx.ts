@@ -734,7 +734,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "concepts",
-    stem: "Khi lái xe trong khu dân cư (trừ khi có biển riêng), người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi lái xe trong khu dân cư (trừ khi có biển riêng), người lái xe phải xử lý thế nào?",
     explanation: "Tối đa 50 km/h hoặc theo biển báo hiệu lực",
     classes: ALL,
     answers: [
@@ -745,7 +745,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "concepts",
-    stem: "Khi lái xe trong đường đôi ngoài khu dân cư không có dải phân cách, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi lái xe trong đường đôi ngoài khu dân cư không có dải phân cách, người lái xe phải xử lý thế nào?",
     explanation: "Tối đa 90 km/h hoặc theo biển báo",
     classes: ALL,
     answers: [
@@ -756,7 +756,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "concepts",
-    stem: "Khi lái xe trong đường cao tốc đối với ô tô con, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi lái xe trong đường cao tốc đối với ô tô con, người lái xe phải xử lý thế nào?",
     explanation: "Theo biển báo, thường tối đa 120 km/h",
     classes: ALL,
     answers: [
@@ -767,7 +767,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "concepts",
-    stem: "Khi lái xe trong đường cao tốc đối với xe tải, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi lái xe trong đường cao tốc đối với xe tải, người lái xe phải xử lý thế nào?",
     explanation: "Theo biển báo, thường thấp hơn ô tô con",
     classes: ALL,
     answers: [
@@ -778,7 +778,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "concepts",
-    stem: "Khi lái xe trong khu vực trường học khi có biển báo, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi lái xe trong khu vực trường học khi có biển báo, người lái xe phải xử lý thế nào?",
     explanation: "Giảm tốc theo biển, thường 40 km/h hoặc thấp hơn",
     classes: ALL,
     answers: [
@@ -789,7 +789,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi tại nơi có vạch sang đường cho người đi bộ, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Tại nơi có vạch sang đường cho người đi bộ, người lái xe phải xử lý thế nào?",
     explanation: "Giảm tốc, dừng nếu cần và nhường người đi bộ",
     classes: ALL,
     answers: [
@@ -800,7 +800,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi khi nhập làn từ đường nhánh, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi nhập làn từ đường nhánh, người lái xe phải xử lý thế nào?",
     explanation: "Nhường xe đang đi trên đường chính",
     classes: ALL,
     answers: [
@@ -811,7 +811,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi khi rẽ trái tại giao lộ có đèn, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi rẽ trái tại giao lộ có đèn, người lái xe phải xử lý thế nào?",
     explanation: "Nhường người đi bộ và xe đi thẳng đối diện theo quy định",
     classes: ALL,
     answers: [
@@ -822,7 +822,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi khi gặp xe ưu tiên phía sau, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi gặp xe ưu tiên phía sau, người lái xe phải xử lý thế nào?",
     explanation: "Giảm tốc, tránh hoặc dừng nhường đường",
     isCritical: true,
     classes: ALL,
@@ -834,7 +834,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi tại vòng xuyến (theo quy định hiện hành tại điểm giao), người lái xe nên/ phải xử lý thế nào?",
+    stem: "Tại vòng xuyến (theo quy định hiện hành tại điểm giao), người lái xe phải xử lý thế nào?",
     explanation: "Tuân thủ biển báo/hiệu lệnh tại vòng xuyến",
     classes: ALL,
     answers: [
@@ -845,7 +845,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi vượt xe trên đường hai chiều có vạch liền, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi vượt xe trên đường hai chiều có vạch liền, người lái xe phải xử lý thế nào?",
     explanation: "Không vượt khi vạch/biển cấm vượt",
     isCritical: true,
     classes: ALL,
@@ -857,7 +857,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi vượt xe trên cầu hẹp một làn mỗi chiều, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi vượt xe trên cầu hẹp một làn mỗi chiều, người lái xe phải xử lý thế nào?",
     explanation: "Không vượt khi không bảo đảm an toàn và bị cấm",
     classes: ALL,
     answers: [
@@ -868,7 +868,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi vượt xe xe phía trước đang rẽ trái, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi vượt xe phía trước đang rẽ trái, người lái xe phải xử lý thế nào?",
     explanation: "Không vượt bên phải xe đang rẽ trái",
     classes: ALL,
     answers: [
@@ -879,7 +879,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi vượt xe trên đường cao tốc, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi vượt xe trên đường cao tốc, người lái xe phải xử lý thế nào?",
     explanation: "Vượt bên trái, đúng làn và tốc độ cho phép",
     classes: ALL,
     answers: [
@@ -890,7 +890,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi vượt xe khi tầm nhìn bị che khuất, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi tầm nhìn bị che khuất, người lái xe có được vượt không?",
     explanation: "Không vượt khi không quan sát được phía trước",
     isCritical: true,
     classes: ALL,
@@ -902,7 +902,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi dừng, đỗ xe trên cầu, đường hầm, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi dừng, đỗ xe trên cầu, đường hầm, người lái xe phải xử lý thế nào?",
     explanation: "Không dừng, đỗ trừ trường hợp khẩn cấp theo luật",
     isCritical: true,
     classes: CAR,
@@ -914,7 +914,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi dừng, đỗ xe trước cổng trường học giờ tan học, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi dừng, đỗ xe trước cổng trường học giờ tan học, người lái xe phải xử lý thế nào?",
     explanation: "Không gây cản trở; tuân thủ biển cấm dừng đỗ",
     classes: CAR,
     answers: [
@@ -925,7 +925,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi dừng, đỗ xe trên đường cao tốc, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi dừng, đỗ xe trên đường cao tốc, người lái xe phải xử lý thế nào?",
     explanation: "Chỉ dừng tại làn dừng khẩn cấp khi cần thiết",
     isCritical: true,
     classes: CAR,
@@ -937,7 +937,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi dừng, đỗ xe tại giao lộ trong phạm vi biển cấm dừng, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi dừng, đỗ xe tại giao lộ trong phạm vi biển cấm dừng, người lái xe phải xử lý thế nào?",
     explanation: "Không dừng, đỗ trong phạm vi biển",
     classes: CAR,
     answers: [
@@ -948,7 +948,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi dừng, đỗ xe trên dốc, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi dừng, đỗ xe trên dốc, người lái xe phải xử lý thế nào?",
     explanation: "Kéo phanh tay/chân, về số phù hợp để xe không trôi",
     classes: CAR,
     answers: [
@@ -959,7 +959,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "concepts",
-    stem: "Tại giao lộ có đèn đỏ, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Tại giao lộ có đèn đỏ, người lái xe phải xử lý thế nào?",
     explanation: "Dừng trước vạch dừng hoặc trước vị trí quy định",
     isCritical: true,
     classes: ALL,
@@ -971,7 +971,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "concepts",
-    stem: "Tại giao lộ có đèn vàng, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Tại giao lộ có đèn vàng, người lái xe phải xử lý thế nào?",
     explanation: "Dừng nếu còn dừng an toàn được",
     isCritical: true,
     classes: ALL,
@@ -983,7 +983,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "concepts",
-    stem: "Tại giao lộ có đèn xanh, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Tại giao lộ có đèn xanh, người lái xe phải xử lý thế nào?",
     explanation: "Đi khi đã nhường phần đường còn bị chiếm",
     classes: ALL,
     answers: [
@@ -994,7 +994,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "concepts",
-    stem: "Tại giao lộ có đèn xanh nhấp nháy, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Tại giao lộ có đèn xanh nhấp nháy, người lái xe phải xử lý thế nào?",
     explanation: "Đi thận trọng, nhường đường theo quy định tại điểm đó",
     classes: ALL,
     answers: [
@@ -1005,7 +1005,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "concepts",
-    stem: "Tại giao lộ có tín hiệu tay của CSGT, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Tại giao lộ có tín hiệu tay của CSGT, người lái xe phải xử lý thế nào?",
     explanation: "Thực hiện theo hiệu lệnh người điều khiển",
     classes: ALL,
     answers: [
@@ -1016,7 +1016,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "signs",
-    stem: "Gặp biển báo cấm vượt, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Gặp biển báo cấm vượt, người lái xe phải xử lý thế nào?",
     explanation: "Không được vượt xe trong phạm vi biển",
     classes: ALL,
     answers: [
@@ -1027,7 +1027,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "signs",
-    stem: "Gặp biển báo nguy hiểm giao nhau, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Gặp biển báo nguy hiểm giao nhau, người lái xe phải xử lý thế nào?",
     explanation: "Giảm tốc, quan sát, chú ý giao thông cắt ngang",
     classes: ALL,
     answers: [
@@ -1038,7 +1038,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "signs",
-    stem: "Gặp biển báo hiệu lệnh đi thẳng, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Gặp biển báo hiệu lệnh đi thẳng, người lái xe phải xử lý thế nào?",
     explanation: "Bắt buộc đi thẳng theo biển",
     classes: ALL,
     answers: [
@@ -1049,7 +1049,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "signs",
-    stem: "Gặp biển báo chỉ dẫn hướng đi, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Gặp biển báo chỉ dẫn hướng đi, người lái xe phải xử lý thế nào?",
     explanation: "Cung cấp thông tin hướng, không phải lệnh cấm",
     classes: ALL,
     answers: [
@@ -1060,7 +1060,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "signs",
-    stem: "Gặp biển báo cấm rẽ trái, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Gặp biển báo cấm rẽ trái, người lái xe phải xử lý thế nào?",
     explanation: "Không được rẽ trái trong phạm vi biển",
     classes: ALL,
     answers: [
@@ -1071,7 +1071,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "signs",
-    stem: "Khi gặp vạch liền màu vàng giữa đường hai chiều, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi gặp vạch liền màu vàng giữa đường hai chiều, người lái xe phải xử lý thế nào?",
     explanation: "Không vượt qua vạch theo quy định",
     classes: ALL,
     answers: [
@@ -1082,7 +1082,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "signs",
-    stem: "Khi gặp vạch đứt màu trắng, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi gặp vạch đứt màu trắng, người lái xe phải xử lý thế nào?",
     explanation: "Được chuyển hướng/vượt khi an toàn và đúng luật",
     classes: ALL,
     answers: [
@@ -1093,7 +1093,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "signs",
-    stem: "Khi gặp vạch sang đường người đi bộ, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi gặp vạch sang đường người đi bộ, người lái xe phải xử lý thế nào?",
     explanation: "Giảm tốc, nhường người đi bộ đang qua",
     isCritical: true,
     classes: ALL,
@@ -1105,7 +1105,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "signs",
-    stem: "Khi gặp làn đường dành cho xe buýt, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi gặp làn đường dành cho xe buýt, người lái xe phải xử lý thế nào?",
     explanation: "Không lấn làn xe buýt khi bị cấm",
     classes: ALL,
     answers: [
@@ -1116,7 +1116,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "signs",
-    stem: "Khi gặp vạch dừng tại biển Stop, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi gặp vạch dừng tại biển Stop, người lái xe phải xử lý thế nào?",
     explanation: "Dừng hẳn trước vạch/biển",
     classes: ALL,
     answers: [
@@ -1127,7 +1127,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Trên đường cao tốc, nhập làn tăng tốc, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Trên đường cao tốc, nhập làn tăng tốc, người lái xe phải xử lý thế nào?",
     explanation: "Tăng tốc phù hợp, quan sát và nhường xe trên cao tốc",
     classes: CAR,
     answers: [
@@ -1138,7 +1138,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Trên đường cao tốc, ra khỏi cao tốc, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Trên đường cao tốc, ra khỏi cao tốc, người lái xe phải xử lý thế nào?",
     explanation: "Xi-nhan sớm, giảm tốc dần trên làn giảm tốc",
     isCritical: true,
     classes: CAR,
@@ -1150,7 +1150,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Trên đường cao tốc, xe chạy chậm trên cao tốc, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Trên đường cao tốc, xe chạy chậm trên cao tốc, người lái xe phải xử lý thế nào?",
     explanation: "Đi làn phải, không chiếm làn nhanh",
     classes: CAR,
     answers: [
@@ -1161,7 +1161,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Trên đường cao tốc, gặp tai nạn trên cao tốc, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Trên đường cao tốc, gặp tai nạn trên cao tốc, người lái xe phải xử lý thế nào?",
     explanation: "Cảnh báo, gọi cứu hộ, không tụ tập gây cản trở",
     isCritical: true,
     classes: CAR,
@@ -1173,7 +1173,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Trên đường cao tốc, làn dừng khẩn cấp, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Trên đường cao tốc, làn dừng khẩn cấp, người lái xe phải xử lý thế nào?",
     explanation: "Chỉ dùng khi xe gặp sự cố cần dừng",
     classes: CAR,
     answers: [
@@ -1184,7 +1184,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "ethics",
-    stem: "Khi xử lý cứu nạn, sơ cứu ban đầu tại hiện trường, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi xử lý cứu nạn, sơ cứu ban đầu tại hiện trường, người lái xe phải xử lý thế nào?",
     explanation: "Gọi 115/113, không di chuyển nạn nhân bừa bãi nếu nghi chấn thương cột sống",
     isCritical: true,
     classes: ALL,
@@ -1196,7 +1196,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "ethics",
-    stem: "Khi xử lý cứu nạn, đặt tam giác cảnh báo, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi xử lý cứu nạn, đặt tam giác cảnh báo, người lái xe phải xử lý thế nào?",
     explanation: "Đặt cách xe đủ xa theo quy định để cảnh báo phía sau",
     classes: ALL,
     answers: [
@@ -1207,7 +1207,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "ethics",
-    stem: "Khi xử lý cứu nạn, bảo vệ hiện trường, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi xử lý cứu nạn, bảo vệ hiện trường, người lái xe phải xử lý thế nào?",
     explanation: "Giữ nguyên vị trí xe/dấu vết nếu có thể cho cơ quan chức năng",
     classes: ALL,
     answers: [
@@ -1218,7 +1218,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "ethics",
-    stem: "Khi xử lý cứu nạn, khi không thể cứu được, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi xử lý cứu nạn, khi không thể cứu được, người lái xe phải xử lý thế nào?",
     explanation: "Vẫn trình báo và hợp tác điều tra",
     isCritical: true,
     classes: ALL,
@@ -1230,7 +1230,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "ethics",
-    stem: "Về việc cầm điện thoại tay khi lái ô tô, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Về việc cầm điện thoại tay khi lái ô tô, người lái xe phải xử lý thế nào?",
     explanation: "Làm phân tán chú ý, vi phạm quy định và nguy hiểm",
     isCritical: true,
     classes: ALL,
@@ -1242,7 +1242,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "ethics",
-    stem: "Về việc nhắn tin khi lái, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Về việc nhắn tin khi lái, người lái xe phải xử lý thế nào?",
     explanation: "Rất nguy hiểm, bị cấm khi đang điều khiển",
     isCritical: true,
     classes: ALL,
@@ -1254,7 +1254,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "ethics",
-    stem: "Về việc tai nghe không dây, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Về việc tai nghe không dây, người lái xe phải xử lý thế nào?",
     explanation: "Vẫn có thể phân tán; ưu tiên dừng xe an toàn khi cần",
     classes: ALL,
     answers: [
@@ -1265,7 +1265,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "concepts",
-    stem: "Về GPLX: GPLX hết hạn dưới 1 tháng, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Về GPLX: GPLX hết hạn dưới 1 tháng, người lái xe phải xử lý thế nào?",
     explanation: "Không được lái; cần gia hạn/đổi trước khi điều khiển",
     isCritical: true,
     classes: ALL,
@@ -1277,7 +1277,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "concepts",
-    stem: "Về GPLX: lái xe không đúng hạng GPLX, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Về GPLX: lái xe không đúng hạng GPLX, người lái xe phải xử lý thế nào?",
     explanation: "Vi phạm quy định về GPLX",
     isCritical: true,
     classes: ALL,
@@ -1289,7 +1289,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "concepts",
-    stem: "Về GPLX: không mang GPLX khi lái, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Về GPLX: không mang GPLX khi lái, người lái xe phải xử lý thế nào?",
     explanation: "Vi phạm; phải xuất trình khi yêu cầu",
     classes: ALL,
     answers: [
@@ -1300,7 +1300,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Gặp xe cứu thương, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Gặp xe cứu thương, người lái xe phải xử lý thế nào?",
     explanation: "Nhường đường: giảm tốc, tránh hoặc dừng",
     isCritical: true,
     classes: ALL,
@@ -1312,7 +1312,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Gặp xe cảnh sát giao thông, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Gặp xe cảnh sát giao thông, người lái xe phải xử lý thế nào?",
     explanation: "Thực hiện hiệu lệnh, nhường đường khi có tín hiệu ưu tiên",
     isCritical: true,
     classes: ALL,
@@ -1324,7 +1324,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Gặp xe chữa cháy, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Gặp xe chữa cháy, người lái xe phải xử lý thế nào?",
     explanation: "Nhường đường kịp thời",
     isCritical: true,
     classes: ALL,
@@ -1336,7 +1336,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi trời mưa nhẹ, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi trời mưa nhẹ, người lái xe phải xử lý thế nào?",
     explanation: "Giảm tốc, bật đèn phù hợp, tăng khoảng cách",
     classes: ALL,
     answers: [
@@ -1347,7 +1347,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi trời mưa to đường trơn, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi trời mưa to đường trơn, người lái xe phải xử lý thế nào?",
     explanation: "Giảm tốc mạnh, tránh phanh/đánh lái gấp",
     classes: ALL,
     answers: [
@@ -1358,7 +1358,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "situations",
-    stem: "Khi trời ngập nước nhẹ, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi trời ngập nước nhẹ, người lái xe phải xử lý thế nào?",
     explanation: "Không cố đi qua nếu không chắc độ sâu",
     classes: ALL,
     answers: [
@@ -1369,7 +1369,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "technique",
-    stem: "Khi xuống dốc dài, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi xuống dốc dài, người lái xe phải xử lý thế nào?",
     explanation: "Dùng số thấp, phanh động cơ, tránh phanh nóng",
     classes: CAR,
     answers: [
@@ -1380,7 +1380,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "technique",
-    stem: "Khi lên dốc, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi lên dốc, người lái xe phải xử lý thế nào?",
     explanation: "Chọn số phù hợp, giữ đều ga",
     classes: CAR,
     answers: [
@@ -1391,7 +1391,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "technique",
-    stem: "Khi đường đèo quanh co, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi đường đèo quanh co, người lái xe phải xử lý thế nào?",
     explanation: "Giảm tốc, giữ làn, không vượt khi mất tầm nhìn",
     classes: CAR,
     answers: [
@@ -1402,7 +1402,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "technique",
-    stem: "Khi phanh gấp có ABS, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi phanh gấp có ABS, người lái xe phải xử lý thế nào?",
     explanation: "Giữ chặt phanh, vẫn có thể đánh lái tránh vật cản",
     classes: CAR,
     answers: [
@@ -1413,7 +1413,7 @@ const QUESTIONS: SeedQ[] = [
   },
   {
     topic: "technique",
-    stem: "Khi phanh trên đường trơn, người lái xe nên/ phải xử lý thế nào?",
+    stem: "Khi phanh trên đường trơn, người lái xe phải xử lý thế nào?",
     explanation: "Phanh êm, tăng khoảng cách, tránh đánh lái gấp",
     classes: CAR,
     answers: [

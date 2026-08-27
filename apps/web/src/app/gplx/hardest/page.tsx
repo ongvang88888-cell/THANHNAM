@@ -56,7 +56,7 @@ export default function GplxHardestPage() {
   return (
     <div className="gx-page">
       <GplxCrumb licenseClass={licenseClass} trail={[{ label: "Top câu hay sai" }]} />
-      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.03em", marginTop: 0 }}>
+      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "0", marginTop: 0 }}>
         Top câu hay sai
       </h1>
       <p className="muted">Ưu tiên ôn lại các câu bạn đã sai nhiều lần nhất.</p>

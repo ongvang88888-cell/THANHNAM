@@ -58,7 +58,7 @@ export default function GplxFixedSetsPage() {
   return (
     <div className="gx-page">
       <GplxCrumb licenseClass={licenseClass} trail={[{ label: "Bộ đề cố định" }]} />
-      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.03em", marginTop: 0 }}>
+      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "0", marginTop: 0 }}>
         Bộ đề cố định
       </h1>
       <p className="muted">
@@ -79,7 +79,7 @@ export default function GplxFixedSetsPage() {
           }}
         >
           <div>
-            <strong style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>
+            <strong style={{ fontFamily: "var(--font-display)", letterSpacing: "0" }}>
               {s.title}
             </strong>
             <span className="muted">

@@ -52,7 +52,7 @@ export default function GplxSignsPage() {
   return (
     <div className="gx-page">
       <GplxCrumb licenseClass={licenseClass} trail={[{ label: "Biển báo" }]} />
-      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.03em", marginTop: 0 }}>
+      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "0", marginTop: 0 }}>
         Thư viện biển báo
       </h1>
       <input
@@ -81,7 +81,7 @@ export default function GplxSignsPage() {
       {error && <p className="error">{error}</p>}
       {filtered.map((s) => (
         <div className="panel" key={s.id} style={{ marginBottom: 10 }}>
-          <strong style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>
+          <strong style={{ fontFamily: "var(--font-display)", letterSpacing: "0" }}>
             {s.code} — {s.name}
           </strong>
           <p className="muted" style={{ marginBottom: 0 }}>

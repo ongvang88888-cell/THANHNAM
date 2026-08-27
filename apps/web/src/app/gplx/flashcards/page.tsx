@@ -56,7 +56,7 @@ export default function GplxFlashcardsPage() {
   return (
     <div className="gx-page">
       <GplxCrumb licenseClass={licenseClass} trail={[{ label: "Flashcard" }]} />
-      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.03em", marginTop: 0 }}>
+      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "0", marginTop: 0 }}>
         Flashcard
       </h1>
       <p className="muted">Chạm để lật — ôn nhanh biển báo và câu hỏi.</p>
@@ -109,7 +109,7 @@ export default function GplxFlashcardsPage() {
                     lineHeight: 1.35,
                     fontWeight: 800,
                     margin: 0,
-                    letterSpacing: "-0.02em",
+                    letterSpacing: "0",
                     color: "var(--brand-deep)",
                   }}
                 >

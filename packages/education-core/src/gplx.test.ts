@@ -18,11 +18,24 @@ describe("getGplxExamRules", () => {
     expect(r.criticalFailEnabled).toBe(true);
   });
 
-  it("returns 2026 B1 rules (25/23, not same as B)", () => {
+  it("returns 2026 B1 rules (25/23/19m per TT 12/2025 phụ lục)", () => {
     const r = getGplxExamRules("B1");
     expect(r.questionCount).toBe(25);
     expect(r.passCorrectCount).toBe(23);
-    expect(r.durationSec).toBe(20 * 60);
+    expect(r.durationSec).toBe(19 * 60);
+  });
+
+  it("returns A1 pass threshold 21 and A threshold 23", () => {
+    expect(getGplxExamRules("A1").passCorrectCount).toBe(21);
+    expect(getGplxExamRules("A").passCorrectCount).toBe(23);
+    expect(getGplxExamRules("A1").durationSec).toBe(19 * 60);
+  });
+
+  it("returns D-class 45/41/26m", () => {
+    const r = getGplxExamRules("D");
+    expect(r.questionCount).toBe(45);
+    expect(r.passCorrectCount).toBe(41);
+    expect(r.durationSec).toBe(26 * 60);
   });
 
   it("supports C1", () => {

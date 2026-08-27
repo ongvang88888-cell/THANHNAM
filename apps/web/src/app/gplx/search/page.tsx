@@ -69,7 +69,7 @@ export default function GplxSearchPage() {
   return (
     <div className="gx-page">
       <GplxCrumb licenseClass={licenseClass} trail={[{ label: "Tìm câu hỏi" }]} />
-      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.03em", marginTop: 0 }}>
+      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "0", marginTop: 0 }}>
         Tìm câu hỏi
       </h1>
       <input

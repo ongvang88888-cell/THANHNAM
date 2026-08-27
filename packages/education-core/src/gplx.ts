@@ -53,7 +53,8 @@ export const GPLX_EXAM_RULES: Record<GplxLicenseClassCode, GplxExamRules> = {
     licenseClass: "B1",
     questionCount: 25,
     passCorrectCount: 23,
-    durationSec: 20 * 60,
+    /** Phụ lục TT 12/2025 — hạng B1: 19 phút, đạt ≥23/25, 1 câu liệt. */
+    durationSec: 19 * 60,
     criticalFailEnabled: true,
     bankSizeHint: 300,
   },

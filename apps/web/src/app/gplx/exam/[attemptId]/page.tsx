@@ -168,7 +168,7 @@ export default function GplxExamPage() {
               fontFamily: "var(--font-display)",
               fontSize: "clamp(2rem, 6vw, 3rem)",
               margin: "0 0 8px",
-              letterSpacing: "-0.03em",
+              letterSpacing: "0",
               color: result.passed ? "var(--ok)" : "var(--danger)",
               animation: "brandPop 0.7s var(--ease-out) both",
             }}
@@ -247,7 +247,7 @@ export default function GplxExamPage() {
           marginBottom: 12,
         }}
       >
-        <h1 style={{ fontFamily: "var(--font-display)", margin: 0, fontSize: "1.45rem", letterSpacing: "-0.02em" }}>
+        <h1 style={{ fontFamily: "var(--font-display)", margin: 0, fontSize: "1.45rem", letterSpacing: "0" }}>
           Hạng {live.licenseClass}
           {live.mode && live.mode !== "random" ? ` · ${live.mode}` : ""}
         </h1>

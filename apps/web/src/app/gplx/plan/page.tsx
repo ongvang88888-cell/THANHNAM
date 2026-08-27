@@ -31,7 +31,7 @@ function PlanInner() {
   return (
     <div className="gx-page">
       <GplxCrumb licenseClass={licenseClass} trail={[{ label: "Lộ trình" }]} />
-      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.03em", marginTop: 0 }}>
+      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "0", marginTop: 0 }}>
         Lộ trình 7 ngày
       </h1>
       <p className="muted">Kế hoạch ôn cấp tốc trước ngày sát hạch lý thuyết.</p>
@@ -42,7 +42,7 @@ function PlanInner() {
             style={{
               marginTop: 0,
               fontFamily: "var(--font-display)",
-              letterSpacing: "-0.02em",
+              letterSpacing: "0",
             }}
           >
             Ngày {d.day}: {d.title}

@@ -62,7 +62,7 @@ function CriticalInner() {
   return (
     <div className="gx-page">
       <GplxCrumb licenseClass={licenseClass} trail={[{ label: "Câu điểm liệt" }]} />
-      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.03em", marginTop: 0 }}>
+      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "0", marginTop: 0 }}>
         Câu điểm liệt
       </h1>
       <p className="muted">Sai một câu điểm liệt trong bài thi thử = không đạt.</p>

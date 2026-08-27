@@ -22,7 +22,7 @@ export default function GplxTipsPage() {
   return (
     <div className="gx-page">
       <GplxCrumb trail={[{ label: "Mẹo" }]} />
-      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.03em", marginTop: 0 }}>
+      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "0", marginTop: 0 }}>
         Mẹo ghi nhớ
       </h1>
       {error && <p className="error">{error}</p>}
@@ -32,7 +32,7 @@ export default function GplxTipsPage() {
             style={{
               marginTop: 0,
               fontFamily: "var(--font-display)",
-              letterSpacing: "-0.02em",
+              letterSpacing: "0",
             }}
           >
             {t.title}

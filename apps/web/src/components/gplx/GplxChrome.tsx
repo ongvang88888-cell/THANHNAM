@@ -34,7 +34,7 @@ export function GplxSection({
   return (
     <section className="panel" style={{ marginBottom: 20 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
-        <h2 style={{ margin: 0, fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>
+        <h2 style={{ margin: 0, fontFamily: "var(--font-display)", letterSpacing: "0" }}>
           {title}
         </h2>
         {action}

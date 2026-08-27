@@ -64,7 +64,7 @@ export default async function HomePage() {
         </p>
       )}
       <section id="catalog">
-        <h2 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>Catalog</h2>
+        <h2 style={{ fontFamily: "var(--font-display)", letterSpacing: "0" }}>Catalog</h2>
         {items.length === 0 && !error && <p className="muted">Chưa có sản phẩm công khai.</p>}
         <div className="grid">
           {items.map((p) => (

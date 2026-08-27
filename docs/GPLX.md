@@ -20,13 +20,13 @@ Feature set aligned with common store apps (GPLX Pro, ViGPLX, dtlx, Ôn thi 600 
 
 ## Exam rules (education-core) — chuẩn 2026
 
-Nguồn tham chiếu cấu trúc đề: Luật TTATGTĐB / thực tiễn sát hạch 2026 (CV 2262/CSGT-P5). Mỗi đề **1 câu điểm liệt**; sai liệt = không đạt.
+Nguồn tham chiếu cấu trúc đề: **Thông tư 12/2025/TT-BCA** (phụ lục quy trình sát hạch) + **CV 2262/CSGT-P5** (cấu trúc bộ đề 600 câu, 5/2025). Mỗi đề **1 câu điểm liệt**; sai liệt = không đạt.
 
 | Hạng | Câu/đề | Thời gian | Đạt |
 |------|--------|-----------|-----|
 | A1 | 25 | 19 phút | ≥21 |
 | A | 25 | 19 phút | ≥23 |
-| B1 | 25 | 20 phút | ≥23 |
+| B1 | 25 | 19 phút | ≥23 |
 | B | 30 | 20 phút | ≥27 |
 | C1 | 35 | 22 phút | ≥32 |
 | C | 40 | 24 phút | ≥36 |
@@ -69,10 +69,6 @@ All routes require auth (`X-App-Id` + Bearer).
 - Entitlement SoR: `resourceType=product`, `resourceId=<gplx-pro id>`
 - Free: unlimited study; **2 mock exams / calendar day** (all modes count)
 - Pro: unlimited mocks (checkout via existing commerce)
-
-## Content note
-
-Seed ships a **demo bank** of original sample items + demo fixed sets for development. Replace with a licensed/official bank before production store listing. Do not scrape copyrighted 600-question sets.
 
 ## Module flag
 
