@@ -38,8 +38,10 @@ export class RadarService {
     }
     const draft = draftCluster(parsed.productTitle, parsed.nicheSlug);
     const cluster = await this.resolveCluster(draft.title, draft.slug, draft.nicheSlug);
+    const startMs = Date.parse(`${parsed.ad.startDate}T00:00:00.000Z`);
+    const observedMs = Number.isFinite(startMs) ? Math.min(nowMs, startMs) : nowMs;
     const existingPage = await this.repo.getPage(this.appId, parsed.ad.pageId);
-    const pageFirstSeen = existingPage?.firstSeenMs ?? nowMs;
+    const pageFirstSeen = existingPage?.firstSeenMs ?? observedMs;
     await this.repo.upsertPage(this.appId, {
       pageId: parsed.ad.pageId,
       pageName: parsed.ad.pageName,
@@ -65,7 +67,7 @@ export class RadarService {
       landingUrl: parsed.ad.landingUrl,
       snapshotUrl: parsed.sourceUrl,
       creativeHash: hash,
-      firstSeenMs: existingAd?.firstSeenMs ?? nowMs,
+      firstSeenMs: existingAd?.firstSeenMs ?? observedMs,
       lastSeenMs: nowMs,
       clusterSlug: cluster.slug,
     });

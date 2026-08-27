@@ -69,6 +69,12 @@ describe("RadarService", () => {
     expect(rankings[0]?.scores.heat).toBeGreaterThanOrEqual(rankings[1]?.scores.heat ?? 0);
   });
 
+  it("does not treat backfilled long-running pages as new", async () => {
+    const service = await seededService();
+    const alerts = await service.listAlerts();
+    expect(alerts.some((a) => a.pageId === "900021" && a.type === "NEW_PAGE")).toBe(false);
+  });
+
   it("emits new-page alert for a fresh advertiser", async () => {
     const service = await seededService();
     const alerts = await service.listAlerts();

@@ -6,6 +6,7 @@ import {
   OwnAdsMarketingApiProvider,
 } from "@/adapters/marketing-api-provider";
 import { UnauthorizedError } from "@/domain/authz";
+import { marketingAccountId } from "@/domain/env";
 import { allowRequest } from "@/server/rate-limit";
 import { expectedCollectKey, getRadarService } from "@/server/radar";
 
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Rate limited" }, { status: 429 });
   }
   const token = process.env.META_ACCESS_TOKEN;
-  const accountId = process.env.META_AD_ACCOUNT_ID ?? "act_demo";
+  const accountId = marketingAccountId(process.env.META_AD_ACCOUNT_ID);
   const provider = token
     ? new OwnAdsMarketingApiProvider(token, new GraphMarketingHttp())
     : new OwnAdsMarketingApiProvider("fixture", new FixtureMarketingHttp(FIXTURE_GRAPH_INSIGHTS));

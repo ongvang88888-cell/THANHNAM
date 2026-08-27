@@ -1,4 +1,5 @@
 import { PrismaClient } from "../src/generated/prisma";
+import { resolveDatabaseUrl } from "../src/server/prisma";
 import { PrismaRadarRepository } from "../src/adapters/prisma-repository";
 import {
   FixtureMarketingHttp,
@@ -10,6 +11,7 @@ import { LOCKED_NICHES } from "../src/domain/niches";
 import { DEMO_NOW_MS, V0_SAMPLE_ADS } from "../src/fixtures/v0-sample";
 
 async function main(): Promise<void> {
+  resolveDatabaseUrl();
   const prisma = new PrismaClient();
   const appId = process.env.FMR_APP_ID ?? DEFAULT_APP_ID;
 
