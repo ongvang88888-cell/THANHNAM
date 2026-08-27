@@ -32,9 +32,18 @@ type CatalogTool = {
   note: string | null;
 };
 
+type CharacterView = {
+  name: string;
+  look: CharacterLook;
+  ready: boolean;
+  gap: string;
+  autoReplace: boolean;
+};
+
 type Catalog = {
   enabled: boolean;
   ownershipDisclaimer?: string;
+  character?: CharacterView;
   capabilities: {
     ffmpeg: boolean;
     speech: boolean;
@@ -325,9 +334,15 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
       )}
       <p className="muted">
         {props.variant === "advanced"
-          ? "Chỉ dùng khi muốn chạy từng công cụ riêng. Luồng tải video đã tự chỉnh và gắn vào bài."
-          : "Gói A+C: làm nét + lọc tiếng, cắt im lặng, rồi tô đậm người giữa khung trên máy. Giữ slide và tiếng gốc. Không đổi tóc/áo như video AI 3D trên YouTube. Công cụ bên dưới để đổi vùng/độ đậm."}
+          ? "Chỉ dùng khi muốn chạy từng công cụ riêng. Luồng tải video đã tự chỉnh và gắn vào bài. Nhân vật dùng chung nằm ở tab Tải video / AI."
+          : "Gói A+C: làm nét + lọc tiếng, cắt im lặng. Nếu đã lưu nhân vật và có khóa HeyGen/Hailuo thì tự che người gốc; không thì tô đậm người giữa khung trên máy. Giữ slide và tiếng gốc."}
       </p>
+      {catalog.character ? (
+        <p className={catalog.character.ready ? "toast" : "muted"}>
+          Nhân vật dùng chung: <strong>{catalog.character.name}</strong> — {catalog.character.gap}{" "}
+          <a href="/teacher?tab=upload">Sửa hồ sơ</a>
+        </p>
+      ) : null}
       <p className="ai-edit-legal muted">
         {catalog.ownershipDisclaimer ??
           "Chỉ dùng video bạn sở hữu. Đổi phong cách hay giảm nhạc nền không xóa bản quyền nội dung người khác."}

@@ -16,6 +16,7 @@ describe("AI edit progress steps", () => {
       "enhance",
       "trim",
       "toon",
+      "character",
       "extras",
       "apply",
       "done",
@@ -35,6 +36,11 @@ describe("AI edit progress steps", () => {
       progress: 68,
       step: "toon",
       stepLabel: "Đang tô đậm người thành hoạt hình",
+    });
+    expect(progressFields("character")).toEqual({
+      progress: 74,
+      step: "character",
+      stepLabel: "Đang thay người bằng nhân vật AI",
     });
     expect(progressFields("extras")).toEqual({
       progress: 82,

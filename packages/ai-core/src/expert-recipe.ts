@@ -32,6 +32,7 @@ export interface RecipeTechnique {
 export interface RecipeOutcome {
   trimApplied?: boolean;
   toonApplied?: boolean;
+  characterReplace?: false | "heygen" | "minimax";
   captionsMode?: "whisper" | "heuristic" | "failed";
   copyMode?: "llm" | "heuristic" | "failed";
   thumbApplied?: boolean;
@@ -57,7 +58,11 @@ export function describeRecipe(caps: Pick<AiCapabilities, "speech" | "imageGen" 
   const copyStatus: RecipeTechniqueStatus =
     outcome.copyMode === "failed" ? "skipped" : caps.llm && outcome.copyMode !== "heuristic" ? "applied" : "skipped";
   const trimStatus: RecipeTechniqueStatus = outcome.trimApplied === false ? "skipped" : "applied";
-  const toonStatus: RecipeTechniqueStatus = outcome.toonApplied === false ? "skipped" : "applied";
+  const replaced = outcome.characterReplace === "heygen" || outcome.characterReplace === "minimax";
+  const toonStatus: RecipeTechniqueStatus =
+    replaced || outcome.toonApplied === false ? "skipped" : "applied";
+  const avatarStatus: RecipeTechniqueStatus = outcome.characterReplace === "heygen" ? "applied" : "skipped";
+  const hailuoStatus: RecipeTechniqueStatus = outcome.characterReplace === "minimax" ? "applied" : "skipped";
   const thumbStatus: RecipeTechniqueStatus = outcome.thumbApplied === false ? "skipped" : "applied";
 
   return {
@@ -119,22 +124,30 @@ export function describeRecipe(caps: Pick<AiCapabilities, "speech" | "imageGen" 
         label: "Tô đậm người thành hoạt hình (trên máy)",
         note:
           toonStatus === "skipped"
-            ? "ffmpeg không tô được — giữ bản làm nét, slide và tiếng gốc."
+            ? replaced
+              ? "Đã che người bằng nhân vật AI — không tô người thật."
+              : "ffmpeg không tô được — giữ bản làm nét, slide và tiếng gốc."
             : "Tô đậm người giữa khung trên máy. Không đổi tóc/áo hay sinh nhân vật 3D kiểu Kling/Dreamina.",
       },
       {
         id: "avatar_presenter",
-        source: "HeyGen Photo to Video / Avatar IV",
-        status: "skipped",
+        source: "HeyGen Instant Avatar / v3 Photo + prompt",
+        status: avatarStatus,
         label: "Người dẫn ảo thay người trong bài",
-        note: "Không mặc định. Studio thủ công — HeyGen talking photo che người gốc, cần khóa và xác nhận người ảo.",
+        note:
+          avatarStatus === "applied"
+            ? "Học từ HeyGen Instant Avatar / v3: tạo một lần, tái dùng avatar_id. Clip ngắn lặp, giữ tiếng gốc. Không phải face-swap."
+            : "Tự chạy khi đã lưu nhân vật + HEYGEN_API_KEY. Không thì studio thủ công.",
       },
       {
         id: "hailuo_character",
         source: "Hailuo / MiniMax H3",
-        status: "skipped",
+        status: hailuoStatus,
         label: "Nhân vật 3D Hailuo thay người trong bài",
-        note: "Không mặc định. Cần MINIMAX_API_KEY. Che người gốc bằng clip Hailuo; ffmpeg không sinh nhân vật 3D.",
+        note:
+          hailuoStatus === "applied"
+            ? "Cùng một ảnh + mô tả khóa mặt. Clip ngắn lặp, miệng không khớp cả bài."
+            : "Tự chạy nếu chưa có HeyGen nhưng có MINIMAX_API_KEY và cùng một ảnh. ffmpeg không sinh nhân vật 3D.",
       },
       {
         id: "veo_intro",

@@ -23,15 +23,18 @@ export {
   type TargetLanguageId,
 } from "./languages";
 export {
+  HEYGEN_CREATE_AVATAR_URL,
   HEYGEN_GENERATE_URL,
   HEYGEN_STATUS_URL,
   HEYGEN_TRANSLATE_URL,
   HEYGEN_UPLOAD_PHOTO_URL,
   buildHeygenAvatarBody,
+  buildHeygenCreateAvatarBody,
   buildHeygenTranslateBody,
   heygenApiKey,
   heygenHeaders,
   isAllowedHeygenMediaUrl,
+  parseHeygenAvatarCreate,
   parseHeygenStatus,
   parseHeygenTalkingPhotoId,
   parseHeygenVideoId,
@@ -84,6 +87,25 @@ export {
   type InsertMode,
   type InsertPipRegion,
 } from "./character";
+export {
+  CHARACTER_BIBLE_MAX,
+  CHARACTER_NAME_MAX,
+  asCharacterLook,
+  characterReadyForAutoReplace,
+  defaultCharacterBible,
+  describeCharacterGap,
+  emptyPresenterCharacter,
+  isReusablePresenterId,
+  lockedHailuoMotionPrompt,
+  parsePresenterCharacterInput,
+  presentPresenterCharacter,
+  presenterGreeting,
+} from "./character-identity";
+export type {
+  PresenterCharacterInput,
+  PresenterCharacterView,
+  PresenterIdentity,
+} from "./character-identity";
 export {
   TTS_CHUNK_MAX,
   atempoForFit,

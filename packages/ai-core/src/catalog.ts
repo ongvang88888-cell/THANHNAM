@@ -54,7 +54,7 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
     group: "image",
     label: "A+C — bài của tôi",
     description:
-      "Công thức lecture_expert_v1: làm nét nhẹ + lọc tiếng giảng, cắt im lặng, tô đậm người giữa khung trên máy, ảnh bìa và phụ đề. Giữ slide hai bên và tiếng gốc. Không sinh nhân vật 3D kiểu Kling/Dreamina. Chỉ video bạn sở hữu.",
+      "Công thức lecture_expert_v1: làm nét nhẹ + lọc tiếng giảng, cắt im lặng. Nếu đã lưu nhân vật (ảnh/mô tả + xác nhận) và có HEYGEN_API_KEY hoặc MINIMAX_API_KEY thì tự che người gốc bằng nhân vật đó; không thì tô đậm người giữa khung trên máy. Ảnh bìa và phụ đề. Giữ slide hai bên và tiếng gốc. Không sinh nhân vật 3D kiểu Kling/Dreamina. Chỉ video bạn sở hữu.",
     market: "Descript Studio Sound + Premiere Enhance Speech / Auto Color",
     outputKind: "video",
     needs: ["ffmpeg"],
@@ -176,7 +176,7 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
     group: "image",
     label: "Người dẫn ảo (avatar)",
     description:
-      "Dựng người dẫn ảo (HeyGen Photo Avatar / avatar sẵn) rồi che người trong video gốc (khung giữa), lặp clip ngắn, giữ slide ngoài khung và tiếng bài. Chọn ghép góc nếu chỉ muốn PIP. Có ảnh https thì dùng talking photo. Không chạy tự động. Cần xác nhận người ảo / ảnh hợp lệ.",
+      "Dựng người dẫn ảo (HeyGen Instant Avatar / v3 photo hoặc prompt, tái dùng avatar_id) rồi che người trong video gốc (khung giữa), lặp clip ngắn, giữ slide ngoài khung và tiếng bài. Tự chạy khi đã lưu nhân vật chung. Studio vẫn chạy tay. Cần xác nhận người ảo / ảnh hợp lệ.",
     market: "HeyGen Photo to Video / Avatar IV",
     outputKind: "video",
     needs: ["ffmpeg"],
@@ -187,7 +187,7 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
     group: "image",
     label: "Nhân vật 3D Hailuo (MiniMax)",
     description:
-      "Ảnh tĩnh (Leonardo/Ideogram/ChatGPT hoặc ảnh bạn dán) → MiniMax Hailuo chuyển động → che người trong video gốc, lặp clip, giữ tiếng bài. Môi kém hơn HeyGen. Có TTS thì ghép giọng Việt. Cần MINIMAX_API_KEY. Không chạy tự động.",
+      "Ảnh tĩnh (cùng một ảnh cho mọi bài) → MiniMax Hailuo chuyển động → che người trong video gốc, lặp clip, giữ tiếng bài. Môi kém hơn HeyGen. Tự chạy nếu chưa có HeyGen nhưng đã lưu nhân vật + MINIMAX_API_KEY. Studio vẫn chạy tay.",
     market: "Hailuo / MiniMax H3 image-to-video + Vbee/Gemini TTS",
     outputKind: "video",
     needs: ["ffmpeg"],

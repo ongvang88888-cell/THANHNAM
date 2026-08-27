@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildHeygenAvatarBody,
+  buildHeygenCreateAvatarBody,
   buildHeygenTranslateBody,
   isAllowedHeygenMediaUrl,
+  parseHeygenAvatarCreate,
   parseHeygenStatus,
   parseHeygenTalkingPhotoId,
   parseHeygenVideoId,
@@ -28,6 +30,67 @@ describe("heygen", () => {
     });
     expect(photo.video_inputs[0]?.character).toEqual({ type: "talking_photo", talking_photo_id: "tp_1" });
     expect(parseHeygenTalkingPhotoId({ data: { talking_photo_id: "tp_9" } })).toBe("tp_9");
+    const look = buildHeygenAvatarBody({
+      script: "Xin chào lớp.",
+      title: "Bài 1",
+      avatarId: "look_abc1",
+    });
+    expect(look.video_inputs[0]?.character).toEqual({
+      type: "avatar",
+      avatar_id: "look_abc1",
+      avatar_style: "normal",
+    });
+    const preferPhoto = buildHeygenAvatarBody({
+      script: "Xin chào lớp.",
+      title: "Bài 1",
+      talkingPhotoId: "tp_1",
+      avatarId: "look_abc1",
+    });
+    expect(preferPhoto.video_inputs[0]?.character.type).toBe("talking_photo");
+  });
+
+  it("builds HeyGen v3 create-avatar bodies", () => {
+    expect(
+      buildHeygenCreateAvatarBody({
+        type: "photo",
+        name: "Cô Minh",
+        stillUrl: "https://cdn.example/face.png",
+      }),
+    ).toEqual({
+      type: "photo",
+      name: "Cô Minh",
+      file: { type: "url", url: "https://cdn.example/face.png" },
+    });
+    const prompt = buildHeygenCreateAvatarBody({
+      type: "prompt",
+      name: "Cô Minh",
+      prompt: "Same photoreal teacher in a red ao dai.",
+      avatarId: "look_abc1",
+    });
+    expect(prompt.type).toBe("prompt");
+    if (prompt.type === "prompt") {
+      expect(prompt.avatar_id).toBe("look_abc1");
+      expect(prompt.prompt).toMatch(/red ao dai/);
+    }
+    expect(() => buildHeygenCreateAvatarBody({ type: "photo", name: "X" })).toThrow(/https/);
+  });
+
+  it("parses HeyGen v3 avatar_item.id from several envelopes", () => {
+    expect(
+      parseHeygenAvatarCreate({
+        data: {
+          avatar_item: { id: "look_abc1", default_voice_id: "voice_1" },
+          avatar_group: { id: "group_xyz1" },
+        },
+      }),
+    ).toEqual({
+      avatarId: "look_abc1",
+      groupId: "group_xyz1",
+      voiceId: "voice_1",
+      status: null,
+    });
+    expect(parseHeygenAvatarCreate({ avatar_id: "look_def2" }).avatarId).toBe("look_def2");
+    expect(() => parseHeygenAvatarCreate({})).toThrow(/avatar_item.id/);
   });
 
   it("translate body requires https source", () => {

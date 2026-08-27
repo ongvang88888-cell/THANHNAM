@@ -4,6 +4,7 @@ import {
   type CharacterLook,
   type InsertMode,
 } from "./character";
+import { isReusablePresenterId } from "./character-identity";
 import { isLectureExpertRecipeId } from "./expert-recipe";
 import { isTargetLanguageId, type TargetLanguageId } from "./languages";
 import { parsePublicHttpsUrl } from "./remote-media";
@@ -38,6 +39,8 @@ export interface AiEditOptions {
   characterImageUrl?: string;
   insertMode?: InsertMode;
   characterLook?: CharacterLook;
+  heygenAvatarId?: string;
+  heygenTalkingPhotoId?: string;
 }
 
 const ALLOWED = new Set([
@@ -62,6 +65,8 @@ const ALLOWED = new Set([
   "characterImageUrl",
   "insertMode",
   "characterLook",
+  "heygenAvatarId",
+  "heygenTalkingPhotoId",
 ]);
 
 const MAX_CLOCK_MS = 36_000_000;
@@ -234,6 +239,18 @@ export function parseAiEditOptions(input: unknown): AiEditOptions {
       throw new Error("characterLook phải là teacher, cartoon_kid hoặc custom");
     }
     out.characterLook = rec.characterLook;
+  }
+  if (rec.heygenAvatarId !== undefined) {
+    if (typeof rec.heygenAvatarId !== "string" || !isReusablePresenterId(rec.heygenAvatarId)) {
+      throw new Error("heygenAvatarId không hợp lệ");
+    }
+    out.heygenAvatarId = rec.heygenAvatarId.trim();
+  }
+  if (rec.heygenTalkingPhotoId !== undefined) {
+    if (typeof rec.heygenTalkingPhotoId !== "string" || !isReusablePresenterId(rec.heygenTalkingPhotoId)) {
+      throw new Error("heygenTalkingPhotoId không hợp lệ");
+    }
+    out.heygenTalkingPhotoId = rec.heygenTalkingPhotoId.trim();
   }
   return out;
 }

@@ -56,6 +56,13 @@ describe("lecture_expert_v1 recipe", () => {
     expect(recipe.techniques.find((row) => row.id === "veo_intro")?.status).toBe("skipped");
   });
 
+  it("marks HeyGen replace applied and skips toon", () => {
+    const recipe = describeRecipe({ speech: false, imageGen: false, llm: false }, { characterReplace: "heygen" });
+    expect(recipe.techniques.find((row) => row.id === "toon_restyle")?.status).toBe("skipped");
+    expect(recipe.techniques.find((row) => row.id === "avatar_presenter")?.status).toBe("applied");
+    expect(recipe.techniques.find((row) => row.id === "hailuo_character")?.status).toBe("skipped");
+  });
+
   it("marks toon skipped when the encode failed", () => {
     const recipe = describeRecipe({ speech: false, imageGen: false, llm: false }, { toonApplied: false });
     expect(recipe.techniques.find((row) => row.id === "toon_restyle")?.status).toBe("skipped");

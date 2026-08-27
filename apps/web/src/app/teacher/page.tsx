@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AutoVideoPublish } from "@/components/AutoVideoPublish";
+import { CharacterIdentityPanel } from "@/components/CharacterIdentityPanel";
 import { FileDrop } from "@/components/FileDrop";
 import { VideoInbox } from "@/components/VideoInbox";
 import { LazyVideoAiEditPanel } from "@/components/VideoAiEditPanel";
@@ -394,6 +395,7 @@ export default function TeacherPage() {
 
       {tab === "upload" && (
         <>
+        {token ? <CharacterIdentityPanel token={token} /> : null}
         <div className="panel" style={{ maxWidth: 860 }}>
           <h2>Tải video vào bài</h2>
           <p className="muted">

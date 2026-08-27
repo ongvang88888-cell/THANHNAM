@@ -107,6 +107,16 @@ describe("parseAiEditOptions", () => {
     expect(() => parseAiEditOptions({ insertMode: "side" })).toThrow(/insertMode/);
     expect(parseAiEditOptions({ insertMode: "standalone" })).toEqual({ insertMode: "standalone" });
     expect(parseAiEditOptions({ insertMode: "replace" })).toEqual({ insertMode: "replace" });
+    expect(
+      parseAiEditOptions({
+        heygenAvatarId: "look_abc1",
+        heygenTalkingPhotoId: "tp_99",
+      }),
+    ).toEqual({
+      heygenAvatarId: "look_abc1",
+      heygenTalkingPhotoId: "tp_99",
+    });
+    expect(() => parseAiEditOptions({ heygenAvatarId: "x" })).toThrow(/heygenAvatarId/);
     expect(() => assertStudioConsent("video_translate", { confirmOwned: true })).toThrow(/targetLanguage/);
     expect(() => assertStudioConsent("toon_talking_head", { confirmOwned: true })).toThrow(/confirmFaceEdit/);
     expect(() =>

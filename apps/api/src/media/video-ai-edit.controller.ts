@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Inject, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Param, Post, Put, UseGuards } from "@nestjs/common";
 import { SkipThrottle, Throttle } from "@nestjs/throttler";
-import { IsNumber, IsObject, IsOptional, IsString, Min } from "class-validator";
+import { IsBoolean, IsNumber, IsObject, IsOptional, IsString, Min } from "class-validator";
 import { AuthGuard, CurrentUser, type RequestUser } from "../auth/auth.guard";
 import { VideoAiEditService } from "./video-ai-edit.service";
 
@@ -41,6 +41,32 @@ class AssignVideoDto {
   courseId?: string;
 }
 
+class SavePresenterCharacterDto {
+  @IsString()
+  name!: string;
+
+  @IsString()
+  look!: string;
+
+  @IsOptional()
+  @IsString()
+  bible?: string;
+
+  @IsOptional()
+  @IsString()
+  stillUrl?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  autoReplace?: boolean;
+
+  @IsBoolean()
+  confirmOwned!: boolean;
+
+  @IsBoolean()
+  confirmLikeness!: boolean;
+}
+
 class QuickAdjustDto {
   @IsOptional()
   @IsNumber()
@@ -67,6 +93,18 @@ export class VideoAiEditController {
   @SkipThrottle()
   library(@CurrentUser() user: RequestUser) {
     return this.edits.listLibrary(user);
+  }
+
+  @Get("videos/character")
+  @SkipThrottle()
+  getCharacter(@CurrentUser() user: RequestUser) {
+    return this.edits.getPresenterCharacter(user);
+  }
+
+  @Put("videos/character")
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  saveCharacter(@CurrentUser() user: RequestUser, @Body() dto: SavePresenterCharacterDto) {
+    return this.edits.savePresenterCharacter(user, dto);
   }
 
   @Get("videos/:id/ai/catalog")

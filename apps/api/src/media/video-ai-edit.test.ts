@@ -88,6 +88,8 @@ describe("video AI edit contract", () => {
     expect(progressFields("enhance").progress).toBe(36);
     expect(isAiEditStepId("toon")).toBe(true);
     expect(progressFields("toon").progress).toBe(68);
+    expect(isAiEditStepId("character")).toBe(true);
+    expect(progressFields("character").progress).toBe(74);
     const recipe = describeRecipe({ speech: false, imageGen: false, llm: false });
     expect(recipe.recipeId).toBe("lecture_expert_v1");
     expect(recipe.techniques.some((row) => row.id === "toon_restyle" && row.status === "applied")).toBe(true);

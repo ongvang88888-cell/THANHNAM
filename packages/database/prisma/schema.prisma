@@ -245,9 +245,34 @@ model User {
   courseAnnouncements CourseAnnouncement[] @relation("AnnouncementAuthor")
   authTokens         AuthToken[]
   invoices           Invoice[]
+  presenterCharacter PresenterCharacter?
 
   @@unique([appId, email])
   @@index([appId, status])
+}
+
+model PresenterCharacter {
+  id                   String   @id @default(cuid())
+  appId                String
+  userId               String   @unique
+  name                 String
+  look                 String   @default("teacher")
+  bible                String   @default("")
+  stillUrl             String?
+  heygenAvatarId       String?
+  heygenTalkingPhotoId String?
+  heygenGroupId        String?
+  heygenVoiceId        String?
+  autoReplace          Boolean  @default(true)
+  confirmOwned         Boolean  @default(false)
+  confirmLikeness      Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([appId, userId])
+  @@index([userId])
 }
 
 model AuthToken {
