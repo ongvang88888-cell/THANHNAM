@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { NicheDef } from "@/domain/niches";
+import { NICHE_GROUPS, type NicheDef } from "@/domain/niches";
 
 export function CollectForm({
   niches,
@@ -26,7 +26,7 @@ export function CollectForm({
       try {
         snapshot = JSON.parse(snapshotRaw) as unknown;
       } catch {
-        setError("Snapshot JSON không hợp lệ");
+        setError("JSON snapshot không hợp lệ");
         setPending(false);
         return;
       }
@@ -43,6 +43,7 @@ export function CollectForm({
       startDate: String(form.get("startDate") ?? "").trim() || undefined,
       nicheSlug: String(form.get("nicheSlug") ?? "").trim() || undefined,
       landingUrl: String(form.get("landingUrl") ?? "").trim() || undefined,
+      imageUrl: String(form.get("imageUrl") ?? "").trim() || undefined,
       body: String(form.get("body") ?? "").trim() || undefined,
       shopeeSold: shopee ? Number(shopee) : undefined,
       tiktokSold: tiktok ? Number(tiktok) : undefined,
@@ -59,25 +60,25 @@ export function CollectForm({
       setError(json.error ?? "Không lưu được");
       return;
     }
-    setMessage(`Đã lưu ${json.libraryId} → cụm ${json.clusterSlug}`);
+    setMessage(`Đã lưu ${json.libraryId} → sản phẩm ${json.clusterSlug}`);
   }
 
   return (
     <form className="stack" onSubmit={(e) => void onSubmit(e)}>
       <label>
-        URL Ad Library
+        Đường dẫn Thư viện quảng cáo
         <input name="sourceUrl" defaultValue={defaultUrl} placeholder="https://www.facebook.com/ads/library/?id=..." />
       </label>
       <label>
-        libraryId
-        <input name="libraryId" placeholder="Lấy từ ?id= nếu URL chưa có" />
+        Mã thư viện
+        <input name="libraryId" placeholder="Lấy từ ?id= nếu đường dẫn chưa có" />
       </label>
       <label>
-        pageId
-        <input name="pageId" required={false} />
+        Mã trang
+        <input name="pageId" />
       </label>
       <label>
-        Tên page
+        Tên trang
         <input name="pageName" />
       </label>
       <label>
@@ -85,25 +86,36 @@ export function CollectForm({
         <input name="productTitle" />
       </label>
       <label>
+        Ảnh sản phẩm (http/https hoặc để trống để tự tạo)
+        <input name="imageUrl" placeholder="https://… hoặc để trống" />
+      </label>
+      <label>
         Ngày bắt đầu chạy (YYYY-MM-DD)
         <input name="startDate" placeholder="2026-08-01" />
       </label>
       <label>
-        Ngách
-        <select name="nicheSlug" defaultValue="gadget">
-          {niches.map((n) => (
-            <option key={n.slug} value={n.slug}>
-              {n.nameVi}
-            </option>
+        Ngành hàng
+        <select name="nicheSlug" defaultValue="">
+          <option value="">Tự nhận diện từ tên sản phẩm</option>
+          {NICHE_GROUPS.map((group) => (
+            <optgroup key={group} label={group}>
+              {niches
+                .filter((n) => n.group === group)
+                .map((n) => (
+                  <option key={n.slug} value={n.slug}>
+                    {n.nameVi}
+                  </option>
+                ))}
+            </optgroup>
           ))}
         </select>
       </label>
       <label>
-        Landing URL (không bắt buộc)
+        Đường dẫn đích (không bắt buộc)
         <input name="landingUrl" />
       </label>
       <label>
-        Copy ads (không bắt buộc)
+        Nội dung quảng cáo (không bắt buộc)
         <textarea name="body" rows={3} />
       </label>
       <label>
@@ -116,10 +128,14 @@ export function CollectForm({
       </label>
       <label>
         Snapshot JSON (copy tay)
-        <textarea name="snapshot" rows={5} placeholder='{"libraryId":"...","pageId":"...","pageName":"...","startDate":"2026-08-01"}' />
+        <textarea
+          name="snapshot"
+          rows={5}
+          placeholder='{"libraryId":"...","pageId":"...","pageName":"...","startDate":"2026-08-01"}'
+        />
       </label>
       <button type="submit" disabled={pending}>
-        {pending ? "Đang lưu…" : "Lưu ads"}
+        {pending ? "Đang lưu…" : "Lưu quảng cáo"}
       </button>
       {error ? <p className="err">{error}</p> : null}
       {message ? <p className="ok">{message}</p> : null}

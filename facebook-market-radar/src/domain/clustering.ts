@@ -1,31 +1,10 @@
+import { isLockedNiche, LOCKED_NICHES } from "./niches";
+
 export type ClusterDraft = {
   slug: string;
   title: string;
   nicheSlug: string;
 };
-
-const NICHE_KEYWORDS: ReadonlyArray<{ slug: string; keywords: readonly string[] }> = [
-  {
-    slug: "my-pham",
-    keywords: ["serum", "niacinamide", "retinol", "kem chống nắng", "dầu gội", "skincare", "dưỡng"],
-  },
-  {
-    slug: "me-be",
-    keywords: ["bỉm", "sữa công thức", "hút sữa", "ăn dặm", "xe đẩy", "em bé", "mẹ"],
-  },
-  {
-    slug: "gadget",
-    keywords: ["đèn", "led", "kệ", "tai nghe", "ổ cắm", "hút bụi", "wifi"],
-  },
-  {
-    slug: "tpcn",
-    keywords: ["collagen", "vitamin", "omega", "glutathione", "viên uống", "giảm cân"],
-  },
-  {
-    slug: "khoa-hoc",
-    keywords: ["khóa", "excel", "tiếng anh", "figma", "ôn thi", "digital"],
-  },
-];
 
 export function normalizeTitle(title: string): string {
   return title
@@ -65,13 +44,16 @@ export function jaccard(a: Set<string>, b: Set<string>): number {
 }
 
 export function guessNiche(title: string, hint: string | null): string {
-  if (hint && NICHE_KEYWORDS.some((n) => n.slug === hint)) {
+  if (hint && isLockedNiche(hint)) {
     return hint;
   }
   const hay = normalizeTitle(title);
-  let best = "gadget";
+  let best = "khac";
   let bestHits = 0;
-  for (const niche of NICHE_KEYWORDS) {
+  for (const niche of LOCKED_NICHES) {
+    if (niche.slug === "khac" || niche.keywords.length === 0) {
+      continue;
+    }
     const hits = niche.keywords.filter((kw) => hay.includes(kw)).length;
     if (hits > bestHits) {
       bestHits = hits;

@@ -2,7 +2,9 @@ import { detectAlerts, creativeHash, type AlertDraft } from "../domain/alerts";
 import { assertCollectAuthorized } from "../domain/authz";
 import { draftCluster, shouldMergeClusters } from "../domain/clustering";
 import { validateCollectManual, type CollectManualInput } from "../domain/collect-input";
+import { buildIndustryStats, catalogCoverage, type CatalogCoverage, type IndustryStat } from "../domain/industry-stats";
 import { nicheName } from "../domain/niches";
+import { productImagePath, uniqueImageUrls } from "../domain/product-image";
 import { scoreHeat } from "../domain/scoring";
 import { buildClusterSignals, maxSold } from "../domain/signals";
 import { weekStartUtc } from "../domain/week";
@@ -37,7 +39,7 @@ export class RadarService {
       throw new Error(parsed.error);
     }
     const draft = draftCluster(parsed.productTitle, parsed.nicheSlug);
-    const cluster = await this.resolveCluster(draft.title, draft.slug, draft.nicheSlug);
+    let cluster = await this.resolveCluster(draft.title, draft.slug, draft.nicheSlug);
     const startMs = Date.parse(`${parsed.ad.startDate}T00:00:00.000Z`);
     const observedMs = Number.isFinite(startMs) ? Math.min(nowMs, startMs) : nowMs;
     const existingPage = await this.repo.getPage(this.appId, parsed.ad.pageId);
@@ -53,6 +55,14 @@ export class RadarService {
       body: parsed.ad.body,
       title: parsed.ad.title,
     });
+    const imageUrl =
+      parsed.imageUrl ??
+      parsed.ad.imageUrl ??
+      productImagePath(cluster.slug, cluster.title, cluster.nicheSlug);
+    if (!cluster.imageUrl) {
+      cluster = { ...cluster, imageUrl };
+      await this.repo.upsertCluster(this.appId, cluster);
+    }
     const existingAd = (await this.repo.listAds(this.appId)).find(
       (ad) => ad.libraryId === parsed.ad.libraryId,
     );
@@ -66,6 +76,7 @@ export class RadarService {
       title: parsed.ad.title,
       landingUrl: parsed.ad.landingUrl,
       snapshotUrl: parsed.sourceUrl,
+      imageUrl,
       creativeHash: hash,
       firstSeenMs: existingAd?.firstSeenMs ?? observedMs,
       lastSeenMs: nowMs,
@@ -168,11 +179,14 @@ export class RadarService {
       snapshots = await this.repo.listSnapshots(this.appId, weekStartMs);
     }
     const clusters = await this.repo.listClusters(this.appId);
+    const ads = await this.repo.listAds(this.appId);
     const rows: RankingRow[] = [];
     for (const snap of snapshots) {
       const cluster = clusters.find((c) => c.slug === snap.clusterSlug);
       if (!cluster) continue;
       if (nicheSlug && cluster.nicheSlug !== nicheSlug) continue;
+      const clusterAds = ads.filter((ad) => ad.clusterSlug === cluster.slug);
+      const fallback = productImagePath(cluster.slug, cluster.title, cluster.nicheSlug);
       rows.push({
         clusterSlug: cluster.slug,
         clusterTitle: cluster.title,
@@ -180,6 +194,11 @@ export class RadarService {
         nicheName: nicheName(cluster.nicheSlug),
         activeAdCount: snap.activeAdCount,
         distinctPageCount: snap.distinctPageCount,
+        imageUrls: uniqueImageUrls([
+          cluster.imageUrl,
+          ...clusterAds.map((ad) => ad.imageUrl),
+          fallback,
+        ]),
         scores: {
           intensity: snap.intensity,
           longevity: snap.longevity,
@@ -191,6 +210,15 @@ export class RadarService {
       });
     }
     return rows.sort((a, b) => b.scores.heat - a.scores.heat);
+  }
+
+  async industryOverview(nowMs: number): Promise<{
+    industries: IndustryStat[];
+    coverage: CatalogCoverage;
+  }> {
+    const rankings = await this.listRankings(nowMs);
+    const industries = buildIndustryStats(rankings);
+    return { industries, coverage: catalogCoverage(industries) };
   }
 
   async listAds(): Promise<StoredAd[]> {
@@ -211,12 +239,14 @@ export class RadarService {
     const ads = await this.repo.listAds(this.appId);
     const pages = await this.repo.listPages(this.appId);
     const clusters = await this.repo.listClusters(this.appId);
+    const industries = buildIndustryStats(rankings);
     return buildWeeklyReportMarkdown({
       nowMs,
       adCount: ads.length,
       pageCount: pages.length,
       clusterCount: clusters.length,
       rankings,
+      industries,
     });
   }
 
@@ -251,7 +281,7 @@ export class RadarService {
     if (merge) {
       return merge;
     }
-    const cluster = { slug, title, nicheSlug };
+    const cluster = { slug, title, nicheSlug, imageUrl: null };
     await this.repo.upsertCluster(this.appId, cluster);
     return cluster;
   }

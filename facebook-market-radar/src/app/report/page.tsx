@@ -7,7 +7,7 @@ export default async function ReportPage() {
   return (
     <>
       <h1>Báo cáo tuần</h1>
-      <p className="muted">Sinh từ snapshot hiện tại. Mẫu Vòng 0 thủ công nằm ở docs/v0.</p>
+      <p className="muted">Sinh từ dữ liệu hiện tại. Mẫu thu thập tay nằm ở docs/v0.</p>
       <pre className="report">{markdown}</pre>
     </>
   );

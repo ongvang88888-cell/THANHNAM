@@ -44,6 +44,7 @@ model ProductCluster {
   appId        String
   slug         String
   title        String
+  imageUrl     String?
   nicheId      String
   niche        Niche                  @relation(fields: [nicheId], references: [id])
   ads          Ad[]
@@ -88,6 +89,7 @@ model Ad {
   platforms    String
   landingUrl   String?
   snapshotUrl  String?
+  imageUrl     String?
   firstSeen    DateTime
   lastSeen     DateTime
   links        AdProductLink[]

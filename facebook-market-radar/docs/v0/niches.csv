@@ -1,6 +1,27 @@
-slug,nameVi,nameEn,searchKeywords,whyTrack
-my-pham,Mỹ phẩm / skincare,Beauty,serum niacinamide|kem chống nắng|retinol|dưỡng tóc|tẩy da chết,CPA ads cao; creative đổi nhanh; dễ đối chiếu Shopee
-me-be,Mẹ và bé,Mom and baby,bỉm quần|sữa công thức|xe đẩy|máy hút sữa|đồ ăn dặm,Repeat purchase; page hay scale 1 SKU nhiều tuần
-gadget,Gadget / nhà cửa,Home gadgets,đèn led|máy hút bụi|kệ nhà bếp|tai nghe|ổ cắm thông minh,Dropship classic; ads bền = tín hiệu không chết vốn
-tpcn,TPCN / sức khỏe,Supplements,collagen|viên uống trắng da|omega 3|giảm cân|vitamin tổng hợp,Claim nhạy cảm; theo dõi độ bền hơn số ads
-khoa-hoc,Khóa học / digital,Digital courses,khóa học excel|tiếng anh giao tiếp|kiếm tiền online|design figma|ôn thi,Ngách gần edu-commerce nhưng radar này độc lập — không gắn App #2
+slug,nameVi,nameEn,group,searchKeywords,whyTrack
+my-pham,Mỹ phẩm / chăm sóc da,Beauty,Làm đẹp,serum niacinamide|kem chống nắng|retinol|dưỡng tóc,CPA ads cao; creative đổi nhanh
+cham-soc-ca-nhan,Chăm sóc cá nhân,Personal care,Làm đẹp,sữa rửa mặt|nước hoa nam|bàn chải điện,Repeat purchase; dễ scale 1 SKU
+tpcn,TPCN / sức khỏe,Supplements,Sức khỏe,collagen|viên uống trắng da|omega 3|vitamin tổng hợp,Claim nhạy cảm; theo dõi độ bền
+thiet-bi-y-te,Thiết bị y tế gia đình,Home medical,Sức khỏe,máy đo huyết áp|máy massage cổ|nhiệt kế,Ads bền = tín hiệu niềm tin
+me-be,Mẹ và bé,Mom and baby,Gia đình,bỉm quần|máy hút sữa|sữa công thức|ăn dặm,Repeat purchase; page hay scale 1 SKU nhiều tuần
+thu-cung,Thú cưng,Pets,Gia đình,thức ăn hạt chó|cát vệ sinh mèo|sữa tắm thú cưng,Chu kỳ mua lại ngắn
+nha-cua,Nhà cửa / đời sống,Home living,Nhà cửa,máy lọc không khí|hộp đựng đồ|thảm trải sàn,Dropship cổ điển
+nha-bep,Nhà bếp,Kitchen,Nhà cửa,nồi chiên không dầu|kệ gia vị|máy xay sinh tố,SKU nóng theo mùa
+noi-that,Nội thất,Furniture,Nhà cửa,sofa bed|kệ sách gỗ|bàn làm việc,Giá trị đơn cao
+gadget,Thiết bị nhà thông minh,Smart home gadgets,Điện máy,đèn led cảm ứng|ổ cắm thông minh|đèn tủ bếp,Ads bền = tín hiệu không chết vốn
+dien-tu,Điện tử / di động,Electronics,Điện máy,ốp lưng iphone|tai nghe chống ồn|sạc nhanh,Volume ads cao
+dien-may,Điện máy gia dụng,Appliances,Điện máy,máy giặt mini|máy hút bụi|quạt không cánh,Theo mùa nắng/mưa
+thoi-trang-nu,Thời trang nữ,Women fashion,Thời trang,đầm dự tiệc|set bộ nữ|váy body,Creative xoay rất nhanh
+thoi-trang-nam,Thời trang nam,Men fashion,Thời trang,áo polo nam|sơ mi nam|quần jean nam,Scale theo size/màu
+giay-dep,Giày dép,Footwear,Thời trang,giày sneaker trắng|dép quai ngang|boot nữ,Mùa tựu trường / Tết
+tui-vi,Túi ví,Bags,Thời trang,túi đeo chéo da|balo laptop|ví da nam,Giá trị đơn trung bình
+trang-suc,Trang sức / phụ kiện,Jewelry,Thời trang,dây chuyền bạc|bông tai nụ|lắc tay,Quà tặng lễ
+thuc-pham,Thực phẩm khô,Dry food,Ẩm thực,hạt điều rang muối|nấm linh chi|yến sào,Ads bền + proxy Shopee rõ
+do-uong,Đồ uống,Beverages,Ẩm thực,cà phê rang xay|trà sữa|matcha,Repeat + combo
+o-to-xe-may,Ô tô / xe máy,Auto,Xe cộ,camera hành trình|mũ bảo hiểm|thảm lót sàn ô tô,Độ bền ads cao
+the-thao,Thể thao / dã ngoại,Sports,Thể thao,thảm yoga|tạ tay|áo gym nam,Tết / hè tăng tốc
+khoa-hoc,Khóa học / số,Digital courses,Giáo dục,khóa học excel|tiếng anh giao tiếp|ôn thi,Radar độc lập — không gắn App #2
+sach-vpp,Sách / văn phòng phẩm,Books & stationery,Giáo dục,sổ planner|sách kỹ năng|flashcard,Mùa tựu trường
+do-choi,Đồ chơi / hobby,Toys,Giải trí,xếp hình|mô hình lắp ráp|board game,Quà Tết / Trung thu
+nong-san,Nông sản / vườn,Agriculture,Nông nghiệp,phân bón hữu cơ|hạt giống rau|béc tưới,Theo vụ mùa
+khac,Khác / chưa phân loại,Other,Khác,,Còn lại khi không khớp từ khóa

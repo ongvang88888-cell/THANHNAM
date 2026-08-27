@@ -42,7 +42,10 @@ async function main(): Promise<void> {
 
   const rankings = await service.listRankings(DEMO_NOW_MS);
   const alerts = await service.listAlerts();
-  console.log(`Seeded ${V0_SAMPLE_ADS.length} ads, ${rankings.length} clusters, ${alerts.length} alerts`);
+  const overview = await service.industryOverview(DEMO_NOW_MS);
+  console.log(
+    `Seeded ${V0_SAMPLE_ADS.length} ads, ${rankings.length} products, ${alerts.length} alerts, coverage ${overview.coverage.coveragePercent}% (${overview.coverage.hotIndustryCount} hot industries)`,
+  );
   await prisma.$disconnect();
 }
 

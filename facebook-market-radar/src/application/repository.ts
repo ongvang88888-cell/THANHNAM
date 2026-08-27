@@ -18,6 +18,7 @@ export type StoredAd = {
   title: string | null;
   landingUrl: string | null;
   snapshotUrl: string | null;
+  imageUrl: string | null;
   creativeHash: string;
   firstSeenMs: number;
   lastSeenMs: number;
@@ -28,6 +29,7 @@ export type StoredCluster = {
   slug: string;
   title: string;
   nicheSlug: string;
+  imageUrl: string | null;
 };
 
 export type StoredSalesProxy = {

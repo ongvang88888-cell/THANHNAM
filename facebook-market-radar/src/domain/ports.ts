@@ -29,6 +29,7 @@ export type NormalizedAd = {
   platforms: PublisherPlatform[];
   snapshotUrl: string | null;
   landingUrl: string | null;
+  imageUrl: string | null;
   productHint: string | null;
   nicheHint: string | null;
 };

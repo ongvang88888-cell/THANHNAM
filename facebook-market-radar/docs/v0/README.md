@@ -2,21 +2,17 @@
 
 Mục tiêu: mỗi tuần tự tay xem [Thư viện quảng cáo Meta](https://www.facebook.com/ads/library/) (quốc gia **VN**, loại **Tất cả quảng cáo**) và ghi vào sheet. Nếu báo cáo tuần không đổi quyết định nhập hàng / làm ads thì **đừng** xây SaaS.
 
-## Ngách khóa (5)
+## Danh mục ngành (26)
 
-Xem [niches.csv](./niches.csv):
+Xem [niches.csv](./niches.csv). Radar khóa 13 nhóm: Làm đẹp, Sức khỏe, Gia đình, Nhà cửa, Điện máy, Thời trang, Ẩm thực, Xe cộ, Thể thao, Giáo dục, Giải trí, Nông nghiệp, Khác.
 
-1. `my-pham` — mỹ phẩm / skincare
-2. `me-be` — mẹ và bé
-3. `gadget` — gadget / nhà cửa
-4. `tpcn` — thực phẩm chức năng / sức khỏe
-5. `khoa-hoc` — khóa học / digital
+“Quét đầy đủ” = lần lượt search cột `searchKeywords` trên Thư viện, rồi lưu thẻ bạn thấy. **Không** scrape facebook.com.
 
 ## Việc làm mỗi tuần
 
 1. Mở Ad Library, country = Vietnam, “Tất cả quảng cáo”.
-2. Search 8–12 từ khóa / ngách (cột `searchKeywords` trong niches.csv).
-3. Ghi 50–100 ads / ngách vào bản sao của [ad-library-sheet.template.csv](./ad-library-sheet.template.csv).
+2. Search từ khóa / ngành (cột `searchKeywords` trong niches.csv). Ưu tiên ngành đang chạy mạnh trên UI.
+3. Ghi ads vào bản sao của [ad-library-sheet.template.csv](./ad-library-sheet.template.csv). Kèm URL ảnh nếu copy được.
 4. Nếu trùng sản phẩm trên Shopee/TikTok Shop: điền `shopeeSold` / `tiktokSold` (proxy ngoài Facebook, không phải doanh số ads).
 5. Sinh báo cáo từ [weekly-report.template.md](./weekly-report.template.md).
 
@@ -38,5 +34,5 @@ Các page / sản phẩm trong mẫu là **hư cấu**, chỉ để chạy phư�
 ## Việc cấm
 
 - Scrape facebook.com hoặc gọi Graph API ngoài phạm vi app đã review
-- Ghi “doanh thu Facebook” / ROAS đối thủ
+- Ghi “doanh thu Facebook” / tỷ suất đối thủ
 - Trộn sản phẩm này vào edu-commerce-platform

@@ -19,6 +19,7 @@ const sample: NormalizedAd = {
   platforms: ["facebook"],
   snapshotUrl: null,
   landingUrl: null,
+  imageUrl: null,
   productHint: "Serum",
   nicheHint: "my-pham",
 };

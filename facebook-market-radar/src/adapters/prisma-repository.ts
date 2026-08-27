@@ -63,9 +63,13 @@ export class PrismaRadarRepository implements IRadarRepository {
         appId,
         slug: cluster.slug,
         title: cluster.title,
+        imageUrl: cluster.imageUrl,
         nicheId: niche.id,
       },
-      update: { title: cluster.title },
+      update: {
+        title: cluster.title,
+        ...(cluster.imageUrl ? { imageUrl: cluster.imageUrl } : {}),
+      },
     });
   }
 
@@ -78,6 +82,7 @@ export class PrismaRadarRepository implements IRadarRepository {
       slug: row.slug,
       title: row.title,
       nicheSlug: row.niche.slug,
+      imageUrl: row.imageUrl,
     }));
   }
 
@@ -112,6 +117,7 @@ export class PrismaRadarRepository implements IRadarRepository {
         platforms: JSON.stringify(ad.platforms),
         landingUrl: ad.landingUrl,
         snapshotUrl: ad.snapshotUrl,
+        imageUrl: ad.imageUrl,
         firstSeen: new Date(ad.firstSeenMs),
         lastSeen: new Date(ad.lastSeenMs),
       },
@@ -124,6 +130,7 @@ export class PrismaRadarRepository implements IRadarRepository {
         platforms: JSON.stringify(ad.platforms),
         landingUrl: ad.landingUrl,
         snapshotUrl: ad.snapshotUrl,
+        imageUrl: ad.imageUrl,
         lastSeen: new Date(ad.lastSeenMs),
       },
     });
@@ -155,6 +162,7 @@ export class PrismaRadarRepository implements IRadarRepository {
       title: row.creative.title,
       landingUrl: row.landingUrl,
       snapshotUrl: row.snapshotUrl,
+      imageUrl: row.imageUrl,
       creativeHash: row.creative.hash,
       firstSeenMs: row.firstSeen.getTime(),
       lastSeenMs: row.lastSeen.getTime(),

@@ -1,6 +1,12 @@
 export const ALERT_TYPES = ["NEW_PAGE", "NEW_CREATIVE", "SURGE"] as const;
 export type AlertType = (typeof ALERT_TYPES)[number];
 
+export const ALERT_TYPE_VI: Record<AlertType, string> = {
+  NEW_PAGE: "Trang mới",
+  NEW_CREATIVE: "Nội dung mới",
+  SURGE: "Tăng tốc quảng cáo",
+};
+
 export type AlertDraft = {
   type: AlertType;
   title: string;

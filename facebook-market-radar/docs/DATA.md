@@ -10,14 +10,14 @@ Mọi nguồn ads đi qua port. Domain không import SDK Meta / filesystem.
 |----------|---------|---------|
 | `manual` | `ManualAdIndexProvider` | Trả payload user đã validate (URL + form / snapshot JSON) |
 | `licensed` | `LicensedAdIndexProvider` | Đọc feed JSON đã mua (`FMR_LICENSED_FEED_PATH`). Không có file → `[]` |
-| `own_ads` | `OwnAdsMarketingApiProvider` | Insights Marketing API → `OwnCampaignInsight` (không trộn vào HeatScore thị trường) |
+| `own_ads` | `OwnAdsMarketingApiProvider` | Insights Marketing API → `OwnCampaignInsight` (không trộn vào điểm nóng thị trường) |
 
 ## Schema (Prisma / SQLite local)
 
 - `advertiser_pages` — `@@unique([appId, pageId])`
 - `ads` — `@@unique([appId, libraryId])`
 - `ad_creatives`
-- `niches`, `product_clusters` — `@@unique([appId, slug])`
+- `niches`, `product_clusters` — `@@unique([appId, slug])`, `imageUrl` tùy chọn trên cụm và quảng cáo
 - `ad_product_links`
 - `sales_proxy_observations`
 - `market_snapshots` — `@@unique([appId, clusterId, weekStart])`

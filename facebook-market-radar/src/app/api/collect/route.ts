@@ -42,6 +42,7 @@ function readCollectInput(body: unknown): CollectManualInput {
     nicheSlug: readString(raw.nicheSlug),
     shopeeSold: readNumber(raw.shopeeSold),
     tiktokSold: readNumber(raw.tiktokSold),
+    imageUrl: readString(raw.imageUrl),
   };
 }
 

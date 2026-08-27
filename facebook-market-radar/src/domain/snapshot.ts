@@ -1,4 +1,5 @@
 import { PUBLISHER_PLATFORMS, type NormalizedAd, type PublisherPlatform } from "./ports";
+import { parseImageUrl } from "./product-image";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -70,6 +71,7 @@ export function parseAdSnapshot(payload: unknown): SnapshotParseResult {
       platforms: parsePlatforms(raw.platforms ?? raw.publisher_platforms),
       snapshotUrl: asString(raw.snapshotUrl ?? raw.ad_snapshot_url, "snapshotUrl"),
       landingUrl: asString(raw.landingUrl, "landingUrl"),
+      imageUrl: parseImageUrl(asString(raw.imageUrl ?? raw.image_url, "imageUrl") ?? undefined),
       productHint: asString(raw.productHint ?? raw.productTitle, "productHint"),
       nicheHint: asString(raw.nicheHint ?? raw.nicheSlug, "nicheHint"),
     };

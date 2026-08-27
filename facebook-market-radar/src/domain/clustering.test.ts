@@ -8,6 +8,9 @@ describe("clustering", () => {
     expect(guessNiche("Collagen peptide 5000mg", null)).toBe("tpcn");
     expect(guessNiche("Khóa Excel cho nhân sự", null)).toBe("khoa-hoc");
     expect(guessNiche("Đèn LED cảm ứng", null)).toBe("gadget");
+    expect(guessNiche("Ốp lưng iPhone 16", null)).toBe("dien-tu");
+    expect(guessNiche("Đầm dự tiệc body", null)).toBe("thoi-trang-nu");
+    expect(guessNiche("Sản phẩm hoàn toàn lạ xyz", null)).toBe("khac");
   });
 
   it("honors niche hint when valid", () => {

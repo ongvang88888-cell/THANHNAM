@@ -16,6 +16,7 @@ describe("weekly report", () => {
           nicheName: "Gadget / nhà cửa",
           activeAdCount: 2,
           distinctPageCount: 2,
+          imageUrls: ["/api/anh-san-pham?ten=Den"],
           scores: {
             intensity: 40,
             longevity: 80,

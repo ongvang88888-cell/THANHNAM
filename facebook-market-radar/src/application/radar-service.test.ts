@@ -65,6 +65,7 @@ describe("RadarService", () => {
     const led = rankings.find((r) => r.clusterTitle.includes("Đèn LED"));
     expect(led?.distinctPageCount).toBe(2);
     expect(led?.scores.estimated).toBe(true);
+    expect(led?.imageUrls.length).toBeGreaterThan(0);
     expect(led?.scores.salesProxy).toBeGreaterThan(0);
     expect(rankings[0]?.scores.heat).toBeGreaterThanOrEqual(rankings[1]?.scores.heat ?? 0);
   });
@@ -81,10 +82,18 @@ describe("RadarService", () => {
     expect(alerts.some((a) => a.type === "NEW_PAGE" && a.pageId === "900024")).toBe(true);
   });
 
+  it("summarizes industries currently running strong", async () => {
+    const service = await seededService();
+    const overview = await service.industryOverview(now);
+    expect(overview.coverage.totalNiches).toBe(26);
+    expect(overview.industries.some((row) => row.nicheSlug === "gadget" && row.hasData)).toBe(true);
+    expect(overview.coverage.nichesWithData).toBeGreaterThan(0);
+  });
+
   it("writes weekly report without claiming Facebook sales", async () => {
     const service = await seededService();
     const md = await service.weeklyReport(now);
-    expect(md).toContain("HeatScore (ước lượng)");
+    expect(md).toContain("Điểm nóng (ước lượng)");
     expect(md).toContain("Không phải");
     expect(md).not.toContain("ROAS đối thủ: ");
   });

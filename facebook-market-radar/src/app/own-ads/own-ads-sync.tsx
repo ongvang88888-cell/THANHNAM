@@ -12,19 +12,19 @@ export function OwnAdsSync() {
     const response = await fetch("/api/own-ads/sync", { method: "POST" });
     const json = (await response.json()) as { error?: string; imported?: number };
     if (!response.ok) {
-      setError(json.error ?? "Sync thất bại");
+      setError(json.error ?? "Đồng bộ thất bại");
       return;
     }
-    setMessage(`Đã nhập ${json.imported ?? 0} dòng insights`);
+    setMessage(`Đã nhập ${json.imported ?? 0} dòng số liệu`);
   }
 
   return (
     <div>
       <p className="muted">
-        Không có <code>META_ACCESS_TOKEN</code> thì sync dùng fixture local — không gọi Graph.
+        Không có <code>META_ACCESS_TOKEN</code> thì đồng bộ dùng dữ liệu mẫu nội bộ — không gọi Graph.
       </p>
       <button type="button" onClick={() => void sync()}>
-        Sync Marketing API / fixture
+        Đồng bộ Marketing API / dữ liệu mẫu
       </button>
       {error ? <p className="err">{error}</p> : null}
       {message ? <p className="ok">{message}</p> : null}

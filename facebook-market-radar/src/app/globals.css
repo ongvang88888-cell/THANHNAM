@@ -21,7 +21,7 @@ body {
 }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
-.wrap { max-width: 1100px; margin: 0 auto; padding: 0 16px 48px; }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 16px 48px; }
 header.nav {
   border-bottom: 1px solid var(--line);
   background: var(--bg-elev);
@@ -30,7 +30,7 @@ header.nav {
   z-index: 2;
 }
 header.nav .inner {
-  max-width: 1100px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 12px 16px;
   display: flex;
@@ -107,7 +107,30 @@ pre.report {
 .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .filters a { padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); }
 .filters a.on { border-color: var(--accent); color: var(--accent); }
-@media (max-width: 640px) {
-  table { font-size: 0.8rem; }
-  th:nth-child(n+5), td:nth-child(n+5) { display: none; }
+.product-cell {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+}
+.product-thumbs {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.product-thumbs img {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #0c1116;
+  border: 1px solid var(--line);
+}
+.product-name { font-weight: 600; }
+@media (max-width: 720px) {
+  table.rankings { font-size: 0.8rem; }
+  table.rankings th:nth-child(n+5),
+  table.rankings td:nth-child(n+5) { display: none; }
 }

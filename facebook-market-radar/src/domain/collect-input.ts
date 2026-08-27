@@ -1,5 +1,6 @@
 import { parseAdLibraryUrl } from "./ad-library-url";
 import { PUBLISHER_PLATFORMS, type NormalizedAd, type PublisherPlatform } from "./ports";
+import { parseImageUrl } from "./product-image";
 import { parseAdSnapshot } from "./snapshot";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -21,6 +22,7 @@ export type CollectManualInput = {
   nicheSlug?: string;
   shopeeSold?: number;
   tiktokSold?: number;
+  imageUrl?: string;
 };
 
 export type CollectManualResult =
@@ -32,6 +34,7 @@ export type CollectManualResult =
       shopeeSold: number | null;
       tiktokSold: number | null;
       sourceUrl: string | null;
+      imageUrl: string | null;
     }
   | { ok: false; error: string };
 
@@ -78,6 +81,7 @@ export function validateCollectManual(input: CollectManualInput): CollectManualR
         shopeeSold: optionalSold(input.shopeeSold),
         tiktokSold: optionalSold(input.tiktokSold),
         sourceUrl: input.sourceUrl?.trim() || parsed.ad.snapshotUrl,
+        imageUrl: parseImageUrl(input.imageUrl) ?? parsed.ad.imageUrl,
       };
     }
 
@@ -135,6 +139,7 @@ export function validateCollectManual(input: CollectManualInput): CollectManualR
       landingUrl: input.landingUrl?.trim() || null,
       productHint: productTitle,
       nicheHint: input.nicheSlug?.trim() || null,
+      imageUrl: parseImageUrl(input.imageUrl),
     };
 
     return {
@@ -145,6 +150,7 @@ export function validateCollectManual(input: CollectManualInput): CollectManualR
       shopeeSold: optionalSold(input.shopeeSold),
       tiktokSold: optionalSold(input.tiktokSold),
       sourceUrl: sourceUrl || null,
+      imageUrl: ad.imageUrl,
     };
   } catch (error) {
     return {

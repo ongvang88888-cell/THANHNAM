@@ -14,34 +14,37 @@ export default async function OwnAdsPage() {
   const { rows, totals } = await getRadarService().ownInsightsSummary();
   return (
     <>
-      <h1>Ads của tôi</h1>
+      <h1>Tài khoản của tôi</h1>
       <div className="banner">
-        Số liệu này đến từ Marketing API (hoặc fixture local). Không trộn vào HeatScore thị trường.
+        Số liệu này đến từ Marketing API (hoặc dữ liệu mẫu nội bộ). Không trộn vào điểm nóng thị trường.
       </div>
       <div className="cards">
         <div className="card">
           <div className="n">{formatMinor(totals.spendMinor)}</div>
-          <div className="muted">Spend (đơn vị tài khoản)</div>
+          <div className="muted">Chi tiêu (đơn vị tài khoản)</div>
         </div>
         <div className="card">
           <div className="n">{totals.purchases}</div>
-          <div className="muted">Purchases</div>
+          <div className="muted">Lượt mua</div>
         </div>
         <div className="card">
           <div className="n">{totals.roas ?? "—"}</div>
-          <div className="muted">ROAS (chỉ khi có purchase value)</div>
+          <div className="muted">Tỷ suất (chỉ khi có giá trị mua)</div>
         </div>
       </div>
-      <p className="muted">estimated: {String(totals.estimated)} — đây là số thật của tài khoản đã kết nối.</p>
+      <p className="muted">
+        Đây là số thật của tài khoản đã kết nối — không dùng để xếp hạng thị trường. Ước lượng:{" "}
+        {totals.estimated ? "có" : "không"}.
+      </p>
       <OwnAdsSync />
       <table>
         <thead>
           <tr>
             <th>Ngày</th>
-            <th>Campaign</th>
-            <th>Spend</th>
-            <th>Impr.</th>
-            <th>Purchases</th>
+            <th>Chiến dịch</th>
+            <th>Chi tiêu</th>
+            <th>Lượt hiển thị</th>
+            <th>Lượt mua</th>
           </tr>
         </thead>
         <tbody>

@@ -1,72 +1,153 @@
 import Link from "next/link";
-import { LOCKED_NICHES } from "@/domain/niches";
+import { LOCKED_NICHES, NICHE_GROUPS, nicheGroup, nichesInGroup } from "@/domain/niches";
+import { ProductCell } from "@/ui/product-cell";
 import { getRadarService } from "@/server/radar";
 
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams: Promise<{ niche?: string; asOf?: string }> };
+type Props = { searchParams: Promise<{ niche?: string; group?: string; asOf?: string }> };
 
 export default async function HomePage({ searchParams }: Props) {
   const params = await searchParams;
   const asOf = params.asOf ? Date.parse(params.asOf) : Date.now();
   const nowMs = Number.isFinite(asOf) ? asOf : Date.now();
   const service = getRadarService();
-  const rankings = await service.listRankings(nowMs, params.niche);
+  const allRankings = await service.listRankings(nowMs, params.niche);
+  const rankings = params.group
+    ? allRankings.filter((row) => nicheGroup(row.nicheSlug) === params.group)
+    : allRankings;
   const ads = await service.listAds();
   const alerts = await service.listAlerts();
+  const { industries, coverage } = await service.industryOverview(nowMs);
+  const hot = industries.filter((row) => row.isHot).slice(0, 8);
+  const visibleNiches = params.group ? nichesInGroup(params.group) : LOCKED_NICHES;
 
   return (
     <>
-      <h1>Bảng xếp hạng ngách</h1>
+      <h1>Xếp hạng sản phẩm đang chạy quảng cáo</h1>
       <p className="muted">
-        HeatScore là ước lượng từ cường độ ads, độ bền, velocity và proxy Shopee/TikTok — không phải doanh số Facebook.
+        Điểm nóng là ước lượng từ cường độ quảng cáo, độ bền, tốc độ mới và proxy Shopee/TikTok — không
+        phải doanh số Facebook.
       </p>
       <div className="banner">
-        Không có ROAS / CPA / đơn hàng của đối thủ. Số “sales proxy” chỉ xuất hiện khi bạn tự nhập sold công khai ngoài Facebook.
+        Không có tỷ suất / chi phí / đơn hàng của đối thủ. Số “proxy bán” chỉ xuất hiện khi bạn tự nhập
+        số đã bán công khai ngoài Facebook.
       </div>
       <div className="cards">
         <div className="card">
           <div className="n">{ads.length}</div>
-          <div className="muted">Ads đã lưu</div>
+          <div className="muted">Quảng cáo đã lưu</div>
         </div>
         <div className="card">
           <div className="n">{rankings.length}</div>
-          <div className="muted">Cụm sản phẩm</div>
+          <div className="muted">Sản phẩm đang theo</div>
+        </div>
+        <div className="card">
+          <div className="n">
+            {coverage.nichesWithData}/{coverage.totalNiches}
+          </div>
+          <div className="muted">Độ phủ ngành ({coverage.coveragePercent}%)</div>
+        </div>
+        <div className="card">
+          <div className="n">{coverage.hotIndustryCount}</div>
+          <div className="muted">Ngành đang chạy mạnh</div>
+        </div>
+        <div className="card">
+          <div className="n">{coverage.strongProductCount}</div>
+          <div className="muted">Sản phẩm mạnh</div>
         </div>
         <div className="card">
           <div className="n">{alerts.length}</div>
           <div className="muted">Cảnh báo</div>
         </div>
       </div>
+
+      <h2>Ngành đang chạy mạnh</h2>
+      <p className="muted">
+        Ngành có ít nhất một sản phẩm điểm nóng ≥ 40 hoặc quảng cáo bền (≥ 50 độ bền và ≥ 2 quảng cáo
+        đang chạy).{" "}
+        <Link href="/nganh">Xem đủ {coverage.totalNiches} ngành</Link>.
+      </p>
+      {hot.length === 0 ? (
+        <p className="muted">Chưa đủ dữ liệu để đánh dấu ngành nóng.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>Ngành hàng</th>
+              <th>Nhóm</th>
+              <th>Quảng cáo</th>
+              <th>Sản phẩm mạnh</th>
+              <th>Điểm nóng cao nhất</th>
+              <th>Tỷ trọng QC</th>
+            </tr>
+          </thead>
+          <tbody>
+            {hot.map((row) => (
+              <tr key={row.nicheSlug}>
+                <td>
+                  <Link href={`/?niche=${row.nicheSlug}`}>{row.nicheName}</Link>
+                </td>
+                <td>{row.group}</td>
+                <td>{row.activeAdCount}</td>
+                <td>{row.strongProductCount}</td>
+                <td>
+                  <span className="badge">{row.maxHeat} ước lượng</span>
+                </td>
+                <td>{row.shareOfAds}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <h2>Lọc theo nhóm / ngành</h2>
       <div className="filters">
-        <Link href="/" className={!params.niche ? "on" : ""}>
-          Tất cả
+        <Link href="/" className={!params.group && !params.niche ? "on" : ""}>
+          Tất cả nhóm
         </Link>
-        {LOCKED_NICHES.map((n) => (
-          <Link key={n.slug} href={`/?niche=${n.slug}`} className={params.niche === n.slug ? "on" : ""}>
+        {NICHE_GROUPS.map((group) => (
+          <Link key={group} href={`/?group=${encodeURIComponent(group)}`} className={params.group === group ? "on" : ""}>
+            {group}
+          </Link>
+        ))}
+      </div>
+      <div className="filters">
+        <Link href={params.group ? `/?group=${encodeURIComponent(params.group)}` : "/"} className={!params.niche ? "on" : ""}>
+          Tất cả ngành
+        </Link>
+        {visibleNiches.map((n) => (
+          <Link
+            key={n.slug}
+            href={`/?niche=${n.slug}${params.group ? `&group=${encodeURIComponent(params.group)}` : ""}`}
+            className={params.niche === n.slug ? "on" : ""}
+          >
             {n.nameVi}
           </Link>
         ))}
       </div>
-      <table>
+
+      <table className="rankings">
         <thead>
           <tr>
             <th>#</th>
-            <th>Cụm</th>
-            <th>Ngách</th>
-            <th>Ads / page</th>
-            <th>Intensity</th>
-            <th>Longevity</th>
-            <th>Velocity</th>
-            <th>Sales proxy</th>
-            <th>Heat</th>
+            <th>Sản phẩm</th>
+            <th>Ngành hàng</th>
+            <th>Số QC / Số trang</th>
+            <th>Cường độ</th>
+            <th>Độ bền</th>
+            <th>Tốc độ mới</th>
+            <th>Proxy bán</th>
+            <th>Điểm nóng</th>
           </tr>
         </thead>
         <tbody>
           {rankings.map((row, i) => (
             <tr key={row.clusterSlug}>
               <td>{i + 1}</td>
-              <td>{row.clusterTitle}</td>
+              <td>
+                <ProductCell title={row.clusterTitle} imageUrls={row.imageUrls} />
+              </td>
               <td>{row.nicheName}</td>
               <td>
                 {row.activeAdCount} / {row.distinctPageCount}
@@ -84,7 +165,8 @@ export default async function HomePage({ searchParams }: Props) {
       </table>
       {rankings.length === 0 ? (
         <p className="muted">
-          Chưa có snapshot. <Link href="/collect">Lưu ads từ Ad Library</Link> hoặc chạy <code>pnpm db:seed</code>.
+          Chưa có dữ liệu. <Link href="/collect">Lưu quảng cáo từ Thư viện</Link> hoặc chạy{" "}
+          <code>pnpm db:seed</code>.
         </p>
       ) : null}
     </>

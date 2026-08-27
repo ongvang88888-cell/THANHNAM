@@ -1,26 +1,47 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { LOCKED_NICHES } from "@/domain/niches";
+import Link from "next/link";
+import { catalogKeywordCount, LOCKED_NICHES, NICHE_GROUPS, nichesInGroup } from "@/domain/niches";
 
-export default async function NichesPage() {
-  const v0Dir = path.join(process.cwd(), "docs/v0");
-  const report = await readFile(path.join(v0Dir, "weekly-report.2026-W34.md"), "utf8");
+export default function NichesPage() {
   return (
     <>
-      <h1>Vòng 0 — 5 ngách khóa</h1>
+      <h1>Danh mục ngành hàng</h1>
       <p className="muted">
-        Chứng minh nhu cầu bằng sheet Ad Library trước khi tin UI. Xem{" "}
-        <code>facebook-market-radar/docs/v0/</code>.
+        {LOCKED_NICHES.length} ngành, {NICHE_GROUPS.length} nhóm, {catalogKeywordCount()} từ khóa gợi ý
+        để bạn tự tìm trên Thư viện quảng cáo. Đây không phải kết quả quét Facebook.
       </p>
-      <ul>
-        {LOCKED_NICHES.map((n) => (
-          <li key={n.slug}>
-            <strong>{n.nameVi}</strong> <span className="muted">({n.slug})</span>
-          </li>
-        ))}
-      </ul>
-      <h2>Báo cáo mẫu 2026-W34 (hư cấu)</h2>
-      <pre className="report">{report}</pre>
+      <div className="banner">
+        Dán từng từ khóa vào Thư viện (quốc gia Việt Nam, loại Tất cả quảng cáo), rồi lưu thẻ bạn thấy
+        vào Radar. Máy chủ không tự kéo kết quả.
+      </div>
+      {NICHE_GROUPS.map((group) => (
+        <section key={group}>
+          <h2>
+            <Link href={`/?group=${encodeURIComponent(group)}`}>{group}</Link>
+          </h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Ngành hàng</th>
+                <th>Mã</th>
+                <th>Từ khóa tìm trên Thư viện</th>
+              </tr>
+            </thead>
+            <tbody>
+              {nichesInGroup(group).map((n) => (
+                <tr key={n.slug}>
+                  <td>
+                    <Link href={`/?niche=${n.slug}`}>{n.nameVi}</Link>
+                  </td>
+                  <td>
+                    <code>{n.slug}</code>
+                  </td>
+                  <td>{n.searchKeywords.join(" · ") || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ))}
     </>
   );
 }

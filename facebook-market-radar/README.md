@@ -30,4 +30,4 @@ SQLite file: `prisma/dev.db` (không đụng Postgres edu-commerce).
 | `pnpm test` | Unit test domain + adapters |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm dev` | Next.js :3100 |
-| `pnpm db:seed` | 5 ngách + mẫu W34 + snapshot + alerts |
+| `pnpm db:seed` | 26 ngành + ảnh sản phẩm + mẫu thống kê + cảnh báo |

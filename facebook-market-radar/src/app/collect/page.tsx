@@ -10,18 +10,21 @@ export default async function CollectPage({ searchParams }: Props) {
 
   return (
     <>
-      <h1>Lưu ads từ Ad Library</h1>
+      <h1>Lưu quảng cáo từ Thư viện</h1>
       <div className="banner">
-        Server không tải facebook.com. Chỉ parse URL bạn dán hoặc JSON bạn copy. Bookmarklet chỉ mở form với URL trang bạn đang xem.
+        Máy chủ không tải facebook.com. Chỉ đọc đường dẫn bạn dán hoặc JSON bạn sao chép. Bookmark chỉ
+        mở form với đường dẫn trang bạn đang xem.
       </div>
-      <h2>Bookmarklet</h2>
-      <p className="muted">Kéo link này lên thanh bookmark. Khi đang ở Ad Library, bấm bookmark để mở form.</p>
+      <h2>Bookmark lưu nhanh</h2>
+      <p className="muted">
+        Kéo liên kết này lên thanh bookmark. Khi đang ở Thư viện quảng cáo, bấm bookmark để mở form.
+      </p>
       <p>
         <a className="btn" href={bookmarklet}>
-          Lưu vào FMR
+          Lưu vào Radar
         </a>
       </p>
-      <h2>Form</h2>
+      <h2>Biểu mẫu</h2>
       <CollectForm niches={[...LOCKED_NICHES]} defaultUrl={url ?? ""} />
     </>
   );

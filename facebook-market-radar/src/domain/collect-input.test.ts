@@ -16,7 +16,32 @@ describe("validateCollectManual", () => {
     if (result.ok) {
       expect(result.ad.libraryId).toBe("111000001");
       expect(result.shopeeSold).toBe(4200);
+      expect(result.imageUrl).toBeNull();
     }
+  });
+
+  it("accepts a product image URL and rejects javascript", () => {
+    const ok = validateCollectManual({
+      libraryId: "1",
+      pageId: "2",
+      pageName: "Page",
+      productTitle: "Serum",
+      startDate: "2026-08-01",
+      imageUrl: "https://cdn.example.com/serum.jpg",
+    });
+    expect(ok.ok).toBe(true);
+    if (ok.ok) {
+      expect(ok.imageUrl).toBe("https://cdn.example.com/serum.jpg");
+    }
+    const bad = validateCollectManual({
+      libraryId: "1",
+      pageId: "2",
+      pageName: "Page",
+      productTitle: "Serum",
+      startDate: "2026-08-01",
+      imageUrl: "javascript:alert(1)",
+    });
+    expect(bad.ok).toBe(false);
   });
 
   it("requires libraryId when URL is only a keyword search", () => {
