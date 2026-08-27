@@ -19,6 +19,10 @@ pnpm dev       # http://127.0.0.1:3100
 
 SQLite file: `prisma/dev.db` (không đụng Postgres edu-commerce).
 
+## VPS
+
+Hướng dẫn Nginx + systemd (không chứa mật khẩu): [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
+
 ## Việc làm trước khi tin UI
 
 Đọc [docs/v0/README.md](./docs/v0/README.md) và [docs/PRODUCT.md](./docs/PRODUCT.md).
