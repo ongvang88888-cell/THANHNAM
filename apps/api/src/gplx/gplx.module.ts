@@ -10,13 +10,18 @@ import {
   UseGuards,
   Inject,
 } from "@nestjs/common";
-import { IsArray, IsIn, IsOptional, IsString, ValidateNested } from "class-validator";
+import { IsArray, IsIn, IsString, ValidateNested } from "class-validator";
 import { Type } from "class-transformer";
 import {
   getGplxExamRules,
   pickMockQuestionIds,
   scoreGplxExam,
   gplxProgressStatus,
+  GPLX_TIPS,
+  GPLX_SIGNS,
+  buildGplxSevenDayPlan,
+  GPLX_PRO_PRODUCT_SLUG,
+  GPLX_FREE_MOCKS_PER_DAY,
   type GplxQuestionKey,
 } from "@edu/education-core";
 import { AppError, ErrorCodes } from "@edu/shared-core";
@@ -79,9 +84,64 @@ export class GplxService {
     });
   }
 
+  tips() {
+    return { items: GPLX_TIPS };
+  }
+
+  signs(group?: string) {
+    const items = group
+      ? GPLX_SIGNS.filter((s) => s.group === group)
+      : GPLX_SIGNS;
+    return { items };
+  }
+
+  plan(licenseClass = "B") {
+    return {
+      licenseClass: licenseClass.toUpperCase(),
+      days: buildGplxSevenDayPlan(licenseClass),
+    };
+  }
+
+  private async hasGplxPro(user: RequestUser): Promise<boolean> {
+    const product = await this.prisma.product.findUnique({
+      where: { appId_slug: { appId: user.appId, slug: GPLX_PRO_PRODUCT_SLUG } },
+      select: { id: true },
+    });
+    if (!product) return false;
+    const ent = await this.prisma.entitlement.findFirst({
+      where: {
+        userId: user.userId,
+        appId: user.appId,
+        status: "ACTIVE",
+        resourceType: "product",
+        resourceId: product.id,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+    });
+    return !!ent;
+  }
+
+  private async mocksUsedToday(user: RequestUser): Promise<number> {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    return this.prisma.gplxMockAttempt.count({
+      where: { userId: user.userId, appId: user.appId, startedAt: { gte: start } },
+    });
+  }
+
   async overview(user: RequestUser, licenseClass = "B") {
     const rules = getGplxExamRules(licenseClass);
     const classesFilter = licenseClass.toUpperCase();
+    const isPro = await this.hasGplxPro(user);
+    const mocksUsedToday = await this.mocksUsedToday(user);
+    const mocksRemainingToday = isPro
+      ? null
+      : Math.max(0, GPLX_FREE_MOCKS_PER_DAY - mocksUsedToday);
+
+    const proProduct = await this.prisma.product.findUnique({
+      where: { appId_slug: { appId: user.appId, slug: GPLX_PRO_PRODUCT_SLUG } },
+      include: { prices: true },
+    });
 
     const topics = await this.prisma.gplxTopic.findMany({
       where: { appId: user.appId },
@@ -139,6 +199,23 @@ export class GplxService {
     return {
       licenseClass: classesFilter,
       rules,
+      isPro,
+      mocksUsedToday,
+      mocksRemainingToday,
+      freeMocksPerDay: GPLX_FREE_MOCKS_PER_DAY,
+      proProduct: proProduct
+        ? {
+            id: proProduct.id,
+            slug: proProduct.slug,
+            name: proProduct.name,
+            price: proProduct.prices[0]
+              ? {
+                  currency: proProduct.prices[0].currency,
+                  amountMinor: proProduct.prices[0].amountMinor,
+                }
+              : null,
+          }
+        : null,
       stats: {
         totalQuestions: applicable.length,
         criticalCount: applicable.filter((q) => q.isCritical).length,
@@ -154,6 +231,7 @@ export class GplxService {
         questionCount: t._count.questions,
       })),
       recentAttempts,
+      planPreview: buildGplxSevenDayPlan(classesFilter).slice(0, 3),
     };
   }
 
@@ -311,6 +389,22 @@ export class GplxService {
     const rules = getGplxExamRules(licenseClass);
     const cls = rules.licenseClass;
 
+    const isPro = await this.hasGplxPro(user);
+    if (!isPro) {
+      const used = await this.mocksUsedToday(user);
+      if (used >= GPLX_FREE_MOCKS_PER_DAY) {
+        const product = await this.prisma.product.findUnique({
+          where: { appId_slug: { appId: user.appId, slug: GPLX_PRO_PRODUCT_SLUG } },
+        });
+        throw new AppError(
+          ErrorCodes.NEEDS_PURCHASE,
+          `Free tier: tối đa ${GPLX_FREE_MOCKS_PER_DAY} đề thi thử/ngày. Nâng cấp GPLX Pro để thi không giới hạn.`,
+          403,
+          { productIds: product ? [product.id] : [], feature: "gplx_pro" },
+        );
+      }
+    }
+
     const pool = await this.prisma.gplxBankQuestion.findMany({
       where: { appId: user.appId },
       select: { id: true, isCritical: true, licenseClassesJson: true },
@@ -338,7 +432,7 @@ export class GplxService {
         questionIdsJson: questionIds,
         total: questionIds.length,
         expiresAt,
-        detailJson: { rules },
+        detailJson: { rules, isPro },
       },
     });
 
@@ -356,7 +450,7 @@ export class GplxService {
         appId: user.appId,
         userId: user.userId,
         name: "gplx_mock_started",
-        propsJson: { attemptId: attempt.id, licenseClass: cls },
+        propsJson: { attemptId: attempt.id, licenseClass: cls, isPro },
       },
     });
 
@@ -561,6 +655,21 @@ export class GplxController {
   @Get("license-classes")
   licenseClasses() {
     return this.gplx.listLicenseClasses();
+  }
+
+  @Get("tips")
+  tips() {
+    return this.gplx.tips();
+  }
+
+  @Get("signs")
+  signs(@Query("group") group?: string) {
+    return this.gplx.signs(group);
+  }
+
+  @Get("plan")
+  plan(@Query("licenseClass") licenseClass?: string) {
+    return this.gplx.plan(licenseClass || "B");
   }
 
   @Get("overview")

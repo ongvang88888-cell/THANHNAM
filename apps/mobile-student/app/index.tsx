@@ -57,6 +57,11 @@ export default function CatalogScreen() {
             <Text style={styles.btnGhostText}>Thư viện</Text>
           </Pressable>
         </Link>
+        <Link href="/gplx" asChild>
+          <Pressable style={styles.btnGhost}>
+            <Text style={styles.btnGhostText}>Ôn GPLX</Text>
+          </Pressable>
+        </Link>
       </View>
 
       {loading && <ActivityIndicator color="#0B3D2E" />}

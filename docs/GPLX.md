@@ -21,31 +21,38 @@ Study + mock exam for Vietnamese driver's license theory (GPLX), reusing Shared/
 
 `pickMockQuestionIds` — random draw preferring ~20% critical.
 
+Content helpers: `GPLX_TIPS`, `GPLX_SIGNS`, `buildGplxSevenDayPlan`, `GPLX_PRO_PRODUCT_SLUG`, `GPLX_FREE_MOCKS_PER_DAY`.
+
 ## API (`/api/v1/gplx`)
 
 All routes require auth (`X-App-Id` + Bearer).
 
 - `GET /license-classes`
-- `GET /overview?licenseClass=B`
+- `GET /tips` · `GET /signs?group=` · `GET /plan?licenseClass=`
+- `GET /overview?licenseClass=B` (includes `isPro`, mock quota, plan preview)
 - `GET /topics`
 - `GET /topics/:id/questions?licenseClass=`
 - `GET /critical`, `GET /wrong`
 - `POST /practice/answer`
-- `POST /mock/start` `{ licenseClass }`
+- `POST /mock/start` `{ licenseClass }` — free tier limited to **2 mocks/day** unless entitled to product `gplx-pro`
 - `GET /mock/:attemptId`
 - `POST /mock/:attemptId/submit` `{ answers }`
 
-## Client
+## Clients
 
-Web: `/gplx` study hub + topic practice + mock exam.
+- Web: `/gplx`, tips, signs, 7-day plan, topic practice, timed exam
+- Mobile: `apps/mobile-student` routes `/gplx`, `/gplx/topic/[id]`, `/gplx/exam/[attemptId]`
+
+## Monetization
+
+- Product slug **`gplx-pro`** (`OTHER_DIGITAL_PRODUCT`)
+- Entitlement SoR: `resourceType=product`, `resourceId=<gplx-pro id>`
+- Free: unlimited study; **2 mock exams / calendar day**
+- Pro: unlimited mocks (checkout via existing commerce)
 
 ## Content note
 
 Seed ships a **demo bank** of original sample items for development. Replace with a licensed/official bank before production store listing. Do not scrape copyrighted 600-question sets.
-
-## Monetization (later)
-
-Free study / limited mocks → Pro unlimited mocks + tips (EntitlementService). Do not trust client `isPremium`.
 
 ## Module flag
 

@@ -17,6 +17,293 @@ const TOPICS: Array<{ code: string; title: string }> = [
   { code: "technique", title: "Kỹ thuật lái xe" },
 ];
 
+const ALL = ["A1", "A", "B1", "B", "C", "D", "E", "F"];
+const HEAVY = ["B1", "B", "C", "D", "E", "F"];
+
+const EXTRA: SeedQ[] = [
+  {
+    topic: "concepts",
+    stem: "Khi điều khiển xe qua đường ngang cắt đường sắt không có rào chắn, người lái phải?",
+    explanation: "Quan sát kỹ hai phía, chỉ đi khi bảo đảm không có tàu tới và an toàn.",
+    isCritical: true,
+    classes: ALL,
+    answers: [
+      { body: "Tăng tốc vượt nhanh qua đường sắt", correct: false },
+      { body: "Quan sát kỹ và chỉ đi khi bảo đảm an toàn", correct: true },
+      { body: "Bóp còi liên tục rồi đi", correct: false },
+    ],
+  },
+  {
+    topic: "concepts",
+    stem: "Người lái xe không được vượt trong trường hợp nào?",
+    explanation: "Không vượt ở đoạn có biển cấm vượt, trên cầu hẹp, đường vòng, dốc cao mất tầm nhìn… theo quy định.",
+    isCritical: true,
+    classes: ALL,
+    answers: [
+      { body: "Đường rộng, tầm nhìn tốt, không có biển cấm", correct: false },
+      { body: "Đoạn đường bị cấm vượt hoặc tầm nhìn bị hạn chế theo quy định", correct: true },
+      { body: "Đường trong khu dân cư ban ngày", correct: false },
+    ],
+  },
+  {
+    topic: "concepts",
+    stem: "Khi đèn xanh vừa bật, người lái xe phải?",
+    explanation: "Nhường người/phương tiện còn đang đi trên giao lộ; chỉ đi khi bảo đảm an toàn.",
+    classes: ALL,
+    answers: [
+      { body: "Tăng tốc lao vào giao lộ ngay", correct: false },
+      { body: "Quan sát, nhường phần đường còn bị chiếm và đi khi an toàn", correct: true },
+      { body: "Bóp còi để mọi người tránh", correct: false },
+    ],
+  },
+  {
+    topic: "concepts",
+    stem: "Xe cứu thương đang phát tín hiệu ưu tiên, xe khác phải?",
+    explanation: "Giảm tốc, tránh hoặc dừng lại nhường đường cho xe ưu tiên.",
+    isCritical: true,
+    classes: ALL,
+    answers: [
+      { body: "Giữ nguyên tốc độ nếu đang đúng làn", correct: false },
+      { body: "Nhường đường bằng cách giảm tốc, tránh hoặc dừng lại", correct: true },
+      { body: "Đi song song để dẫn đường", correct: false },
+    ],
+  },
+  {
+    topic: "concepts",
+    stem: "Trách nhiệm của người lái xe khi tham gia giao thông là?",
+    explanation: "Chấp hành pháp luật, bảo đảm an toàn cho bản thân và người khác.",
+    classes: ALL,
+    answers: [
+      { body: "Chỉ cần giữ xe không hỏng", correct: false },
+      { body: "Chấp hành luật và bảo đảm an toàn giao thông", correct: true },
+      { body: "Đi nhanh để giảm ùn tắc", correct: false },
+    ],
+  },
+  {
+    topic: "signs",
+    stem: "Biển báo hiệu lệnh khác biển báo cấm ở điểm nào?",
+    explanation: "Biển hiệu lệnh buộc người tham gia giao thông phải thực hiện theo hướng/điều kiện ghi trên biển.",
+    classes: ALL,
+    answers: [
+      { body: "Không có sự khác biệt", correct: false },
+      { body: "Biển hiệu lệnh bắt buộc thực hiện theo nội dung biển", correct: true },
+      { body: "Biển hiệu lệnh chỉ mang tính gợi ý", correct: false },
+    ],
+  },
+  {
+    topic: "signs",
+    stem: "Khi gặp biển 'Cấm dừng và đỗ xe', người lái được phép?",
+    explanation: "Không được dừng cũng như đỗ xe trong phạm vi hiệu lực của biển (trừ trường hợp khẩn cấp theo luật).",
+    classes: ALL,
+    answers: [
+      { body: "Dừng ngắn dưới 5 phút", correct: false },
+      { body: "Không dừng và không đỗ trong phạm vi biển", correct: true },
+      { body: "Đỗ nếu bật đèn hazard", correct: false },
+    ],
+  },
+  {
+    topic: "signs",
+    stem: "Biển báo hết mọi lệnh cấm có ý nghĩa?",
+    explanation: "Báo hiệu hết các lệnh cấm từ biển trước đó; vẫn phải tuân thủ quy tắc chung và biển khác còn hiệu lực.",
+    classes: ALL,
+    answers: [
+      { body: "Được phép làm mọi việc trên đường", correct: false },
+      { body: "Hết hiệu lực các biển cấm trước đó theo quy định", correct: true },
+      { body: "Chỉ hết hiệu lực vào ban đêm", correct: false },
+    ],
+  },
+  {
+    topic: "signs",
+    stem: "Vạch trắng nét đứt giữa đường thường cho phép?",
+    explanation: "Thường cho phép vượt/chuyển hướng khi bảo đảm an toàn và không có biển cấm.",
+    classes: ALL,
+    answers: [
+      { body: "Cấm vượt mọi trường hợp", correct: false },
+      { body: "Được vượt/chuyển hướng khi an toàn và đúng luật", correct: true },
+      { body: "Chỉ dành cho xe ưu tiên", correct: false },
+    ],
+  },
+  {
+    topic: "situations",
+    stem: "Khi muốn lùi xe, người lái phải?",
+    explanation: "Quan sát kỹ phía sau và xung quanh, chỉ lùi khi an toàn và không ở nơi bị cấm lùi.",
+    classes: ALL,
+    answers: [
+      { body: "Lùi nhanh để sớm hoàn thành", correct: false },
+      { body: "Quan sát kỹ và chỉ lùi khi an toàn, đúng nơi cho phép", correct: true },
+      { body: "Bóp còi là đủ", correct: false },
+    ],
+  },
+  {
+    topic: "situations",
+    stem: "Xe đi trên đường nhánh muốn nhập vào đường ưu tiên phải?",
+    explanation: "Giảm tốc, quan sát và nhường đường cho xe trên đường ưu tiên.",
+    isCritical: true,
+    classes: ALL,
+    answers: [
+      { body: "Tăng tốc nhập làn trước", correct: false },
+      { body: "Nhường đường cho xe trên đường ưu tiên", correct: true },
+      { body: "Đi song song rồi chen vào", correct: false },
+    ],
+  },
+  {
+    topic: "situations",
+    stem: "Khi tránh xe ngược chiều trên đường hẹp, nguyên tắc chung là?",
+    explanation: "Giảm tốc, tránh về bên phải theo chiều đi của mình, nhường nhau bảo đảm an toàn.",
+    classes: ALL,
+    answers: [
+      { body: "Ai mạnh hơn được đi trước", correct: false },
+      { body: "Giảm tốc, tránh đúng phần đường và nhường nhau an toàn", correct: true },
+      { body: "Đi giữa đường để chiếm ưu thế", correct: false },
+    ],
+  },
+  {
+    topic: "situations",
+    stem: "Trên đường có nhiều làn, người lái chuyển làn phải?",
+    explanation: "Báo hiệu trước, quan sát gương và điểm mù, chuyển làn khi khoảng cách an toàn.",
+    classes: HEAVY,
+    answers: [
+      { body: "Chuyển làn rồi mới xi-nhan", correct: false },
+      { body: "Xi-nhan, quan sát và chuyển khi an toàn", correct: true },
+      { body: "Chuyển làn bất ngờ nếu xe sau cách xa", correct: false },
+    ],
+  },
+  {
+    topic: "situations",
+    stem: "Khi xe phía trước phanh gấp, bạn nên?",
+    explanation: "Giảm tốc kịp thời, giữ khoảng cách, tránh đánh lái đột ngột gây mất lái.",
+    classes: ALL,
+    answers: [
+      { body: "Bóp còi và vượt ngay bên phải", correct: false },
+      { body: "Phanh/giảm tốc an toàn, giữ hướng ổn định", correct: true },
+      { body: "Tăng tốc vượt trước khi họ dừng", correct: false },
+    ],
+  },
+  {
+    topic: "ethics",
+    stem: "Hành vi nào thể hiện văn hóa giao thông?",
+    explanation: "Nhường đường đúng luật, không gây rối, hỗ trợ người bị nạn khi có thể.",
+    classes: ALL,
+    answers: [
+      { body: "Lấn làn để về sớm", correct: false },
+      { body: "Nhường đường và tôn trọng người tham gia giao thông khác", correct: true },
+      { body: "Bóp còi liên tục trong khu dân cư", correct: false },
+    ],
+  },
+  {
+    topic: "ethics",
+    stem: "Người lái xe sử dụng rượu bia rồi điều khiển xe là?",
+    explanation: "Vi phạm nghiêm trọng, nguy hiểm tới tính mạng; bị xử lý theo pháp luật.",
+    isCritical: true,
+    classes: ALL,
+    answers: [
+      { body: "Được phép nếu cảm thấy tỉnh táo", correct: false },
+      { body: "Hành vi vi phạm nghiêm trọng, bị nghiêm cấm", correct: true },
+      { body: "Chỉ bị nhắc nhở lần đầu", correct: false },
+    ],
+  },
+  {
+    topic: "ethics",
+    stem: "Khi thấy người bị nạn trên đường, người lái xe nên?",
+    explanation: "Dừng xe an toàn, cấp cứu trong khả năng, báo cơ quan chức năng; không bỏ mặc.",
+    isCritical: true,
+    classes: ALL,
+    answers: [
+      { body: "Đi tiếp để tránh rắc rối", correct: false },
+      { body: "Dừng xe an toàn và hỗ trợ/báo cáo theo khả năng", correct: true },
+      { body: "Quay xe bỏ chạy", correct: false },
+    ],
+  },
+  {
+    topic: "technique",
+    stem: "Khi khởi hành ngang dốc, người lái xe số sàn thường dùng?",
+    explanation: "Phối hợp côn, ga và phanh tay để tránh tụt dốc.",
+    classes: HEAVY,
+    answers: [
+      { body: "Chỉ nhả côn thật nhanh", correct: false },
+      { body: "Phối hợp côn – ga – phanh tay hợp lý", correct: true },
+      { body: "Tắt máy rồi đẩy xe", correct: false },
+    ],
+  },
+  {
+    topic: "technique",
+    stem: "Kiểm tra áp suất lốp định kỳ giúp?",
+    explanation: "Bảo đảm an toàn, tiết kiệm nhiên liệu và kéo dài tuổi thọ lốp.",
+    classes: ALL,
+    answers: [
+      { body: "Chỉ để xe đẹp hơn", correct: false },
+      { body: "Tăng an toàn và hiệu quả vận hành", correct: true },
+      { body: "Không ảnh hưởng gì", correct: false },
+    ],
+  },
+  {
+    topic: "technique",
+    stem: "Khi lái xe số tự động xuống dốc dài, nên?",
+    explanation: "Chuyển về số thấp phù hợp để dùng phanh động cơ, hạn chế phanh chân liên tục.",
+    classes: HEAVY,
+    answers: [
+      { body: "Để số D và đạp phanh liên tục", correct: false },
+      { body: "Dùng số thấp phù hợp để hỗ trợ hãm tốc", correct: true },
+      { body: "Về N để tiết kiệm xăng", correct: false },
+    ],
+  },
+  {
+    topic: "technique",
+    stem: "Gương chiếu hậu cần chỉnh để?",
+    explanation: "Quan sát được tối đa phía sau và giảm điểm mù trong khả năng.",
+    classes: ALL,
+    answers: [
+      { body: "Chỉ nhìn thấy thân xe cho đẹp", correct: false },
+      { body: "Quan sát tối đa phía sau, hạn chế điểm mù", correct: true },
+      { body: "Hướng xuống mặt đường sát xe", correct: false },
+    ],
+  },
+  {
+    topic: "concepts",
+    stem: "Người đủ điều kiện sức khỏe theo quy định là yêu cầu khi?",
+    explanation: "Cấp, đổi GPLX và điều khiển xe đúng hạng đòi hỏi đủ điều kiện sức khỏe theo luật.",
+    classes: ALL,
+    answers: [
+      { body: "Chỉ khi mua bảo hiểm", correct: false },
+      { body: "Khi cấp/đổi GPLX và điều khiển xe theo quy định", correct: true },
+      { body: "Không liên quan tới GPLX", correct: false },
+    ],
+  },
+  {
+    topic: "concepts",
+    stem: "Xe thô sơ và xe cơ giới đi cùng chiều trên đường có lề đường thì?",
+    explanation: "Xe thô sơ đi sát lề; xe cơ giới đi phần đường dành cho xe cơ giới theo quy định.",
+    classes: ALL,
+    answers: [
+      { body: "Đi lẫn vào nhau giữa đường", correct: false },
+      { body: "Đi đúng phần đường quy định cho từng loại xe", correct: true },
+      { body: "Xe cơ giới phải đi sát lề mọi lúc", correct: false },
+    ],
+  },
+  {
+    topic: "situations",
+    stem: "Khi có tín hiệu giảm tốc độ trên đường cao tốc, người lái phải?",
+    explanation: "Giảm tốc độ phù hợp tình huống và biển báo, giữ khoảng cách an toàn.",
+    classes: HEAVY,
+    answers: [
+      { body: "Giữ nguyên tốc độ tối đa", correct: false },
+      { body: "Giảm tốc theo tín hiệu/biển và điều kiện mặt đường", correct: true },
+      { body: "Chuyển làn liên tục để đi nhanh", correct: false },
+    ],
+  },
+  {
+    topic: "signs",
+    stem: "Biển báo nguy hiểm hình tam giác nhằm mục đích?",
+    explanation: "Cảnh báo trước tình huống nguy hiểm để người lái chủ động giảm tốc, quan sát.",
+    classes: ALL,
+    answers: [
+      { body: "Cấm tuyệt đối mọi hành vi", correct: false },
+      { body: "Cảnh báo nguy hiểm phía trước", correct: true },
+      { body: "Chỉ dẫn địa điểm du lịch", correct: false },
+    ],
+  },
+];
+
 /** Demo bank — original sample items for product development (not the official 600-question set). */
 const QUESTIONS: SeedQ[] = [
   {
@@ -416,6 +703,7 @@ const QUESTIONS: SeedQ[] = [
       { body: "Chỉ áp dụng với xe buýt", correct: false },
     ],
   },
+  ...EXTRA,
 ];
 
 export async function seedGplx(prisma: PrismaClient, appId: string) {

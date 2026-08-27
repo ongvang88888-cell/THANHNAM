@@ -23,3 +23,13 @@ export {
   type GplxQuestionKey,
   type GplxAnswerInput,
 } from "./gplx";
+export {
+  GPLX_TIPS,
+  GPLX_SIGNS,
+  buildGplxSevenDayPlan,
+  GPLX_PRO_PRODUCT_SLUG,
+  GPLX_FREE_MOCKS_PER_DAY,
+  type GplxTip,
+  type GplxSign,
+  type GplxPlanDay,
+} from "./gplx-content";

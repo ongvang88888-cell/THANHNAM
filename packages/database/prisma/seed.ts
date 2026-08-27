@@ -567,10 +567,49 @@ async function main() {
 
   const gplx = await seedGplx(prisma, app.id);
 
+  const gplxCat = await prisma.category.upsert({
+    where: { appId_slug: { appId: app.id, slug: "gplx" } },
+    update: {},
+    create: { appId: app.id, name: "GPLX", slug: "gplx", path: "/gplx" },
+  });
+
+  const gplxPro = await prisma.product.upsert({
+    where: { appId_slug: { appId: app.id, slug: "gplx-pro" } },
+    update: {
+      name: "GPLX Pro",
+      description: "Thi thử không giới hạn, bỏ quảng cáo ôn tập, mở mẹo nâng cao.",
+      status: ProductStatus.PUBLISHED,
+      visibility: Visibility.PUBLIC,
+      metadataJson: { feature: "gplx_pro", playSku: "gplx_pro", appleSku: "gplx_pro" },
+    },
+    create: {
+      appId: app.id,
+      type: ProductType.OTHER_DIGITAL_PRODUCT,
+      name: "GPLX Pro",
+      slug: "gplx-pro",
+      description: "Thi thử không giới hạn, bỏ quảng cáo ôn tập, mở mẹo nâng cao.",
+      status: ProductStatus.PUBLISHED,
+      visibility: Visibility.PUBLIC,
+      creatorUserId: admin.id,
+      categoryId: gplxCat.id,
+      metadataJson: { feature: "gplx_pro", playSku: "gplx_pro", appleSku: "gplx_pro" },
+    },
+  });
+  await prisma.productPrice.deleteMany({ where: { productId: gplxPro.id } });
+  await prisma.productPrice.create({
+    data: {
+      productId: gplxPro.id,
+      currency: "VND",
+      amountMinor: 7900000,
+      compareAtMinor: 14900000,
+    },
+  });
+
   console.log("Seed complete");
   console.log({
     app: app.slug,
     gplx,
+    gplxPro: gplxPro.slug,
     accounts: {
       admin: "admin@edu.local",
       teacher: "teacher@edu.local",
