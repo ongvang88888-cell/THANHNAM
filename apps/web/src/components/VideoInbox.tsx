@@ -456,16 +456,16 @@ export function VideoInbox(props: {
     <div className="video-inbox">
       <h2>Kho video hàng loạt</h2>
       <p className="muted">
-        Tải nhiều video một lúc. Mỗi file chạy công thức trên máy: làm nét, lọc tiếng, cắt im lặng, tô đậm người giữa
-        khung, ảnh bìa và phụ đề. Không đổi tóc/áo như video AI 3D trên YouTube. Khi xong, xem trên hàng, chọn bài rồi
-        bấm Lưu.
+        Tải nhiều video một lúc. Mỗi file chạy công thức trên máy: làm nét, lọc tiếng, cắt im lặng, rồi tự che người
+        gốc bằng người dẫn ảo, ảnh bìa và phụ đề. Không đổi tóc/áo như video AI 3D trên YouTube. Khi xong, xem trên hàng,
+        chọn bài rồi bấm Lưu.
       </p>
       <FileDrop
         accept="video/mp4,video/*,application/octet-stream"
         multiple
         disabled={queue.length >= 40}
         label="Chọn nhiều video vào kho"
-        hint="Chọn hàng loạt. Mỗi video xếp hàng tô đậm trên máy. Tối đa 2 video đang tô cùng lúc, các video khác chờ. Gắn bài trên từng hàng sau khi xem lại."
+        hint="Chọn hàng loạt. Mỗi video xếp hàng: làm nét, rồi tự che người bằng người dẫn ảo. Tối đa 2 video đang chỉnh cùng lúc, các video khác chờ. Gắn bài trên từng hàng sau khi xem lại."
         onFile={(file) => enqueue([file])}
         onFiles={(files) => enqueue(files)}
       />

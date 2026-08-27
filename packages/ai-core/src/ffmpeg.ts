@@ -1,3 +1,4 @@
+import type { CharacterLook } from "./character";
 import { LECTURE_ENHANCE_VF, LECTURE_ONE_PASS_AF, LECTURE_SILENCE_AF, LECTURE_SPEECH_AF } from "./expert-recipe";
 import type { FaceRegion, ToonStrength, VisualStyle } from "./options";
 
@@ -266,6 +267,42 @@ export function extractSpeechAudioArgs(inputPath: string, outputPath: string): s
     "16000",
     "-b:a",
     "64k",
+    outputPath,
+  ];
+}
+
+export function characterCardBackdrop(look: CharacterLook): string {
+  if (look === "cartoon_kid") return "0x0ea5e9";
+  if (look === "teacher") return "0xb91c1c";
+  return "0x1e3a8a";
+}
+
+export function characterCardSubtitle(look: CharacterLook): string {
+  if (look === "cartoon_kid") return "Nhan vat 3D ao";
+  if (look === "teacher") return "Giang vien ao";
+  return "Nguoi dan ao";
+}
+
+/** Nameplate still for the shared presenter when there is no photo / HeyGen key. */
+export function characterCardStillArgs(
+  outputPath: string,
+  name: string,
+  look: CharacterLook,
+  fontFile: string,
+): string[] {
+  const title = sanitizeDrawText(name || "Nguoi dan ao");
+  const sub = sanitizeDrawText(characterCardSubtitle(look));
+  const escapedFont = fontFile.replace(/\\/g, "/").replace(/:/g, "\\:");
+  return [
+    "-y",
+    "-f",
+    "lavfi",
+    "-i",
+    `color=c=${characterCardBackdrop(look)}:s=1280x720:d=0.1`,
+    "-vf",
+    `drawtext=fontfile='${escapedFont}':text='${title}':fontcolor=white:fontsize=56:x=(w-text_w)/2:y=(h-text_h)/2-28,drawtext=fontfile='${escapedFont}':text='${sub}':fontcolor=0xfff7ed:fontsize=28:x=(w-text_w)/2:y=(h-text_h)/2+36`,
+    "-frames:v",
+    "1",
     outputPath,
   ];
 }

@@ -82,26 +82,87 @@ export function asCharacterLook(value: string | null | undefined): CharacterLook
   return value && isCharacterLook(value) ? value : "teacher";
 }
 
+export type AutoPresenterProfile = {
+  id?: string;
+  name: string;
+  look: CharacterLook;
+  bible: string;
+  stillUrl: string | null;
+  heygenAvatarId: string | null;
+  heygenTalkingPhotoId: string | null;
+  confirmOwned: boolean;
+  confirmLikeness: boolean;
+};
+
+export function defaultAutoPresenter(): AutoPresenterProfile {
+  return {
+    name: "Cô Minh",
+    look: "teacher",
+    bible: defaultCharacterBible("teacher", "Cô Minh"),
+    stillUrl: null,
+    heygenAvatarId: null,
+    heygenTalkingPhotoId: null,
+    confirmOwned: true,
+    confirmLikeness: true,
+  };
+}
+
+/** Every upload gets a presenter unless the teacher turned auto-replace off. */
+export function shouldAutoInsertPresenter(profile: { autoReplace?: boolean } | null | undefined): boolean {
+  if (!profile) return true;
+  return profile.autoReplace !== false;
+}
+
+export function resolveAutoPresenter(row: {
+  id?: string;
+  name: string;
+  look: string;
+  bible: string;
+  stillUrl?: string | null;
+  heygenAvatarId?: string | null;
+  heygenTalkingPhotoId?: string | null;
+  autoReplace: boolean;
+  confirmOwned: boolean;
+  confirmLikeness: boolean;
+} | null): AutoPresenterProfile | null {
+  if (row && row.autoReplace === false) return null;
+  if (row && row.confirmOwned && row.confirmLikeness) {
+    return {
+      id: row.id,
+      name: row.name,
+      look: asCharacterLook(row.look),
+      bible: row.bible,
+      stillUrl: row.stillUrl ?? null,
+      heygenAvatarId: row.heygenAvatarId ?? null,
+      heygenTalkingPhotoId: row.heygenTalkingPhotoId ?? null,
+      confirmOwned: true,
+      confirmLikeness: true,
+    };
+  }
+  return defaultAutoPresenter();
+}
+
 export function characterReadyForAutoReplace(profile: PresenterIdentity): boolean {
-  if (!profile.autoReplace || !profile.confirmOwned || !profile.confirmLikeness) return false;
-  if (profile.heygenAvatarId || profile.heygenTalkingPhotoId) return true;
-  return Boolean(profile.stillUrl && profile.stillUrl.startsWith("https://"));
+  return shouldAutoInsertPresenter(profile);
 }
 
 export function describeCharacterGap(profile: PresenterIdentity, caps: { heygen: boolean; minimax: boolean }): string {
-  if (!profile.confirmOwned || !profile.confirmLikeness) {
-    return "Cần xác nhận bạn sở hữu ảnh/kịch bản và đây là người ảo hoặc ảnh bạn có quyền.";
-  }
   if (!profile.autoReplace) {
     return "Tự thay người đang tắt — bật để mọi video dùng cùng nhân vật.";
   }
-  if (!caps.heygen && !caps.minimax) {
-    return "Cần HEYGEN_API_KEY (avatar tái dùng, học từ HeyGen Instant Avatar / v3) hoặc MINIMAX_API_KEY (cùng một ảnh Hailuo).";
+  if (!profile.confirmOwned || !profile.confirmLikeness) {
+    return "Mọi video tải lên sẽ che người gốc bằng nhân vật ảo mặc định (Cô Minh). Tick quyền nếu bạn dùng ảnh/kịch bản riêng.";
   }
-  if (!characterReadyForAutoReplace(profile)) {
-    return "Cần ảnh https công khai hoặc mô tả chi tiết để tạo avatar một lần, rồi tái dùng cho mọi bài.";
+  if (caps.heygen && (profile.heygenAvatarId || profile.heygenTalkingPhotoId || profile.stillUrl)) {
+    return "Nhân vật đủ để tự che người khi tải video (HeyGen tái dùng).";
   }
-  return "Nhân vật đủ để tự che người khi tải video.";
+  if (caps.minimax && profile.stillUrl) {
+    return "Nhân vật đủ để tự che người khi tải video (Hailuo, cùng một ảnh).";
+  }
+  if (caps.heygen || caps.minimax) {
+    return "Sẽ tự che người khi tải video. Có khóa: HeyGen dùng mô tả/ảnh; Hailuo cần cùng một ảnh https.";
+  }
+  return "Sẽ tự che người bằng thẻ nhân vật trên máy khi tải video. Có HEYGEN_API_KEY thì dùng avatar tái dùng; MINIMAX_API_KEY + ảnh thì dùng Hailuo.";
 }
 
 export function parsePresenterCharacterInput(input: unknown): PresenterCharacterInput {
@@ -190,7 +251,7 @@ export function presentPresenterCharacter(
     confirmLikeness: row.confirmLikeness,
     hasHeygenAvatar: Boolean(row.heygenAvatarId),
     hasHeygenTalkingPhoto: Boolean(row.heygenTalkingPhotoId),
-    ready: characterReadyForAutoReplace(identity) && (caps.heygen || caps.minimax),
+    ready: shouldAutoInsertPresenter(identity),
     gap: describeCharacterGap(identity, caps),
   };
 }

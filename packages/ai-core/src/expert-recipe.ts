@@ -32,7 +32,7 @@ export interface RecipeTechnique {
 export interface RecipeOutcome {
   trimApplied?: boolean;
   toonApplied?: boolean;
-  characterReplace?: false | "heygen" | "minimax";
+  characterReplace?: false | "heygen" | "minimax" | "local";
   captionsMode?: "whisper" | "heuristic" | "failed";
   copyMode?: "llm" | "heuristic" | "failed";
   thumbApplied?: boolean;
@@ -58,10 +58,19 @@ export function describeRecipe(caps: Pick<AiCapabilities, "speech" | "imageGen" 
   const copyStatus: RecipeTechniqueStatus =
     outcome.copyMode === "failed" ? "skipped" : caps.llm && outcome.copyMode !== "heuristic" ? "applied" : "skipped";
   const trimStatus: RecipeTechniqueStatus = outcome.trimApplied === false ? "skipped" : "applied";
-  const replaced = outcome.characterReplace === "heygen" || outcome.characterReplace === "minimax";
+  const hasReplaceOutcome = outcome.characterReplace !== undefined;
+  const hasToonOutcome = outcome.toonApplied !== undefined;
+  const replaced =
+    outcome.characterReplace === "heygen" ||
+    outcome.characterReplace === "minimax" ||
+    outcome.characterReplace === "local";
+  const plannedAutoPresenter = !hasReplaceOutcome && !hasToonOutcome;
   const toonStatus: RecipeTechniqueStatus =
-    replaced || outcome.toonApplied === false ? "skipped" : "applied";
-  const avatarStatus: RecipeTechniqueStatus = outcome.characterReplace === "heygen" ? "applied" : "skipped";
+    replaced || plannedAutoPresenter || outcome.toonApplied === false ? "skipped" : "applied";
+  const avatarStatus: RecipeTechniqueStatus =
+    outcome.characterReplace === "heygen" || outcome.characterReplace === "local" || plannedAutoPresenter
+      ? "applied"
+      : "skipped";
   const hailuoStatus: RecipeTechniqueStatus = outcome.characterReplace === "minimax" ? "applied" : "skipped";
   const thumbStatus: RecipeTechniqueStatus = outcome.thumbApplied === false ? "skipped" : "applied";
 
@@ -124,8 +133,8 @@ export function describeRecipe(caps: Pick<AiCapabilities, "speech" | "imageGen" 
         label: "Tô đậm người thành hoạt hình (trên máy)",
         note:
           toonStatus === "skipped"
-            ? replaced
-              ? "Đã che người bằng nhân vật AI — không tô người thật."
+            ? replaced || plannedAutoPresenter
+              ? "Đã che người bằng nhân vật — không tô người thật."
               : "ffmpeg không tô được — giữ bản làm nét, slide và tiếng gốc."
             : "Tô đậm người giữa khung trên máy. Không đổi tóc/áo hay sinh nhân vật 3D kiểu Kling/Dreamina.",
       },
@@ -136,8 +145,10 @@ export function describeRecipe(caps: Pick<AiCapabilities, "speech" | "imageGen" 
         label: "Người dẫn ảo thay người trong bài",
         note:
           avatarStatus === "applied"
-            ? "Học từ HeyGen Instant Avatar / v3: tạo một lần, tái dùng avatar_id. Clip ngắn lặp, giữ tiếng gốc. Không phải face-swap."
-            : "Tự chạy khi đã lưu nhân vật + HEYGEN_API_KEY. Không thì studio thủ công.",
+            ? outcome.characterReplace === "heygen"
+              ? "Học từ HeyGen Instant Avatar / v3: tạo một lần, tái dùng avatar_id. Clip ngắn lặp, giữ tiếng gốc. Không phải face-swap."
+              : "Tự chạy trên mọi video tải lên. Không khóa HeyGen: thẻ nhân vật Ken Burns trên máy che người gốc, giữ tiếng. Có khóa thì dùng avatar tái dùng."
+            : "Tắt vì bạn tắt tự thay người, hoặc bước nhân vật lỗi — giữ bản làm nét.",
       },
       {
         id: "hailuo_character",

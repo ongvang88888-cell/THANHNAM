@@ -9,6 +9,7 @@ import {
   clampQuickTrim,
   enhanceAndSpeechArgs,
   enhanceSpeechTrimArgs,
+  characterCardStillArgs,
   kenBurnsStillArgs,
   quickTrimCopyArgs,
   extractSpeechAudioArgs,
@@ -148,6 +149,14 @@ describe("ffmpeg arg builders", () => {
     expect(args).toContain("copy");
     expect(clampQuickTrim(-10, 9_000, 5_000)).toEqual({ startMs: 0, endMs: 5000 });
     expect(clampQuickTrim(100, 200, 8_000).endMs - clampQuickTrim(100, 200, 8_000).startMs).toBeGreaterThanOrEqual(400);
+  });
+
+  it("builds a presenter nameplate still", () => {
+    const args = characterCardStillArgs("card.jpg", "Cô Minh", "teacher", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf");
+    expect(args.join(" ")).toContain("color=c=0xb91c1c");
+    expect(args.join(" ")).toContain("Cô Minh");
+    expect(args.join(" ")).toContain("Giang vien ao");
+    expect(args).toContain("-frames:v");
   });
 
   it("builds a slow Ken Burns still clip", () => {

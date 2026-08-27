@@ -92,6 +92,7 @@ export {
   CHARACTER_NAME_MAX,
   asCharacterLook,
   characterReadyForAutoReplace,
+  defaultAutoPresenter,
   defaultCharacterBible,
   describeCharacterGap,
   emptyPresenterCharacter,
@@ -100,8 +101,11 @@ export {
   parsePresenterCharacterInput,
   presentPresenterCharacter,
   presenterGreeting,
+  resolveAutoPresenter,
+  shouldAutoInsertPresenter,
 } from "./character-identity";
 export type {
+  AutoPresenterProfile,
   PresenterCharacterInput,
   PresenterCharacterView,
   PresenterIdentity,
@@ -157,6 +161,9 @@ export {
 } from "./expert-recipe";
 export {
   captionStillArgs,
+  characterCardBackdrop,
+  characterCardStillArgs,
+  characterCardSubtitle,
   characterPipOverlayArgs,
   characterReplaceCoverArgs,
   characterReplaceCoverGraph,

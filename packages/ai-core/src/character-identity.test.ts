@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   characterReadyForAutoReplace,
+  defaultAutoPresenter,
   defaultCharacterBible,
   describeCharacterGap,
   emptyPresenterCharacter,
@@ -9,6 +10,8 @@ import {
   parsePresenterCharacterInput,
   presentPresenterCharacter,
   presenterGreeting,
+  resolveAutoPresenter,
+  shouldAutoInsertPresenter,
 } from "./character-identity";
 
 describe("character identity", () => {
@@ -31,31 +34,41 @@ describe("character identity", () => {
     expect(isReusablePresenterId("bad id")).toBe(false);
   });
 
-  it("is ready only with consents plus a reusable id or still", () => {
+  it("auto-inserts a presenter on every upload unless turned off", () => {
+    expect(shouldAutoInsertPresenter(null)).toBe(true);
+    expect(characterReadyForAutoReplace({ autoReplace: true, confirmOwned: false, confirmLikeness: false })).toBe(true);
     expect(
       characterReadyForAutoReplace({
-        autoReplace: true,
+        autoReplace: false,
         confirmOwned: true,
         confirmLikeness: true,
         heygenAvatarId: "look_abc1",
       }),
-    ).toBe(true);
+    ).toBe(false);
+    const saved = resolveAutoPresenter({
+      id: "p1",
+      name: "Lan",
+      look: "custom",
+      bible: "Same face.",
+      stillUrl: "https://cdn.example/a.png",
+      heygenAvatarId: null,
+      heygenTalkingPhotoId: null,
+      autoReplace: true,
+      confirmOwned: true,
+      confirmLikeness: true,
+    });
+    expect(saved?.name).toBe("Lan");
+    expect(resolveAutoPresenter(null)?.name).toBe(defaultAutoPresenter().name);
     expect(
-      characterReadyForAutoReplace({
-        autoReplace: true,
+      resolveAutoPresenter({
+        name: "Lan",
+        look: "teacher",
+        bible: "x",
+        autoReplace: false,
         confirmOwned: true,
         confirmLikeness: true,
-        stillUrl: "https://cdn.example/face.png",
       }),
-    ).toBe(true);
-    expect(
-      characterReadyForAutoReplace({
-        autoReplace: true,
-        confirmOwned: true,
-        confirmLikeness: false,
-        stillUrl: "https://cdn.example/face.png",
-      }),
-    ).toBe(false);
+    ).toBeNull();
   });
 
   it("explains the next missing piece in Vietnamese", () => {
@@ -64,13 +77,13 @@ describe("character identity", () => {
         { autoReplace: true, confirmOwned: false, confirmLikeness: false },
         { heygen: true, minimax: false },
       ),
-    ).toMatch(/xác nhận/i);
+    ).toMatch(/mặc định/i);
     expect(
       describeCharacterGap(
         { autoReplace: true, confirmOwned: true, confirmLikeness: true, stillUrl: "https://cdn.example/a.png" },
         { heygen: false, minimax: false },
       ),
-    ).toMatch(/HEYGEN_API_KEY/);
+    ).toMatch(/thẻ nhân vật trên máy/i);
   });
 
   it("parses a save payload and fills a missing bible", () => {
@@ -114,7 +127,7 @@ describe("character identity", () => {
     expect(view.ready).toBe(true);
     expect(view.hasHeygenAvatar).toBe(true);
     expect(view.gap).toMatch(/đủ để tự che người/);
-    expect(emptyPresenterCharacter({ heygen: false, minimax: false }).ready).toBe(false);
+    expect(emptyPresenterCharacter({ heygen: false, minimax: false }).ready).toBe(true);
     expect(presenterGreeting("Cô Minh", "teacher")).toMatch(/Cô Minh/);
   });
 });

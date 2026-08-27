@@ -343,7 +343,7 @@ export function AutoVideoPublish(props: {
         accept="video/mp4,video/*,application/octet-stream"
         disabled={!ready}
         label="Chọn video để lên bài"
-        hint="Chọn một file. Máy chủ làm nét, lọc tiếng, cắt im lặng. Nếu đã lưu nhân vật ở trên và máy chủ có khóa HeyGen/Hailuo thì tự che người gốc bằng nhân vật đó; không thì tô đậm người giữa khung trên máy. Giữ slide và tiếng gốc. Khi xong, xem lại rồi bấm Lưu vào bài."
+        hint="Chọn một file. Máy chủ làm nét, lọc tiếng, cắt im lặng, rồi tự che người gốc bằng người dẫn ảo (HeyGen nếu có khóa; không thì thẻ nhân vật trên máy). Giữ slide và tiếng gốc. Khi xong, xem lại rồi bấm Lưu vào bài."
         onFile={(file) => void handleFile(file)}
       />
       <p className="muted auto-publish-legal">

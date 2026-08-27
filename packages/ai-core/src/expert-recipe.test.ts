@@ -34,16 +34,16 @@ describe("lecture_expert_v1 recipe", () => {
       "auto_color",
       "silence_trim",
       "thumbnail",
-      "toon_restyle",
+      "avatar_presenter",
     ]);
     expect(recipe.techniques.find((row) => row.id === "captions")?.status).toBe("skipped");
-    expect(recipe.techniques.find((row) => row.id === "toon_restyle")?.status).toBe("applied");
+    expect(recipe.techniques.find((row) => row.id === "toon_restyle")?.status).toBe("skipped");
     expect(recipe.techniques.find((row) => row.id === "illustrated_edition")?.status).toBe("skipped");
     expect(recipe.techniques.find((row) => row.id === "v2v")?.status).toBe("refused");
     expect(recipe.techniques.find((row) => row.id === "content_id_dodge")?.status).toBe("refused");
     expect(recipe.techniques.filter((row) => row.status === "skipped").map((row) => row.id)).toEqual(
       expect.arrayContaining([
-        "avatar_presenter",
+        "toon_restyle",
         "hailuo_character",
         "veo_intro",
         "video_translate",
@@ -51,7 +51,7 @@ describe("lecture_expert_v1 recipe", () => {
         "overdub",
       ]),
     );
-    expect(recipe.techniques.find((row) => row.id === "avatar_presenter")?.status).toBe("skipped");
+    expect(recipe.techniques.find((row) => row.id === "avatar_presenter")?.status).toBe("applied");
     expect(recipe.techniques.find((row) => row.id === "hailuo_character")?.status).toBe("skipped");
     expect(recipe.techniques.find((row) => row.id === "veo_intro")?.status).toBe("skipped");
   });
@@ -61,6 +61,12 @@ describe("lecture_expert_v1 recipe", () => {
     expect(recipe.techniques.find((row) => row.id === "toon_restyle")?.status).toBe("skipped");
     expect(recipe.techniques.find((row) => row.id === "avatar_presenter")?.status).toBe("applied");
     expect(recipe.techniques.find((row) => row.id === "hailuo_character")?.status).toBe("skipped");
+  });
+
+  it("marks local presenter replace applied and skips toon", () => {
+    const recipe = describeRecipe({ speech: false, imageGen: false, llm: false }, { characterReplace: "local" });
+    expect(recipe.techniques.find((row) => row.id === "toon_restyle")?.status).toBe("skipped");
+    expect(recipe.techniques.find((row) => row.id === "avatar_presenter")?.status).toBe("applied");
   });
 
   it("marks toon skipped when the encode failed", () => {

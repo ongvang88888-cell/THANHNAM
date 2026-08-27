@@ -92,9 +92,9 @@ describe("video AI edit contract", () => {
     expect(progressFields("character").progress).toBe(74);
     const recipe = describeRecipe({ speech: false, imageGen: false, llm: false });
     expect(recipe.recipeId).toBe("lecture_expert_v1");
-    expect(recipe.techniques.some((row) => row.id === "toon_restyle" && row.status === "applied")).toBe(true);
+    expect(recipe.techniques.some((row) => row.id === "toon_restyle" && row.status === "skipped")).toBe(true);
     expect(recipe.techniques.some((row) => row.id === "content_id_dodge" && row.status === "refused")).toBe(true);
-    expect(recipe.techniques.some((row) => row.id === "avatar_presenter" && row.status === "skipped")).toBe(true);
+    expect(recipe.techniques.some((row) => row.id === "avatar_presenter" && row.status === "applied")).toBe(true);
     expect(recipe.techniques.some((row) => row.id === "hailuo_character" && row.status === "skipped")).toBe(true);
     expect(recipe.techniques.some((row) => row.id === "veo_intro" && row.status === "skipped")).toBe(true);
     expect(recipe.techniques.some((row) => row.id === "overdub" && row.status === "skipped")).toBe(true);

@@ -335,7 +335,7 @@ export function VideoAiEditPanel(props: VideoAiEditPanelProps) {
       <p className="muted">
         {props.variant === "advanced"
           ? "Chỉ dùng khi muốn chạy từng công cụ riêng. Luồng tải video đã tự chỉnh và gắn vào bài. Nhân vật dùng chung nằm ở tab Tải video / AI."
-          : "Gói A+C: làm nét + lọc tiếng, cắt im lặng. Nếu đã lưu nhân vật và có khóa HeyGen/Hailuo thì tự che người gốc; không thì tô đậm người giữa khung trên máy. Giữ slide và tiếng gốc."}
+          : "Gói A+C: làm nét + lọc tiếng, cắt im lặng, rồi tự che người gốc bằng người dẫn ảo trên mọi video tải lên. Giữ slide và tiếng gốc."}
       </p>
       {catalog.character ? (
         <p className={catalog.character.ready ? "toast" : "muted"}>

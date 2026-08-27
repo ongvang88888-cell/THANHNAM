@@ -54,7 +54,7 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
     group: "image",
     label: "A+C — bài của tôi",
     description:
-      "Công thức lecture_expert_v1: làm nét nhẹ + lọc tiếng giảng, cắt im lặng. Nếu đã lưu nhân vật (ảnh/mô tả + xác nhận) và có HEYGEN_API_KEY hoặc MINIMAX_API_KEY thì tự che người gốc bằng nhân vật đó; không thì tô đậm người giữa khung trên máy. Ảnh bìa và phụ đề. Giữ slide hai bên và tiếng gốc. Không sinh nhân vật 3D kiểu Kling/Dreamina. Chỉ video bạn sở hữu.",
+      "Công thức lecture_expert_v1: làm nét nhẹ + lọc tiếng giảng, cắt im lặng, rồi tự che người gốc bằng người dẫn ảo trên mọi video tải lên (HeyGen nếu có khóa; không thì thẻ nhân vật Ken Burns trên máy). Ảnh bìa và phụ đề. Giữ slide hai bên và tiếng gốc. Không sinh nhân vật 3D kiểu Kling/Dreamina. Chỉ video bạn sở hữu.",
     market: "Descript Studio Sound + Premiere Enhance Speech / Auto Color",
     outputKind: "video",
     needs: ["ffmpeg"],
@@ -176,7 +176,7 @@ export const AI_EDIT_TOOLS: readonly AiEditToolDef[] = [
     group: "image",
     label: "Người dẫn ảo (avatar)",
     description:
-      "Dựng người dẫn ảo (HeyGen Instant Avatar / v3 photo hoặc prompt, tái dùng avatar_id) rồi che người trong video gốc (khung giữa), lặp clip ngắn, giữ slide ngoài khung và tiếng bài. Tự chạy khi đã lưu nhân vật chung. Studio vẫn chạy tay. Cần xác nhận người ảo / ảnh hợp lệ.",
+      "Dựng người dẫn ảo rồi che người trong video gốc (khung giữa), lặp clip ngắn, giữ slide ngoài khung và tiếng bài. Tự chạy trên mọi video tải lên. Có HEYGEN_API_KEY thì tái dùng avatar_id; không khóa thì thẻ nhân vật trên máy. Studio vẫn chạy tay.",
     market: "HeyGen Photo to Video / Avatar IV",
     outputKind: "video",
     needs: ["ffmpeg"],
@@ -299,21 +299,21 @@ export function toolAvailability(
     }
   }
   if (tool.id === "avatar_presenter") {
-    if (!caps.heygen && !caps.tts) {
+    if (caps.heygen) return { available: true, mode: "full", note: null };
+    if (!caps.ffmpeg) {
+      return { available: false, mode: "fallback", note: "Máy chủ chưa có ffmpeg — cần cài để che người bằng nhân vật." };
+    }
+    if (caps.tts) {
       return {
-        available: false,
+        available: true,
         mode: "fallback",
-        note: "Cần HEYGEN_API_KEY hoặc OPENAI/ELEVENLABS (TTS) để dựng người dẫn.",
+        note: "Chưa có HeyGen — sẽ dựng thẻ nhân vật + TTS, không phải người ảo HeyGen.",
       };
     }
-    if (!hasSource && !caps.heygen && !caps.tts) {
-      return { available: false, mode: "fallback", note: "Nhập kịch bản hoặc tải video gốc." };
-    }
-    if (caps.heygen) return { available: true, mode: "full", note: null };
     return {
       available: true,
       mode: "fallback",
-      note: "Chưa có HeyGen — sẽ dựng avatar nháp (ảnh + TTS), không phải người ảo HeyGen.",
+      note: "Chưa có HeyGen — sẽ che người bằng thẻ nhân vật trên máy (Ken Burns), giữ tiếng bài.",
     };
   }
   if (tool.id === "hailuo_character") {

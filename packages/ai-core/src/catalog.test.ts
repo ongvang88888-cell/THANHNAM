@@ -74,7 +74,7 @@ describe("AI edit catalog", () => {
     expect(avail.available).toBe(true);
     expect(avail.mode).toBe("fallback");
     expect(tool.description).toMatch(/lecture_expert_v1/);
-    expect(tool.description).toMatch(/tô đậm người giữa khung trên máy/);
+    expect(tool.description).toMatch(/người dẫn ảo/);
     expect(tool.description).not.toMatch(/Không tô hoạt hình mặc định/);
   });
 
@@ -152,7 +152,8 @@ describe("AI edit catalog", () => {
       veo: false,
       elevenlabs: false,
     };
-    expect(toolAvailability(getAiEditTool("avatar_presenter")!, base, true).available).toBe(false);
+    expect(toolAvailability(getAiEditTool("avatar_presenter")!, base, true).available).toBe(true);
+    expect(toolAvailability(getAiEditTool("avatar_presenter")!, base, true).mode).toBe("fallback");
     expect(toolAvailability(getAiEditTool("avatar_presenter")!, { ...base, tts: true }, true).mode).toBe("fallback");
     expect(toolAvailability(getAiEditTool("avatar_presenter")!, { ...base, heygen: true }, false).mode).toBe("full");
     expect(toolAvailability(getAiEditTool("hailuo_character")!, base, true).available).toBe(false);

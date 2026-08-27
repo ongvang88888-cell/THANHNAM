@@ -133,10 +133,10 @@ export function CharacterIdentityPanel(props: { token: string }) {
     <div className="panel" style={{ maxWidth: 860, marginBottom: 24 }}>
       <h2>Nhân vật dùng cho mọi video</h2>
       <p className="muted">
-        Học từ HeyGen Instant Avatar / v3: tạo một khuôn mặt (ảnh hoặc mô tả chi tiết), lưu một lần, rồi mọi bài tải lên
-        che người gốc bằng nhân vật đó. Không khóa HeyGen thì dùng cùng một ảnh Hailuo nếu có MINIMAX_API_KEY. Không khóa
-        thì vẫn tô người thật trên máy. Clip AI ngắn được lặp hết bài, giữ tiếng gốc — không phải face-swap từng pixel.
-        Synthesia, Hedra, D-ID cùng ý tưởng nhưng chưa gắn API.
+        Mọi video tải lên tự che người gốc bằng người dẫn ảo. Học từ HeyGen Instant Avatar / v3: lưu một khuôn mặt rồi
+        tái dùng. Không khóa HeyGen thì máy dựng thẻ nhân vật (Ken Burns) và che người giữa khung, giữ tiếng gốc. Có
+        MINIMAX_API_KEY + cùng một ảnh thì dùng Hailuo. Không phải face-swap từng pixel. Synthesia, Hedra, D-ID cùng ý
+        tưởng nhưng chưa gắn API.
       </p>
       <div className="ai-edit-caps">
         <span className={`badge ${caps.heygen ? "ok" : ""}`}>HeyGen {caps.heygen ? "sẵn" : "chưa khóa"}</span>

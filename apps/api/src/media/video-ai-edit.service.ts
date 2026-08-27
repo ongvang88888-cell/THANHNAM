@@ -31,11 +31,12 @@ import {
   buildHeygenAvatarBody,
   buildHeygenCreateAvatarBody,
   buildHeygenTranslateBody,
-  characterReadyForAutoReplace,
   emptyPresenterCharacter,
+  resolveAutoPresenter,
   buildMinimaxVideoBody,
   buildVeoGenerateBody,
   captionStillArgs,
+  characterCardStillArgs,
   characterPipOverlayArgs,
   characterReplaceCoverArgs,
   characterStillPrompt,
@@ -1541,27 +1542,16 @@ export class VideoAiEditService implements OnModuleInit {
       const style = options.style ?? "trend";
       const strength = options.toonStrength ?? "high";
       let toonApplied = false;
-      let characterReplace: false | "heygen" | "minimax" = false;
+      let characterReplace: false | "heygen" | "minimax" | "local" = false;
       await this.markStep(editId, "character");
       const profile = video.ownerUserId
         ? await this.prisma.presenterCharacter.findUnique({
             where: { appId_userId: { appId: video.appId, userId: video.ownerUserId } },
           })
         : null;
-      const caps = await this.capabilities();
-      if (
-        profile &&
-        characterReadyForAutoReplace({
-          autoReplace: profile.autoReplace,
-          confirmOwned: profile.confirmOwned,
-          confirmLikeness: profile.confirmLikeness,
-          stillUrl: profile.stillUrl,
-          heygenAvatarId: profile.heygenAvatarId,
-          heygenTalkingPhotoId: profile.heygenTalkingPhotoId,
-        }) &&
-        (caps.heygen || caps.minimax)
-      ) {
-        const replaced = await this.tryAutoReplaceOntoLesson(video, editId, profile, options, ai, lessonPath, dir);
+      const presenter = resolveAutoPresenter(profile);
+      if (presenter) {
+        const replaced = await this.tryAutoReplaceOntoLesson(video, editId, presenter, options, ai, lessonPath, dir);
         if (replaced) {
           lessonPath = replaced.path;
           characterReplace = replaced.kind;
@@ -1597,6 +1587,8 @@ export class VideoAiEditService implements OnModuleInit {
             ? `${OWNERSHIP_DISCLAIMER} Đã che người gốc bằng nhân vật HeyGen (cùng avatar), lặp clip ngắn, giữ tiếng. Không phải face-swap.`
             : characterReplace === "minimax"
               ? `${OWNERSHIP_DISCLAIMER} Đã che người gốc bằng nhân vật Hailuo (cùng một ảnh), lặp clip ngắn, giữ tiếng. Miệng không khớp cả bài.`
+              : characterReplace === "local"
+                ? `${OWNERSHIP_DISCLAIMER} Đã che người gốc bằng thẻ nhân vật trên máy (Ken Burns), lặp hết bài, giữ tiếng. Không phải face-swap hay người ảo HeyGen.`
               : toonApplied
                 ? `${OWNERSHIP_DISCLAIMER} Công thức lecture_expert_v1: làm nét + lọc tiếng, cắt im lặng, rồi tô đậm người giữa khung (phong cách trend trên máy). Giữ slide và tiếng gốc. Không sinh nhân vật 3D kiểu Kling/Dreamina.`
                 : `${OWNERSHIP_DISCLAIMER} Công thức lecture_expert_v1: làm nét + lọc tiếng, cắt im lặng. Tô hoạt hình lỗi — giữ bản làm nét.`,
@@ -1869,18 +1861,16 @@ export class VideoAiEditService implements OnModuleInit {
     const row = await this.prisma.presenterCharacter.findUnique({
       where: { appId_userId: { appId: user.appId, userId: user.userId } },
     });
-    const caps = await this.capabilities();
-    if (!row || !characterReadyForAutoReplace(row) || !(caps.heygen || caps.minimax)) {
-      return {};
-    }
+    const presenter = resolveAutoPresenter(row);
+    if (!presenter) return {};
     const extra: AiEditOptions = {
       insertMode: "replace",
       confirmLikeness: true,
-      characterLook: asCharacterLook(row.look),
+      characterLook: presenter.look,
     };
-    if (row.stillUrl) extra.characterImageUrl = row.stillUrl;
-    if (row.heygenAvatarId) extra.heygenAvatarId = row.heygenAvatarId;
-    if (row.heygenTalkingPhotoId) extra.heygenTalkingPhotoId = row.heygenTalkingPhotoId;
+    if (presenter.stillUrl) extra.characterImageUrl = presenter.stillUrl;
+    if (presenter.heygenAvatarId) extra.heygenAvatarId = presenter.heygenAvatarId;
+    if (presenter.heygenTalkingPhotoId) extra.heygenTalkingPhotoId = presenter.heygenTalkingPhotoId;
     return extra;
   }
 
@@ -1928,7 +1918,7 @@ export class VideoAiEditService implements OnModuleInit {
     video: Video,
     editId: string,
     profile: {
-      id: string;
+      id?: string;
       name: string;
       look: string;
       bible: string;
@@ -1940,7 +1930,7 @@ export class VideoAiEditService implements OnModuleInit {
     ai: AiPort,
     lessonPath: string,
     dir: string,
-  ): Promise<{ path: string; kind: "heygen" | "minimax" } | null> {
+  ): Promise<{ path: string; kind: "heygen" | "minimax" | "local" } | null> {
     const look = asCharacterLook(profile.look);
     const script = presenterGreeting(profile.name, look);
     const region: FaceRegion = options.region ?? "speaker";
@@ -1961,10 +1951,12 @@ export class VideoAiEditService implements OnModuleInit {
         let talkingPhotoId = profile.heygenTalkingPhotoId ?? undefined;
         if (!talkingPhotoId && !profile.heygenAvatarId && profile.stillUrl) {
           talkingPhotoId = await this.uploadHeygenTalkingPhotoFromUrl(heygenKey, profile.stillUrl);
-          await this.prisma.presenterCharacter.update({
-            where: { id: profile.id },
-            data: { heygenTalkingPhotoId: talkingPhotoId },
-          });
+          if (profile.id) {
+            await this.prisma.presenterCharacter.update({
+              where: { id: profile.id },
+              data: { heygenTalkingPhotoId: talkingPhotoId },
+            });
+          }
         }
         const clip = await this.renderHeygenAvatar(video, editId, script, heygenKey, standalone, talkingPhotoId);
         const composed = await this.coverLessonWithClip(
@@ -2009,7 +2001,53 @@ export class VideoAiEditService implements OnModuleInit {
         this.log.warn(`auto Hailuo replace skipped: ${err instanceof Error ? err.message : "error"}`);
       }
     }
+    try {
+      const localPath = await this.renderLocalPresenterCover(
+        lessonPath,
+        path.join(dir, "owned-abc-character.mp4"),
+        profile,
+        region,
+      );
+      if (localPath) return { path: localPath, kind: "local" };
+    } catch (err) {
+      this.log.warn(`auto local presenter skipped: ${err instanceof Error ? err.message : "error"}`);
+    }
     return null;
+  }
+
+  private async renderLocalPresenterCover(
+    lessonPath: string,
+    outputPath: string,
+    profile: { name: string; look: string; stillUrl: string | null },
+    region: FaceRegion,
+  ): Promise<string | null> {
+    const dir = path.dirname(outputPath);
+    const stillPath = path.join(dir, "presenter-card.jpg");
+    let usedPhoto = false;
+    if (profile.stillUrl?.startsWith("https://")) {
+      try {
+        const parsed = parsePublicHttpsUrl(profile.stillUrl, "Ảnh nhân vật");
+        const res = await fetch(parsed.toString(), { signal: AbortSignal.timeout(30_000), redirect: "follow" });
+        if (res.ok) {
+          const bytes = Buffer.from(await res.arrayBuffer());
+          if (bytes.length > 0 && bytes.length <= 8 * 1024 * 1024) {
+            await writeFile(stillPath, bytes);
+            usedPhoto = true;
+          }
+        }
+      } catch (err) {
+        this.log.warn(`presenter still download skipped: ${err instanceof Error ? err.message : "error"}`);
+      }
+    }
+    if (!usedPhoto) {
+      const font = firstExistingFont(existsSync);
+      if (!font) throw new Error("Máy chủ thiếu font để dựng thẻ nhân vật.");
+      await this.execFfmpeg(characterCardStillArgs(stillPath, profile.name, asCharacterLook(profile.look), font));
+    }
+    const clipPath = path.join(dir, "presenter-card.mp4");
+    await this.execFfmpeg(kenBurnsStillArgs(stillPath, clipPath, 6));
+    await this.execFfmpeg(characterReplaceCoverArgs(lessonPath, clipPath, outputPath, region));
+    return outputPath;
   }
 
   private async coverLessonWithClip(
@@ -2050,6 +2088,46 @@ export class VideoAiEditService implements OnModuleInit {
         return await this.renderHeygenAvatar(video, editId, script, heygenKey, options, talkingPhotoId);
       } catch (err) {
         this.log.warn(`HeyGen avatar fallback: ${err instanceof Error ? err.message : "error"}`);
+      }
+    }
+    if (video.storageKey && (options.insertMode ?? "replace") !== "standalone") {
+      try {
+        const lecture = await this.openSourceFile(video);
+        const dir = await mkdtemp(path.join(tmpdir(), "edu-ai-avatar-local-"));
+        try {
+          const covered = await this.renderLocalPresenterCover(
+            lecture.path,
+            path.join(dir, "avatar-local.mp4"),
+            {
+              name: options.prompt?.trim().slice(0, 60) || "Cô Minh",
+              look: options.characterLook ?? "teacher",
+              stillUrl: options.characterImageUrl ?? null,
+            },
+            options.region ?? "speaker",
+          );
+          if (covered) {
+            const key = buildObjectKey({
+              appId: video.appId,
+              type: "video-ai",
+              id: editId,
+              filename: "avatar_presenter.mp4",
+            });
+            const sizeBytes = await this.persistFile(key, covered, "video/mp4");
+            return {
+              kind: "video",
+              storageKey: key,
+              contentType: "video/mp4",
+              sizeBytes,
+              durationMs: (await this.probeDurationMs(covered)) ?? video.durationMs ?? undefined,
+              providerNote: `${OWNERSHIP_DISCLAIMER} Đã che người gốc bằng thẻ nhân vật trên máy. Không phải người ảo HeyGen.`,
+            };
+          }
+        } finally {
+          await rm(dir, { recursive: true, force: true });
+          await lecture.cleanup();
+        }
+      } catch (err) {
+        this.log.warn(`local presenter fallback: ${err instanceof Error ? err.message : "error"}`);
       }
     }
     const draft = await this.renderPosterTtsAvatar(video, editId, script, options, ai);
