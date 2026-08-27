@@ -25,14 +25,16 @@ export default function GplxSignsPage() {
   const { token, ready } = useRequireAuth();
   const [items, setItems] = useState<Sign[]>([]);
   const [group, setGroup] = useState("all");
+  const [q, setQ] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ready || !token) return;
-    apiGet<{ items: Sign[] }>("/gplx/signs", token)
+    const qs = q.trim().length >= 2 ? `?q=${encodeURIComponent(q.trim())}` : "";
+    apiGet<{ items: Sign[] }>(`/gplx/signs${qs}`, token)
       .then((r) => setItems(r.items))
       .catch((e) => setError(e instanceof Error ? e.message : "Lỗi"));
-  }, [ready, token]);
+  }, [ready, token, q]);
 
   const filtered = useMemo(
     () => (group === "all" ? items : items.filter((s) => s.group === group)),
@@ -45,6 +47,12 @@ export default function GplxSignsPage() {
         <a href="/gplx">Ôn GPLX</a> · Biển báo
       </p>
       <h1 style={{ fontFamily: "var(--font-display)" }}>Thư viện biển báo</h1>
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Tìm theo mã / tên / ý nghĩa…"
+        style={{ width: "100%", maxWidth: 420, padding: "10px 12px", marginBottom: 12 }}
+      />
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
         {GROUPS.map((g) => (
           <button
@@ -57,6 +65,11 @@ export default function GplxSignsPage() {
           </button>
         ))}
       </div>
+      <p style={{ marginBottom: 16 }}>
+        <a className="btn secondary" href="/gplx/flashcards?kind=signs">
+          Học flashcard biển báo
+        </a>
+      </p>
       {error && <p className="error">{error}</p>}
       {filtered.map((s) => (
         <div className="panel" key={s.id} style={{ marginBottom: 10 }}>

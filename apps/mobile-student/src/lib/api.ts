@@ -208,6 +208,8 @@ export const api = {
       isPro: boolean;
       mocksRemainingToday: number | null;
       freeMocksPerDay: number;
+      streak?: { currentStreak: number; longestStreak: number; lastStudyDate: string };
+      bookmarkCount?: number;
       stats: {
         totalQuestions: number;
         criticalCount: number;
@@ -218,12 +220,32 @@ export const api = {
       rules: { questionCount: number; passCorrectCount: number; durationSec: number };
       proProduct: { slug: string; name: string } | null;
     }>(`/gplx/overview?licenseClass=${licenseClass}`, { token }),
-  gplxStartMock: (token: string, licenseClass: string) =>
+  gplxStartMock: (
+    token: string,
+    licenseClass: string,
+    mode: "random" | "fixed" | "critical_only" = "random",
+    fixedSetId?: string,
+  ) =>
     request<{ attemptId: string }>("/gplx/mock/start", {
       method: "POST",
       token,
-      body: { licenseClass },
+      body: { licenseClass, mode, ...(fixedSetId ? { fixedSetId } : {}) },
     }),
+  gplxFixedSets: (token: string, licenseClass: string) =>
+    request<{
+      items: Array<{
+        id: string;
+        code: string;
+        title: string;
+        licenseClass: string;
+        questionCount: number;
+      }>;
+    }>(`/gplx/fixed-sets?licenseClass=${licenseClass}`, { token }),
+  gplxFlashcards: (token: string, licenseClass: string, kind?: string) =>
+    request<{ items: Array<{ id: string; front: string; back: string; kind: string }> }>(
+      `/gplx/flashcards?licenseClass=${licenseClass}${kind ? `&kind=${kind}` : ""}`,
+      { token },
+    ),
   gplxGetAttempt: (token: string, attemptId: string) =>
     request<{
       attemptId: string;
