@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import { apiGet } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
 import { GplxCrumb } from "@/components/gplx/GplxChrome";
+import { GplxFigure } from "@/components/gplx/GplxFigure";
 
 type Card = {
   id: string;
   front: string;
   back: string;
   kind: string;
+  imageUrl?: string | null;
 };
 
 const KINDS = [
@@ -87,21 +89,7 @@ export default function GplxFlashcardsPage() {
                 <p className="muted" style={{ marginTop: 0 }}>
                   {card.kind} · {idx + 1}/{cards.length} · chạm để lật
                 </p>
-                {card.kind === "sign" && (
-                  <div
-                    aria-hidden
-                    style={{
-                      width: 72,
-                      height: 72,
-                      borderRadius: "50%",
-                      border: "6px solid #c0392b",
-                      background: "#fff",
-                      marginBottom: 14,
-                      boxShadow: "0 8px 24px rgba(192,57,43,0.2)",
-                      animation: "brandPop 0.6s var(--ease-out) both",
-                    }}
-                  />
-                )}
+                <GplxFigure src={card.imageUrl} alt={card.front} size="sm" />
                 <p
                   style={{
                     fontFamily: "var(--font-display)",

@@ -7,7 +7,60 @@ type SeedQ = {
   isCritical?: boolean;
   classes: string[];
   answers: Array<{ body: string; correct?: boolean }>;
+  /** Optional explicit illustration path (overrides auto-match). */
+  imageUrl?: string;
 };
+
+function resolveQuestionImage(topic: string, stem: string, explicit?: string): string | null {
+  if (explicit) return explicit;
+  const s = stem.toLowerCase();
+  const signRules: Array<[RegExp, string]> = [
+    [/\bp\.101\b|đường cấm(?! dừng)/i, "/gplx/signs/P_101.svg"],
+    [/\bp\.102\b|cấm đi ngược chiều/i, "/gplx/signs/P_102.svg"],
+    [/cấm rẽ trái|\bp\.123a\b/i, "/gplx/signs/P_123a.svg"],
+    [/cấm rẽ phải|\bp\.124a\b/i, "/gplx/signs/P_124a.svg"],
+    [/cấm dừng và đỗ|cấm dừng đỗ|\bp\.130\b/i, "/gplx/signs/P_130.svg"],
+    [/tốc độ tối đa|\bp\.127/i, "/gplx/signs/P_127a.svg"],
+    [/hết mọi lệnh cấm|hết tất cả các lệnh cấm|\bp\.135\b/i, "/gplx/signs/P_135.svg"],
+    [/biển stop|dừng lại|\bp\.122\b/i, "/gplx/signs/P_122.svg"],
+    [/trẻ em|\bw\.225\b/i, "/gplx/signs/W_225.svg"],
+    [/người đi bộ cắt ngang|\bw\.224\b/i, "/gplx/signs/W_224.svg"],
+    [/đường sắt không rào|\bw\.235\b/i, "/gplx/signs/W_235.svg"],
+    [/đường sắt có rào|\bw\.234\b/i, "/gplx/signs/W_234.svg"],
+    [/vòng xuyến|\br\.303\b/i, "/gplx/signs/R_303.svg"],
+    [/bến xe buýt|\bi\.434/i, "/gplx/signs/I_434a.svg"],
+    [/biển.*ưu tiên|\bi\.401\b/i, "/gplx/signs/I_401.svg"],
+    [/biển báo cấm thường có hình/i, "/gplx/signs/P_101.svg"],
+    [/biển báo nguy hiểm thường/i, "/gplx/signs/W_210.svg"],
+    [/biển hiệu lệnh/i, "/gplx/signs/R_301a.svg"],
+    [/biển chỉ dẫn/i, "/gplx/signs/I_401.svg"],
+    [/biển hết mọi lệnh cấm/i, "/gplx/signs/P_135.svg"],
+    [/biển stop/i, "/gplx/signs/P_122.svg"],
+    [/biển khu vực đông học sinh/i, "/gplx/signs/W_225.svg"],
+  ];
+  for (const [re, url] of signRules) {
+    if (re.test(stem) || re.test(s)) return url;
+  }
+  if (topic === "signs" || topic === "situations" || /sa hình|tình huống|giao lộ|vượt|đèn/i.test(stem)) {
+    const sitRules: Array<[RegExp, string]> = [
+      [/đèn (đỏ|vàng|xanh)|tín hiệu/i, "/gplx/situations/traffic-light.svg"],
+      [/người đi bộ|vạch sang đường/i, "/gplx/situations/pedestrian-crossing.svg"],
+      [/đường sắt|đường ngang/i, "/gplx/situations/railway-crossing.svg"],
+      [/vòng xuyến/i, "/gplx/situations/roundabout.svg"],
+      [/xe ưu tiên|cứu thương|chữa cháy|cảnh sát/i, "/gplx/situations/emergency-vehicle.svg"],
+      [/trường học|trẻ em/i, "/gplx/situations/school-zone.svg"],
+      [/cao tốc|nhập làn tăng tốc/i, "/gplx/situations/highway-merge.svg"],
+      [/vượt/i, "/gplx/situations/overtake.svg"],
+      [/đường ưu tiên|đường nhánh|nhập làn từ đường nhánh/i, "/gplx/situations/priority-road.svg"],
+      [/giao lộ|ngã tư/i, "/gplx/situations/intersection-uncontrolled.svg"],
+    ];
+    for (const [re, url] of sitRules) {
+      if (re.test(stem) || re.test(s)) return url;
+    }
+  }
+  return null;
+}
+
 
 const TOPICS: Array<{ code: string; title: string }> = [
   { code: "concepts", title: "Khái niệm và quy tắc giao thông" },
@@ -1592,6 +1645,7 @@ export async function seedGplx(prisma: PrismaClient, appId: string) {
     const topicId = topicIds.get(q.topic);
     if (!topicId) continue;
     position += 1;
+    const autoImage = resolveQuestionImage(q.topic, q.stem, q.imageUrl);
     const row = await prisma.gplxBankQuestion.create({
       data: {
         appId,
@@ -1600,6 +1654,7 @@ export async function seedGplx(prisma: PrismaClient, appId: string) {
         explanation: q.explanation,
         isCritical: !!q.isCritical,
         licenseClassesJson: q.classes,
+        imageUrl: autoImage,
         officialNo: position,
         position,
         answers: {

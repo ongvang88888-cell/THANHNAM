@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="Đường ngang cắt đường sắt">
+  <rect width="640" height="400" fill="#eef6f4"/>
+  <rect x="0" y="180" width="640" height="60" fill="#5a6570"/>
+  <g stroke="#333" stroke-width="8">
+    <line x1="80" y1="80" x2="560" y2="320"/>
+    <line x1="80" y1="320" x2="560" y2="80"/>
+  </g>
+  <rect x="300" y="40" width="40" height="100" fill="#c0392b"/>
+  <text x="250" y="70" fill="#c0392b" font-family="system-ui,sans-serif" font-size="22" font-weight="800">×</text>
+  <text x="24" y="36" fill="#0c1f24" font-family="system-ui,sans-serif" font-size="18" font-weight="700">Đường ngang cắt đường sắt</text>
+  <text x="24" y="62" fill="#2a454c" font-family="system-ui,sans-serif" font-size="14">Quan sát, dừng khi có tín hiệu/rào; không vượt khi đường sắt đang có tàu</text>
+</svg>

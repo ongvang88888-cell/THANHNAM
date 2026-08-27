@@ -5,12 +5,14 @@ import { useParams, useSearchParams } from "next/navigation";
 import { apiGet, apiPost } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
 import { GplxCrumb } from "@/components/gplx/GplxChrome";
+import { GplxFigure } from "@/components/gplx/GplxFigure";
 
 type Q = {
   id: string;
   stem: string;
   explanation: string;
   isCritical: boolean;
+  imageUrl?: string | null;
   answers: Array<{ id: string; body: string }>;
 };
 
@@ -142,6 +144,7 @@ function TopicPracticeInner() {
         }}
       >
         <p style={{ fontSize: "1.08rem", lineHeight: 1.55, fontWeight: 600 }}>{q.stem}</p>
+        <GplxFigure src={q.imageUrl} alt="Minh họa câu hỏi" size="lg" />
         <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
           {q.answers.map((a) => {
             const on = selected.includes(a.id);

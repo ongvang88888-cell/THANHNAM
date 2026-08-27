@@ -32,6 +32,7 @@ import {
   rankWeakTopics,
   GPLX_TIPS,
   GPLX_SIGNS,
+  GPLX_SITUATIONS,
   buildGplxSevenDayPlan,
   GPLX_PRO_PRODUCT_SLUG,
   GPLX_FREE_MOCKS_PER_DAY,
@@ -150,6 +151,10 @@ export class GplxService {
       );
     }
     return { items };
+  }
+
+  situations() {
+    return { items: GPLX_SITUATIONS };
   }
 
   plan(licenseClass = "B") {
@@ -423,6 +428,7 @@ export class GplxService {
         isCritical: question.isCritical,
         officialNo: question.officialNo,
         topicTitle: question.topic.title,
+        imageUrl: question.imageUrl,
         bookmarked: bookmarkedIds.has(question.id),
       })),
     };
@@ -457,6 +463,7 @@ export class GplxService {
         topicTitle: b.question.topic.title,
         note: b.note,
         officialNo: b.question.officialNo,
+        imageUrl: b.question.imageUrl,
         answers: b.question.answers.map((a) => ({ id: a.id, body: a.body })),
       })),
     };
@@ -526,6 +533,7 @@ export class GplxService {
           front: `${s.code} ${s.name}`,
           back: s.meaning,
           kind: "sign",
+          imageUrl: s.imageUrl,
         })),
       };
     }
@@ -538,6 +546,7 @@ export class GplxService {
           front: q.stem,
           back: q.explanation,
           kind: "critical",
+          imageUrl: q.imageUrl ?? null,
         })),
       };
     }
@@ -550,6 +559,7 @@ export class GplxService {
           front: q.stem,
           back: q.explanation,
           kind: "wrong",
+          imageUrl: q.imageUrl ?? null,
         })),
       };
     }
@@ -559,6 +569,7 @@ export class GplxService {
       front: `${s.code} ${s.name}`,
       back: s.meaning,
       kind: "sign" as const,
+      imageUrl: s.imageUrl,
     }));
     const critical = await this.criticalQuestions(user, cls);
     const criticalItems = critical.questions.slice(0, 20).map((q) => ({
@@ -566,6 +577,7 @@ export class GplxService {
       front: q.stem,
       back: q.explanation,
       kind: "critical" as const,
+      imageUrl: q.imageUrl ?? null,
     }));
     return { items: [...signItems, ...criticalItems] };
   }
@@ -605,6 +617,7 @@ export class GplxService {
         topicTitle: r.question.topic.title,
         wrongCount: r.wrongCount,
         officialNo: r.question.officialNo,
+        imageUrl: r.question.imageUrl,
         answers: r.question.answers.map((a) => ({ id: a.id, body: a.body })),
       })),
     };
@@ -682,6 +695,7 @@ export class GplxService {
         explanation: q.explanation,
         isCritical: true,
         topicTitle: q.topic.title,
+        imageUrl: q.imageUrl,
         answers: q.answers.map((a) => ({ id: a.id, body: a.body })),
       })),
     };
@@ -713,6 +727,7 @@ export class GplxService {
         isCritical: r.question.isCritical,
         topicTitle: r.question.topic.title,
         wrongCount: r.wrongCount,
+        imageUrl: r.question.imageUrl,
         answers: r.question.answers.map((a) => ({ id: a.id, body: a.body })),
       })),
     };
@@ -1048,6 +1063,7 @@ export class GplxService {
         correct: d.correct,
         selectedAnswerIds: d.selectedAnswerIds,
         correctAnswerIds: d.correctAnswerIds,
+        imageUrl: q.imageUrl,
         answers: q.answers
           .sort((a, b) => a.position - b.position)
           .map((a) => ({ id: a.id, body: a.body, isCorrect: a.isCorrect })),
@@ -1127,6 +1143,11 @@ export class GplxController {
   @Get("signs")
   signs(@Query("group") group?: string, @Query("q") q?: string) {
     return this.gplx.signs(group, q);
+  }
+
+  @Get("situations")
+  situations() {
+    return this.gplx.situations();
   }
 
   @Get("plan")

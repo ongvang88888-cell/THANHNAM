@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="Ngã tư không đèn">
+  <rect width="640" height="400" fill="#e8f2ef"/>
+  <rect x="0" y="150" width="640" height="100" fill="#5a6570"/>
+  <rect x="270" y="0" width="100" height="400" fill="#5a6570"/>
+  <g stroke="#fff" stroke-width="4" stroke-dasharray="18 14">
+    <line x1="20" y1="200" x2="250" y2="200"/>
+    <line x1="390" y1="200" x2="620" y2="200"/>
+    <line x1="320" y1="20" x2="320" y2="130"/>
+    <line x1="320" y1="270" x2="320" y2="380"/>
+  </g>
+  <!-- car A left -->
+  <rect x="80" y="168" width="70" height="36" rx="8" fill="#0b6e63"/>
+  <polygon points="150,168 175,186 150,204" fill="#0b6e63"/>
+  <text x="90" y="192" fill="#fff" font-family="system-ui,sans-serif" font-size="14" font-weight="700">A</text>
+  <!-- car B bottom -->
+  <rect x="302" y="300" width="36" height="70" rx="8" fill="#e09b14"/>
+  <polygon points="302,300 320,275 338,300" fill="#e09b14"/>
+  <text x="312" y="345" fill="#0c1f24" font-family="system-ui,sans-serif" font-size="14" font-weight="700">B</text>
+  <text x="24" y="36" fill="#0c1f24" font-family="system-ui,sans-serif" font-size="18" font-weight="700">Ngã tư không đèn — xác định thứ tự ưu tiên</text>
+  <text x="24" y="62" fill="#2a454c" font-family="system-ui,sans-serif" font-size="14">Xe bên phải được ưu tiên khi cùng đến (không có biển/đèn)</text>
+</svg>

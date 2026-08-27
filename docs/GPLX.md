@@ -40,12 +40,19 @@ Content helpers: `GPLX_TIPS`, `GPLX_SIGNS`, `buildGplxSevenDayPlan`, `GPLX_PRO_P
 
 Seed là **ngân hàng demo gốc** (100+ câu), đủ để thi thử mọi hạng theo cấu hình trên — **không** phải bản sao bộ 600 câu có bản quyền. Trước lên store cần thay bằng bank có giấy phép.
 
+## Illustrations (biển báo & tình huống)
+
+- Biển báo SVG: Wikimedia Commons (PD-VietnamGov / QCVN 41 diagrams) dưới `apps/web/public/gplx/signs/` — xem `SOURCES.md`.
+- Tình huống: SVG giáo dục gốc tại `apps/web/public/gplx/situations/` (không dùng ảnh đề thi chính thức).
+- `GplxBankQuestion.imageUrl` được seed tự gắn theo từ khóa; API trả về trên practice/mock/flashcards.
+- Web: `/gplx/signs`, `/gplx/situations`, flashcard + đề thi hiển thị hình khi có.
+
 ## API (`/api/v1/gplx`)
 
 All routes require auth (`X-App-Id` + Bearer).
 
 - `GET /license-classes`
-- `GET /tips` · `GET /signs?group=&q=` · `GET /plan?licenseClass=`
+- `GET /tips` · `GET /signs?group=&q=` · `GET /situations` · `GET /plan?licenseClass=`
 - `GET /overview?licenseClass=B` — stats, Pro quota, **streak**, **bookmarkCount**, **weakTopics** (top 3), plan preview
 - `GET /topics` · `GET /topics/:id/questions?licenseClass=`
 - `GET /critical` · `GET /wrong` · `GET /hardest` · `GET /weak-topics`

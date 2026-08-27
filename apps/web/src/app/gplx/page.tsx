@@ -278,6 +278,9 @@ export default function GplxHomePage() {
             <a className="btn secondary" href="/gplx/signs">
               Biển báo
             </a>
+            <a className="btn secondary" href={`/gplx/situations?licenseClass=${licenseClass}`}>
+              Tình huống
+            </a>
             <a className="btn secondary" href={`/gplx/plan?licenseClass=${licenseClass}`}>
               Lộ trình 7 ngày
             </a>

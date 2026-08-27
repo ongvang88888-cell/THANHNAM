@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Biển P.124a Cấm rẽ phải">
+  <circle cx="256" cy="256" r="230" fill="#fff" stroke="#e30613" stroke-width="36"/>
+  <path d="M210 340 V200 H300" fill="none" stroke="#1a1a1a" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="300,160 360,200 300,240" fill="#1a1a1a"/>
+  <line x1="140" y1="140" x2="372" y2="372" stroke="#e30613" stroke-width="36" stroke-linecap="round"/>
+</svg>

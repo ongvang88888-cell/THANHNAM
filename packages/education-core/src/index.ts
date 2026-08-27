@@ -36,10 +36,17 @@ export {
 export {
   GPLX_TIPS,
   GPLX_SIGNS,
+  GPLX_SITUATIONS,
   buildGplxSevenDayPlan,
+  gplxSignImagePath,
+  gplxSituationImagePath,
+  matchSituationIllustration,
+  matchSignIllustration,
   GPLX_PRO_PRODUCT_SLUG,
   GPLX_FREE_MOCKS_PER_DAY,
   type GplxTip,
   type GplxSign,
+  type GplxSignGroup,
+  type GplxSituationIllustration,
   type GplxPlanDay,
 } from "./gplx-content";

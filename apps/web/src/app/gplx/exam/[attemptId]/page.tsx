@@ -5,11 +5,13 @@ import { useParams } from "next/navigation";
 import { apiGet, apiPost } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
 import { GplxCrumb } from "@/components/gplx/GplxChrome";
+import { GplxFigure } from "@/components/gplx/GplxFigure";
 
 type Question = {
   id: string;
   stem: string;
   isCritical: boolean;
+  imageUrl?: string | null;
   answers: Array<{ id: string; body: string }>;
 };
 
@@ -43,6 +45,7 @@ type DoneAttempt = {
       correct: boolean;
       selectedAnswerIds: string[];
       correctAnswerIds: string[];
+      imageUrl?: string | null;
       answers: Array<{ id: string; body: string; isCorrect: boolean }>;
     }>;
   };
@@ -204,6 +207,7 @@ export default function GplxExamPage() {
                   </strong>
                 </p>
                 <p>{r.stem}</p>
+                <GplxFigure src={r.imageUrl} alt="Minh họa" size="md" />
                 <ul className="lesson-list">
                   {r.answers.map((a) => (
                     <li key={a.id} className="muted">
@@ -299,6 +303,7 @@ export default function GplxExamPage() {
           {flagged[q.id] ? " · Đánh dấu" : ""}
         </p>
         <p style={{ fontSize: "1.12rem", lineHeight: 1.55, fontWeight: 600 }}>{q.stem}</p>
+        <GplxFigure src={q.imageUrl} alt="Minh họa câu hỏi" size="lg" />
         <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
           {q.answers.map((a) => {
             const on = (selected[q.id] ?? []).includes(a.id);
