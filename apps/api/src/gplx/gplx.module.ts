@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Injectable,
   Module,
@@ -10,19 +11,32 @@ import {
   UseGuards,
   Inject,
 } from "@nestjs/common";
-import { IsArray, IsIn, IsString, ValidateNested } from "class-validator";
+import {
+  IsArray,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateNested,
+} from "class-validator";
 import { Type } from "class-transformer";
 import {
   getGplxExamRules,
   pickMockQuestionIds,
-  scoreGplxExam,
+  pickCriticalOnlyQuestionIds,
+  resolveFixedSetQuestionIds,
+  scoreGplxMockByMode,
   gplxProgressStatus,
+  gplxUtcDateString,
+  applyGplxStudyStreak,
+  rankWeakTopics,
   GPLX_TIPS,
   GPLX_SIGNS,
   buildGplxSevenDayPlan,
   GPLX_PRO_PRODUCT_SLUG,
   GPLX_FREE_MOCKS_PER_DAY,
   type GplxQuestionKey,
+  type GplxMockMode,
 } from "@edu/education-core";
 import { AppError, ErrorCodes } from "@edu/shared-core";
 import { PrismaService } from "../common/prisma.service";
@@ -30,6 +44,7 @@ import { AuthGuard, CurrentUser, type RequestUser } from "../auth/auth.guard";
 import { AuthModule } from "../auth/auth.module";
 
 const LICENSE_CLASSES = ["A1", "A", "B1", "B", "C", "D", "E", "F"] as const;
+const MOCK_MODES = ["random", "fixed", "critical_only"] as const;
 
 class AnswerDto {
   @IsString()
@@ -44,6 +59,24 @@ class StartMockDto {
   @IsString()
   @IsIn(LICENSE_CLASSES)
   licenseClass!: string;
+
+  @IsOptional()
+  @IsIn(MOCK_MODES)
+  mode?: string;
+
+  @IsOptional()
+  @IsString()
+  fixedSetId?: string;
+}
+
+class BookmarkDto {
+  @IsString()
+  questionId!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
 }
 
 class SubmitMockDto {
@@ -88,10 +121,19 @@ export class GplxService {
     return { items: GPLX_TIPS };
   }
 
-  signs(group?: string) {
-    const items = group
+  signs(group?: string, q?: string) {
+    let items = group
       ? GPLX_SIGNS.filter((s) => s.group === group)
       : GPLX_SIGNS;
+    if (q) {
+      const lower = q.toLowerCase();
+      items = items.filter(
+        (s) =>
+          s.name.toLowerCase().includes(lower) ||
+          s.code.toLowerCase().includes(lower) ||
+          s.meaning.toLowerCase().includes(lower),
+      );
+    }
     return { items };
   }
 
@@ -127,6 +169,76 @@ export class GplxService {
     return this.prisma.gplxMockAttempt.count({
       where: { userId: user.userId, appId: user.appId, startedAt: { gte: start } },
     });
+  }
+
+  private async touchStreak(user: RequestUser) {
+    const today = gplxUtcDateString();
+    const existing = await this.prisma.gplxStudyStreak.findUnique({
+      where: { appId_userId: { appId: user.appId, userId: user.userId } },
+    });
+    const prev = existing
+      ? {
+          currentStreak: existing.currentStreak,
+          longestStreak: existing.longestStreak,
+          lastStudyDate: existing.lastStudyDate,
+        }
+      : { currentStreak: 0, longestStreak: 0, lastStudyDate: "" };
+    const next = applyGplxStudyStreak(prev, today);
+    const streak = await this.prisma.gplxStudyStreak.upsert({
+      where: { appId_userId: { appId: user.appId, userId: user.userId } },
+      create: {
+        appId: user.appId,
+        userId: user.userId,
+        currentStreak: next.currentStreak,
+        longestStreak: next.longestStreak,
+        lastStudyDate: next.lastStudyDate,
+      },
+      update: {
+        currentStreak: next.currentStreak,
+        longestStreak: next.longestStreak,
+        lastStudyDate: next.lastStudyDate,
+      },
+    });
+    return {
+      currentStreak: streak.currentStreak,
+      longestStreak: streak.longestStreak,
+      lastStudyDate: streak.lastStudyDate,
+    };
+  }
+
+  private async getWeakTopicStats(user: RequestUser, licenseClass: string) {
+    const cls = licenseClass.toUpperCase();
+    const questions = await this.prisma.gplxBankQuestion.findMany({
+      where: { appId: user.appId },
+      select: {
+        id: true,
+        licenseClassesJson: true,
+        topic: { select: { id: true, code: true, title: true } },
+      },
+    });
+    const applicable = questions.filter((q) => {
+      const classes = asStringArray(q.licenseClassesJson);
+      return classes.length === 0 || classes.includes(cls);
+    });
+    const applicableIds = applicable.map((q) => q.id);
+    const progress = await this.prisma.gplxStudyProgress.findMany({
+      where: {
+        userId: user.userId,
+        questionId: { in: applicableIds },
+      },
+    });
+    const qById = new Map(applicable.map((q) => [q.id, q]));
+    const rows = progress.map((p) => {
+      const q = qById.get(p.questionId)!;
+      return {
+        topicId: q.topic.id,
+        topicCode: q.topic.code,
+        topicTitle: q.topic.title,
+        correctCount: p.correctCount,
+        wrongCount: p.wrongCount,
+      };
+    });
+    return rankWeakTopics(rows);
   }
 
   async overview(user: RequestUser, licenseClass = "B") {
@@ -191,10 +303,28 @@ export class GplxService {
         correctCount: true,
         total: true,
         failedCritical: true,
+        mode: true,
         startedAt: true,
         submittedAt: true,
       },
     });
+
+    const streakRow = await this.prisma.gplxStudyStreak.findUnique({
+      where: { appId_userId: { appId: user.appId, userId: user.userId } },
+    });
+    const streak = streakRow
+      ? {
+          currentStreak: streakRow.currentStreak,
+          longestStreak: streakRow.longestStreak,
+          lastStudyDate: streakRow.lastStudyDate,
+        }
+      : { currentStreak: 0, longestStreak: 0, lastStudyDate: "" };
+
+    const bookmarkCount = await this.prisma.gplxBookmark.count({
+      where: { appId: user.appId, userId: user.userId },
+    });
+
+    const weakTopics = (await this.getWeakTopicStats(user, classesFilter)).slice(0, 3);
 
     return {
       licenseClass: classesFilter,
@@ -224,6 +354,9 @@ export class GplxService {
         wrong,
         unseen: applicable.length - mastered - learning - wrong,
       },
+      streak,
+      bookmarkCount,
+      weakTopics,
       topics: topics.map((t) => ({
         id: t.id,
         code: t.code,
@@ -232,6 +365,241 @@ export class GplxService {
       })),
       recentAttempts,
       planPreview: buildGplxSevenDayPlan(classesFilter).slice(0, 3),
+    };
+  }
+
+  async search(user: RequestUser, q: string, licenseClass = "B") {
+    const trimmed = q.trim();
+    if (trimmed.length < 2) return { items: [] };
+
+    const cls = licenseClass.toUpperCase();
+    const officialNo = /^\d+$/.test(trimmed) ? parseInt(trimmed, 10) : null;
+
+    const questions = await this.prisma.gplxBankQuestion.findMany({
+      where: {
+        appId: user.appId,
+        OR: [
+          { stem: { contains: trimmed, mode: "insensitive" } },
+          ...(officialNo !== null ? [{ officialNo }] : []),
+        ],
+      },
+      include: { topic: true },
+      take: 30,
+    });
+
+    const filtered = questions.filter((question) => {
+      const classes = asStringArray(question.licenseClassesJson);
+      return classes.length === 0 || classes.includes(cls);
+    });
+
+    const bookmarks = await this.prisma.gplxBookmark.findMany({
+      where: {
+        userId: user.userId,
+        questionId: { in: filtered.map((question) => question.id) },
+      },
+      select: { questionId: true },
+    });
+    const bookmarkedIds = new Set(bookmarks.map((b) => b.questionId));
+
+    return {
+      items: filtered.map((question) => ({
+        id: question.id,
+        stem: question.stem,
+        isCritical: question.isCritical,
+        officialNo: question.officialNo,
+        topicTitle: question.topic.title,
+        bookmarked: bookmarkedIds.has(question.id),
+      })),
+    };
+  }
+
+  async listBookmarks(user: RequestUser, licenseClass = "B") {
+    const cls = licenseClass.toUpperCase();
+    const bookmarks = await this.prisma.gplxBookmark.findMany({
+      where: { appId: user.appId, userId: user.userId },
+      include: {
+        question: {
+          include: {
+            topic: true,
+            answers: { orderBy: { position: "asc" } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    const filtered = bookmarks.filter((b) => {
+      const classes = asStringArray(b.question.licenseClassesJson);
+      return classes.length === 0 || classes.includes(cls);
+    });
+    return {
+      licenseClass: cls,
+      items: filtered.map((b) => ({
+        id: b.question.id,
+        bookmarkId: b.id,
+        stem: b.question.stem,
+        explanation: b.question.explanation,
+        isCritical: b.question.isCritical,
+        topicTitle: b.question.topic.title,
+        note: b.note,
+        officialNo: b.question.officialNo,
+        answers: b.question.answers.map((a) => ({ id: a.id, body: a.body })),
+      })),
+    };
+  }
+
+  async addBookmark(user: RequestUser, dto: BookmarkDto) {
+    const question = await this.prisma.gplxBankQuestion.findFirst({
+      where: { id: dto.questionId, appId: user.appId },
+    });
+    if (!question) {
+      throw new AppError(ErrorCodes.NOT_FOUND, "Question not found", 404);
+    }
+    await this.prisma.gplxBookmark.upsert({
+      where: {
+        userId_questionId: { userId: user.userId, questionId: dto.questionId },
+      },
+      create: {
+        appId: user.appId,
+        userId: user.userId,
+        questionId: dto.questionId,
+        note: dto.note ?? "",
+      },
+      update: {
+        ...(dto.note !== undefined ? { note: dto.note } : {}),
+      },
+    });
+    return { ok: true };
+  }
+
+  async removeBookmark(user: RequestUser, questionId: string) {
+    await this.prisma.gplxBookmark.deleteMany({
+      where: { userId: user.userId, questionId },
+    });
+    return { ok: true };
+  }
+
+  async listFixedSets(user: RequestUser, licenseClass = "B") {
+    const cls = licenseClass.toUpperCase();
+    const sets = await this.prisma.gplxFixedSet.findMany({
+      where: { appId: user.appId, licenseClass: cls },
+      orderBy: { position: "asc" },
+    });
+    return {
+      licenseClass: cls,
+      items: sets.map((s) => ({
+        id: s.id,
+        code: s.code,
+        title: s.title,
+        licenseClass: s.licenseClass,
+        questionCount: asStringArray(s.questionIdsJson).length,
+        position: s.position,
+      })),
+    };
+  }
+
+  async flashcards(
+    user: RequestUser,
+    licenseClass = "B",
+    kind?: "signs" | "critical" | "wrong",
+  ) {
+    const cls = licenseClass.toUpperCase();
+
+    if (kind === "signs") {
+      return {
+        items: GPLX_SIGNS.map((s) => ({
+          id: s.id,
+          front: `${s.code} ${s.name}`,
+          back: s.meaning,
+          kind: "sign",
+        })),
+      };
+    }
+
+    if (kind === "critical") {
+      const critical = await this.criticalQuestions(user, cls);
+      return {
+        items: critical.questions.map((q) => ({
+          id: q.id,
+          front: q.stem,
+          back: q.explanation,
+          kind: "critical",
+        })),
+      };
+    }
+
+    if (kind === "wrong") {
+      const wrong = await this.wrongQuestions(user, cls);
+      return {
+        items: wrong.questions.map((q) => ({
+          id: q.id,
+          front: q.stem,
+          back: q.explanation,
+          kind: "wrong",
+        })),
+      };
+    }
+
+    const signItems = GPLX_SIGNS.map((s) => ({
+      id: s.id,
+      front: `${s.code} ${s.name}`,
+      back: s.meaning,
+      kind: "sign" as const,
+    }));
+    const critical = await this.criticalQuestions(user, cls);
+    const criticalItems = critical.questions.slice(0, 20).map((q) => ({
+      id: q.id,
+      front: q.stem,
+      back: q.explanation,
+      kind: "critical" as const,
+    }));
+    return { items: [...signItems, ...criticalItems] };
+  }
+
+  async hardest(user: RequestUser, licenseClass = "B") {
+    const cls = licenseClass.toUpperCase();
+    const rows = await this.prisma.gplxStudyProgress.findMany({
+      where: {
+        userId: user.userId,
+        wrongCount: { gt: 0 },
+      },
+      include: {
+        question: {
+          include: {
+            topic: true,
+            answers: { orderBy: { position: "asc" } },
+          },
+        },
+      },
+      orderBy: { wrongCount: "desc" },
+      take: 100,
+    });
+    const filtered = rows
+      .filter((r) => {
+        if (r.question.appId !== user.appId) return false;
+        const classes = asStringArray(r.question.licenseClassesJson);
+        return classes.length === 0 || classes.includes(cls);
+      })
+      .slice(0, 50);
+    return {
+      licenseClass: cls,
+      items: filtered.map((r) => ({
+        id: r.question.id,
+        stem: r.question.stem,
+        explanation: r.question.explanation,
+        isCritical: r.question.isCritical,
+        topicTitle: r.question.topic.title,
+        wrongCount: r.wrongCount,
+        officialNo: r.question.officialNo,
+        answers: r.question.answers.map((a) => ({ id: a.id, body: a.body })),
+      })),
+    };
+  }
+
+  async weakTopics(user: RequestUser, licenseClass = "B") {
+    const cls = licenseClass.toUpperCase();
+    return {
+      licenseClass: cls,
+      items: await this.getWeakTopicStats(user, cls),
     };
   }
 
@@ -377,17 +745,31 @@ export class GplxService {
       },
     });
 
+    const streak = await this.touchStreak(user);
+
     return {
       correct,
       explanation: question.explanation,
       correctAnswerIds: correctIds,
       status,
+      streak,
     };
   }
 
-  async startMock(user: RequestUser, licenseClass: string) {
-    const rules = getGplxExamRules(licenseClass);
-    const cls = rules.licenseClass;
+  async startMock(
+    user: RequestUser,
+    licenseClass: string,
+    mode = "random",
+    fixedSetId?: string,
+  ) {
+    const mockMode = (mode || "random") as GplxMockMode;
+    if (!MOCK_MODES.includes(mockMode as (typeof MOCK_MODES)[number])) {
+      throw new AppError(ErrorCodes.VALIDATION, "Invalid mock mode", 400);
+    }
+
+    let rules = getGplxExamRules(licenseClass);
+    let cls = rules.licenseClass;
+    let resolvedFixedSetId: string | undefined;
 
     const isPro = await this.hasGplxPro(user);
     if (!isPro) {
@@ -409,30 +791,79 @@ export class GplxService {
       where: { appId: user.appId },
       select: { id: true, isCritical: true, licenseClassesJson: true },
     });
-    const applicable = pool.filter((q) => {
-      const classes = asStringArray(q.licenseClassesJson);
-      return classes.length === 0 || classes.includes(cls);
-    });
-    if (applicable.length < rules.questionCount) {
-      throw new AppError(
-        ErrorCodes.VALIDATION,
-        `Chưa đủ câu hỏi cho hạng ${cls} (cần ${rules.questionCount}, có ${applicable.length})`,
-        400,
-      );
+
+    const filterApplicable = (license: string) =>
+      pool.filter((q) => {
+        const classes = asStringArray(q.licenseClassesJson);
+        return classes.length === 0 || classes.includes(license);
+      });
+
+    let applicable = filterApplicable(cls);
+
+    let questionIds: string[];
+    let durationSec = rules.durationSec;
+
+    if (mockMode === "critical_only") {
+      questionIds = pickCriticalOnlyQuestionIds(applicable, rules);
+      if (questionIds.length === 0) {
+        throw new AppError(
+          ErrorCodes.VALIDATION,
+          "Không có câu điểm liệt cho hạng này",
+          400,
+        );
+      }
+      durationSec =
+        questionIds.length === rules.questionCount
+          ? rules.durationSec
+          : Math.max(5 * 60, questionIds.length * 40);
+    } else if (mockMode === "fixed") {
+      if (!fixedSetId) {
+        throw new AppError(ErrorCodes.VALIDATION, "fixedSetId required for fixed mode", 400);
+      }
+      const fixedSet = await this.prisma.gplxFixedSet.findFirst({
+        where: { id: fixedSetId, appId: user.appId },
+      });
+      if (!fixedSet) {
+        throw new AppError(ErrorCodes.NOT_FOUND, "Fixed set not found", 404);
+      }
+      rules = getGplxExamRules(fixedSet.licenseClass);
+      cls = rules.licenseClass;
+      applicable = filterApplicable(cls);
+      const setIds = asStringArray(fixedSet.questionIdsJson);
+      questionIds = resolveFixedSetQuestionIds(setIds, new Set(applicable.map((q) => q.id)));
+      if (questionIds.length === 0) {
+        throw new AppError(
+          ErrorCodes.VALIDATION,
+          "Bộ đề không có câu hỏi khả dụng",
+          400,
+        );
+      }
+      resolvedFixedSetId = fixedSet.id;
+      durationSec = rules.durationSec;
+    } else {
+      if (applicable.length < rules.questionCount) {
+        throw new AppError(
+          ErrorCodes.VALIDATION,
+          `Chưa đủ câu hỏi cho hạng ${cls} (cần ${rules.questionCount}, có ${applicable.length})`,
+          400,
+        );
+      }
+      questionIds = pickMockQuestionIds(applicable, rules);
     }
 
-    const questionIds = pickMockQuestionIds(applicable, rules);
-    const expiresAt = new Date(Date.now() + rules.durationSec * 1000);
+    const expiresAt = new Date(Date.now() + durationSec * 1000);
 
     const attempt = await this.prisma.gplxMockAttempt.create({
       data: {
         appId: user.appId,
         userId: user.userId,
         licenseClass: cls,
+        mode: mockMode,
+        fixedSetId: resolvedFixedSetId ?? null,
         questionIdsJson: questionIds,
         total: questionIds.length,
         expiresAt,
-        detailJson: { rules, isPro },
+        detailJson: { rules, isPro, mode: mockMode },
       },
     });
 
@@ -450,13 +881,15 @@ export class GplxService {
         appId: user.appId,
         userId: user.userId,
         name: "gplx_mock_started",
-        propsJson: { attemptId: attempt.id, licenseClass: cls, isPro },
+        propsJson: { attemptId: attempt.id, licenseClass: cls, isPro, mode: mockMode },
       },
     });
 
     return {
       attemptId: attempt.id,
       licenseClass: cls,
+      mode: mockMode,
+      fixedSetId: resolvedFixedSetId ?? null,
       rules,
       startedAt: attempt.startedAt,
       expiresAt: attempt.expiresAt,
@@ -480,6 +913,8 @@ export class GplxService {
       return {
         attemptId: attempt.id,
         licenseClass: attempt.licenseClass,
+        mode: attempt.mode,
+        fixedSetId: attempt.fixedSetId,
         submitted: true,
         score: attempt.score,
         correctCount: attempt.correctCount,
@@ -507,6 +942,8 @@ export class GplxService {
     return {
       attemptId: attempt.id,
       licenseClass: attempt.licenseClass,
+      mode: attempt.mode,
+      fixedSetId: attempt.fixedSetId,
       submitted: false,
       rules,
       startedAt: attempt.startedAt,
@@ -530,6 +967,7 @@ export class GplxService {
       throw new AppError(ErrorCodes.VALIDATION, "Attempt already submitted", 400);
     }
 
+    const mockMode = (attempt.mode as GplxMockMode) || "random";
     const rules = getGplxExamRules(attempt.licenseClass);
     const questionIds = asStringArray(attempt.questionIdsJson);
     const questions = await this.prisma.gplxBankQuestion.findMany({
@@ -541,7 +979,11 @@ export class GplxService {
       .map((id) => byId.get(id))
       .filter((q): q is NonNullable<typeof q> => !!q);
 
-    if (ordered.length !== rules.questionCount) {
+    if (ordered.length !== questionIds.length || ordered.length === 0) {
+      throw new AppError(ErrorCodes.VALIDATION, "Attempt question set invalid", 400);
+    }
+
+    if (mockMode === "random" && ordered.length !== rules.questionCount) {
       throw new AppError(ErrorCodes.VALIDATION, "Attempt question set invalid", 400);
     }
 
@@ -554,9 +996,8 @@ export class GplxService {
       correctAnswerIds: q.answers.filter((a) => a.isCorrect).map((a) => a.id),
     }));
 
-    const scored = scoreGplxExam(keys, dto.answers, rules);
+    const scored = scoreGplxMockByMode(keys, dto.answers, rules, mockMode);
 
-    // Update study progress for each answered question
     for (const d of scored.details) {
       const existing = await this.prisma.gplxStudyProgress.findUnique({
         where: {
@@ -610,11 +1051,14 @@ export class GplxService {
         detailJson: {
           rules,
           timedOut,
+          mode: mockMode,
           details: scored.details,
           review,
         },
       },
     });
+
+    const streak = await this.touchStreak(user);
 
     await this.prisma.analyticsEvent.create({
       data: {
@@ -624,6 +1068,7 @@ export class GplxService {
         propsJson: {
           attemptId: attempt.id,
           licenseClass: attempt.licenseClass,
+          mode: mockMode,
           passed: scored.passed,
           failedCritical: scored.failedCritical,
           correctCount: scored.correctCount,
@@ -635,6 +1080,7 @@ export class GplxService {
     return {
       attemptId: attempt.id,
       licenseClass: attempt.licenseClass,
+      mode: mockMode,
       score: scored.score,
       correctCount: scored.correctCount,
       total: scored.total,
@@ -643,6 +1089,7 @@ export class GplxService {
       timedOut,
       passCorrectCount: rules.passCorrectCount,
       review,
+      streak,
     };
   }
 }
@@ -663,8 +1110,8 @@ export class GplxController {
   }
 
   @Get("signs")
-  signs(@Query("group") group?: string) {
-    return this.gplx.signs(group);
+  signs(@Query("group") group?: string, @Query("q") q?: string) {
+    return this.gplx.signs(group, q);
   }
 
   @Get("plan")
@@ -678,6 +1125,69 @@ export class GplxController {
     @Query("licenseClass") licenseClass?: string,
   ) {
     return this.gplx.overview(user, licenseClass || "B");
+  }
+
+  @Get("search")
+  search(
+    @CurrentUser() user: RequestUser,
+    @Query("q") q: string,
+    @Query("licenseClass") licenseClass?: string,
+  ) {
+    return this.gplx.search(user, q ?? "", licenseClass || "B");
+  }
+
+  @Get("bookmarks")
+  bookmarks(
+    @CurrentUser() user: RequestUser,
+    @Query("licenseClass") licenseClass?: string,
+  ) {
+    return this.gplx.listBookmarks(user, licenseClass || "B");
+  }
+
+  @Post("bookmarks")
+  addBookmark(@CurrentUser() user: RequestUser, @Body() dto: BookmarkDto) {
+    return this.gplx.addBookmark(user, dto);
+  }
+
+  @Delete("bookmarks/:questionId")
+  removeBookmark(
+    @CurrentUser() user: RequestUser,
+    @Param("questionId") questionId: string,
+  ) {
+    return this.gplx.removeBookmark(user, questionId);
+  }
+
+  @Get("fixed-sets")
+  fixedSets(
+    @CurrentUser() user: RequestUser,
+    @Query("licenseClass") licenseClass?: string,
+  ) {
+    return this.gplx.listFixedSets(user, licenseClass || "B");
+  }
+
+  @Get("flashcards")
+  flashcards(
+    @CurrentUser() user: RequestUser,
+    @Query("licenseClass") licenseClass?: string,
+    @Query("kind") kind?: "signs" | "critical" | "wrong",
+  ) {
+    return this.gplx.flashcards(user, licenseClass || "B", kind);
+  }
+
+  @Get("hardest")
+  hardest(
+    @CurrentUser() user: RequestUser,
+    @Query("licenseClass") licenseClass?: string,
+  ) {
+    return this.gplx.hardest(user, licenseClass || "B");
+  }
+
+  @Get("weak-topics")
+  weakTopics(
+    @CurrentUser() user: RequestUser,
+    @Query("licenseClass") licenseClass?: string,
+  ) {
+    return this.gplx.weakTopics(user, licenseClass || "B");
   }
 
   @Get("topics")
@@ -717,7 +1227,12 @@ export class GplxController {
 
   @Post("mock/start")
   startMock(@CurrentUser() user: RequestUser, @Body() dto: StartMockDto) {
-    return this.gplx.startMock(user, dto.licenseClass);
+    return this.gplx.startMock(
+      user,
+      dto.licenseClass,
+      dto.mode ?? "random",
+      dto.fixedSetId,
+    );
   }
 
   @Get("mock/:attemptId")

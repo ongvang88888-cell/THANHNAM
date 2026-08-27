@@ -47,12 +47,12 @@ export default function GplxHomeScreen() {
     void load();
   }, [ready, token, load]);
 
-  async function startMock() {
+  async function startMock(mode: "random" | "critical_only" = "random") {
     if (!token) return;
     setStarting(true);
     setError(null);
     try {
-      const res = await api.gplxStartMock(token, licenseClass);
+      const res = await api.gplxStartMock(token, licenseClass, mode);
       router.push(`/gplx/exam/${res.attemptId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không tạo được đề");
@@ -94,6 +94,9 @@ export default function GplxHomeScreen() {
               </Text>
               <Text style={styles.meta}>
                 Sai: {data.stats.wrong} · Liệt: {data.stats.criticalCount}
+                {data.streak
+                  ? ` · Chuỗi ${data.streak.currentStreak} ngày`
+                  : ""}
               </Text>
               <Text style={styles.meta}>
                 {data.isPro
@@ -102,13 +105,30 @@ export default function GplxHomeScreen() {
               </Text>
               <Pressable
                 style={styles.btn}
-                onPress={() => void startMock()}
+                onPress={() => void startMock("random")}
                 disabled={starting}
               >
                 <Text style={styles.btnText}>
-                  {starting ? "Đang tạo…" : "Bắt đầu thi thử"}
+                  {starting ? "Đang tạo…" : "Đề ngẫu nhiên"}
                 </Text>
               </Pressable>
+              <Pressable
+                style={styles.btnGhost}
+                onPress={() => void startMock("critical_only")}
+                disabled={starting}
+              >
+                <Text style={styles.btnGhostText}>Chỉ câu điểm liệt</Text>
+              </Pressable>
+              <Link href={`/gplx/flashcards?licenseClass=${licenseClass}`} asChild>
+                <Pressable style={styles.btnGhost}>
+                  <Text style={styles.btnGhostText}>Flashcard</Text>
+                </Pressable>
+              </Link>
+              <Link href={`/gplx/sets?licenseClass=${licenseClass}`} asChild>
+                <Pressable style={styles.btnGhost}>
+                  <Text style={styles.btnGhostText}>Bộ đề cố định</Text>
+                </Pressable>
+              </Link>
               {!data.isPro && data.proProduct && (
                 <Link href={`/product/${data.proProduct.slug}`} asChild>
                   <Pressable style={styles.btnGhost}>

@@ -11,17 +11,22 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      # Prefer package.json "packageManager" (pnpm@9.15.0); do not also set "version".
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
+      - run: pnpm --filter @edu/shared-core build
+      - run: pnpm --filter @edu/education-core build
+      - run: pnpm --filter @edu/media-core build
+      - run: pnpm --filter @edu/monetization-core build
+      - run: pnpm --filter @edu/database build
       - run: pnpm --filter @edu/shared-core typecheck
       - run: pnpm --filter @edu/monetization-core typecheck
+      - run: pnpm --filter @edu/education-core test
       - run: pnpm --filter @edu/api typecheck
       - run: pnpm --filter @edu/web typecheck
       - run: pnpm --filter @edu/mobile-student typecheck

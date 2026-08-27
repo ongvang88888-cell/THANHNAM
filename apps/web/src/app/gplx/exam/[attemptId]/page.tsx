@@ -16,6 +16,7 @@ type LiveAttempt = {
   attemptId: string;
   licenseClass: string;
   submitted: false;
+  mode?: string;
   rules: { questionCount: number; passCorrectCount: number; durationSec: number };
   startedAt: string;
   expiresAt: string;
@@ -65,6 +66,7 @@ export default function GplxExamPage() {
   const [live, setLive] = useState<LiveAttempt | null>(null);
   const [result, setResult] = useState<SubmitResult | DoneAttempt | null>(null);
   const [selected, setSelected] = useState<Record<string, string[]>>({});
+  const [flagged, setFlagged] = useState<Record<string, boolean>>({});
   const [idx, setIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -194,6 +196,7 @@ export default function GplxExamPage() {
   const mm = String(Math.floor(remainSec / 60)).padStart(2, "0");
   const ss = String(remainSec % 60).padStart(2, "0");
   const answered = live.questions.filter((qq) => (selected[qq.id] ?? []).length > 0).length;
+  const flaggedCount = Object.values(flagged).filter(Boolean).length;
 
   return (
     <section>
@@ -208,38 +211,51 @@ export default function GplxExamPage() {
       >
         <h1 style={{ fontFamily: "var(--font-display)", margin: 0, fontSize: "1.35rem" }}>
           Thi thử {live.licenseClass}
+          {live.mode && live.mode !== "random" ? ` · ${live.mode}` : ""}
         </h1>
         <strong style={{ color: remainSec < 60 ? "var(--danger)" : "var(--brand)" }}>
           ⏱ {mm}:{ss}
         </strong>
       </div>
       <p className="muted">
-        Đã trả lời {answered}/{live.questions.length} · Cần đúng ≥ {live.rules.passCorrectCount}
+        Đã trả lời {answered}/{live.questions.length}
+        {live.mode === "critical_only"
+          ? " · Ôn liệt: cần đúng hết (hoặc đạt ngưỡng nếu đủ số câu)"
+          : ` · Cần đúng ≥ ${live.rules.passCorrectCount}`}
+        {flaggedCount > 0 ? ` · Đánh dấu xem lại: ${flaggedCount}` : ""}
       </p>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-        {live.questions.map((qq, i) => (
-          <button
-            key={qq.id}
-            type="button"
-            className={i === idx ? "" : "secondary"}
-            style={{
-              minWidth: 36,
-              padding: "6px 8px",
-              opacity: (selected[qq.id] ?? []).length ? 1 : 0.7,
-            }}
-            onClick={() => setIdx(i)}
-          >
-            {i + 1}
-            {qq.isCritical ? "*" : ""}
-          </button>
-        ))}
+        {live.questions.map((qq, i) => {
+          const isAnswered = (selected[qq.id] ?? []).length > 0;
+          const isFlagged = !!flagged[qq.id];
+          return (
+            <button
+              key={qq.id}
+              type="button"
+              className={i === idx ? "" : "secondary"}
+              style={{
+                minWidth: 36,
+                padding: "6px 8px",
+                opacity: isAnswered ? 1 : 0.65,
+                outline: isFlagged ? "2px solid var(--brand)" : undefined,
+              }}
+              onClick={() => setIdx(i)}
+              title={isFlagged ? "Đã đánh dấu xem lại" : undefined}
+            >
+              {i + 1}
+              {qq.isCritical ? "*" : ""}
+              {isFlagged ? "!" : ""}
+            </button>
+          );
+        })}
       </div>
 
       <div className="panel">
         <p className="muted">
           Câu {idx + 1}
           {q.isCritical ? " · Điểm liệt" : ""}
+          {flagged[q.id] ? " · Xem lại" : ""}
         </p>
         <p style={{ fontSize: "1.05rem", lineHeight: 1.5 }}>{q.stem}</p>
         <ul className="lesson-list">
@@ -276,6 +292,15 @@ export default function GplxExamPage() {
             onClick={() => setIdx((i) => i + 1)}
           >
             Sau
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() =>
+              setFlagged((f) => ({ ...f, [q.id]: !f[q.id] }))
+            }
+          >
+            {flagged[q.id] ? "Bỏ đánh dấu" : "Đánh dấu xem lại"}
           </button>
           <button type="button" onClick={() => void submit()} disabled={busy}>
             {busy ? "Đang nộp…" : "Nộp bài"}

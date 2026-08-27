@@ -52,7 +52,7 @@ Breaking changes → `/api/v2`. Deprecation window documented.
 `GET /me/continue` · `PUT /lessons/:id/progress` · `GET /me/library`
 
 ### GPLX (driver license theory)
-`GET /gplx/overview` · `GET /gplx/topics` · `POST /gplx/practice/answer` · `POST /gplx/mock/start` · `POST /gplx/mock/:id/submit` — see [GPLX.md](./GPLX.md)
+See [GPLX.md](./GPLX.md). Highlights: overview (streak/weak topics), search, bookmarks, fixed-sets, flashcards, hardest, mock modes `random|fixed|critical_only`.
 
 ### Teacher / Admin
 Namespaced under `/teacher/*` and `/admin/*` with RBAC.
