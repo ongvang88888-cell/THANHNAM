@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiGet, apiPost } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
+import { GplxCrumb } from "@/components/gplx/GplxChrome";
 
 type Q = {
   id: string;
@@ -53,11 +54,11 @@ export default function GplxHardestPage() {
   if (!ready) return <p className="muted">Đang tải…</p>;
 
   return (
-    <section>
-      <p className="muted">
-        <a href={`/gplx?licenseClass=${licenseClass}`}>← GPLX</a>
-      </p>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Top câu hay sai</h1>
+    <div className="gx-page">
+      <GplxCrumb licenseClass={licenseClass} trail={[{ label: "Top câu hay sai" }]} />
+      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.03em", marginTop: 0 }}>
+        Top câu hay sai
+      </h1>
       <p className="muted">Ưu tiên ôn lại các câu bạn đã sai nhiều lần nhất.</p>
       {error && <p className="error">{error}</p>}
       {items.length === 0 && !error && (
@@ -69,26 +70,38 @@ export default function GplxHardestPage() {
             Sai {q.wrongCount} lần · {q.topicTitle}
             {q.isCritical ? " · Liệt" : ""}
           </p>
-          <p>{q.stem}</p>
-          <ul className="lesson-list">
-            {q.answers.map((a) => (
-              <li key={a.id}>
+          <p style={{ fontWeight: 600 }}>{q.stem}</p>
+          <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+            {q.answers.map((a) => {
+              const on = (selected[q.id] ?? []).includes(a.id);
+              const fb = feedback[q.id];
+              const showCorrect = fb?.startsWith("Đúng") && on;
+              const showWrong = fb && !fb.startsWith("Đúng") && on;
+              return (
                 <button
+                  key={a.id}
                   type="button"
-                  className={(selected[q.id] ?? []).includes(a.id) ? "" : "secondary"}
+                  className={[
+                    "gx-answer",
+                    on && !fb ? "on" : "",
+                    showCorrect ? "correct" : "",
+                    showWrong ? "wrong" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                   onClick={() => setSelected((s) => ({ ...s, [q.id]: [a.id] }))}
                 >
                   {a.body}
                 </button>
-              </li>
-            ))}
-          </ul>
-          <button type="button" onClick={() => void answer(q.id)}>
+              );
+            })}
+          </div>
+          <button type="button" style={{ marginTop: 16 }} onClick={() => void answer(q.id)}>
             Kiểm tra
           </button>
           {feedback[q.id] && <p className="muted">{feedback[q.id]}</p>}
         </div>
       ))}
-    </section>
+    </div>
   );
 }

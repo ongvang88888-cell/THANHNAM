@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { apiGet, apiPost } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
+import { GplxCrumb } from "@/components/gplx/GplxChrome";
 
 type Q = {
   id: string;
@@ -35,6 +36,7 @@ function TopicPracticeInner() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
+  const [shake, setShake] = useState(false);
 
   useEffect(() => {
     if (!ready || !token) return;
@@ -65,6 +67,10 @@ function TopicPracticeInner() {
         correctAnswerIds: string[];
       }>("/gplx/practice/answer", { questionId: q.id, selectedAnswerIds: selected }, token);
       setFeedback(res);
+      if (!res.correct) {
+        setShake(true);
+        window.setTimeout(() => setShake(false), 450);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không chấm được");
     } finally {
@@ -94,72 +100,100 @@ function TopicPracticeInner() {
     return (
       <section>
         <p>Chưa có câu hỏi cho hạng {licenseClass} trong chuyên đề này.</p>
-        <a href={`/gplx?licenseClass=${licenseClass}`}>← Về GPLX</a>
+        <a href={`/gplx?licenseClass=${licenseClass}`}>← Về Đậu GPLX</a>
       </section>
     );
   }
 
   return (
-    <section>
-      <p className="muted">
-        <a href={`/gplx?licenseClass=${licenseClass}`}>Ôn GPLX</a> · {data.topic.title} · hạng{" "}
-        {licenseClass}
-      </p>
-      <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem" }}>
-        Câu {idx + 1}/{data.questions.length}
-        {q.isCritical ? " · Điểm liệt" : ""}
-      </h1>
-      <div className="panel">
-        <p style={{ fontSize: "1.05rem", lineHeight: 1.5 }}>{q.stem}</p>
-        <ul className="lesson-list">
+    <div className="gx-page">
+      <GplxCrumb
+        licenseClass={licenseClass}
+        trail={[{ label: data.topic.title }]}
+      />
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.45rem", margin: 0 }}>
+          Câu {idx + 1}/{data.questions.length}
+          {q.isCritical ? " · Liệt" : ""}
+        </h1>
+        <div className="gx-progress-ring" style={{ width: 48, height: 48 }}>
+          <svg viewBox="0 0 72 72" width="48" height="48" aria-hidden>
+            <circle className="track" cx="36" cy="36" r="30" />
+            <circle
+              className="value"
+              cx="36"
+              cy="36"
+              r="30"
+              style={{
+                strokeDasharray: 188,
+                strokeDashoffset: 188 - ((idx + 1) / data.questions.length) * 188,
+                animation: "none",
+              }}
+            />
+          </svg>
+        </div>
+      </div>
+      <div
+        className="panel"
+        style={{
+          marginTop: 16,
+          transform: shake ? "translateX(0)" : undefined,
+          animation: shake ? "pulseUrgent 0.4s ease" : "rise 0.35s var(--ease-out) both",
+        }}
+      >
+        <p style={{ fontSize: "1.08rem", lineHeight: 1.55, fontWeight: 600 }}>{q.stem}</p>
+        <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
           {q.answers.map((a) => {
             const on = selected.includes(a.id);
             const showCorrect = feedback && feedback.correctAnswerIds.includes(a.id);
             const showWrong = feedback && on && !feedback.correct;
             return (
-              <li key={a.id}>
-                <button
-                  type="button"
-                  className={on ? "" : "secondary"}
-                  disabled={!!feedback}
-                  onClick={() => setSelected([a.id])}
-                  style={{
-                    borderColor: showCorrect
-                      ? "var(--ok)"
-                      : showWrong
-                        ? "var(--danger)"
-                        : undefined,
-                  }}
-                >
-                  {a.body}
-                </button>
-              </li>
+              <button
+                key={a.id}
+                type="button"
+                className={[
+                  "gx-answer",
+                  on ? "on" : "",
+                  showCorrect ? "correct" : "",
+                  showWrong ? "wrong" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                disabled={!!feedback}
+                onClick={() => setSelected([a.id])}
+              >
+                {a.body}
+              </button>
             );
           })}
-        </ul>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
           <button type="button" className="secondary" onClick={() => void bookmark()}>
             {bookmarked ? "Đã bookmark" : "Bookmark"}
           </button>
-        </div>
-        {!feedback ? (
-          <button type="button" onClick={() => void check()} disabled={busy || !selected.length}>
-            {busy ? "Đang chấm…" : "Kiểm tra"}
-          </button>
-        ) : (
-          <div style={{ marginTop: 12 }}>
-            <p className={feedback.correct ? "ok" : "error"}>
-              {feedback.correct ? "Đúng" : "Sai"}
-            </p>
-            {feedback.explanation && <p className="muted">{feedback.explanation}</p>}
-            <button type="button" onClick={next} disabled={idx >= data.questions.length - 1}>
-              Câu tiếp
+          {!feedback ? (
+            <button type="button" onClick={() => void check()} disabled={busy || !selected.length}>
+              {busy ? "Đang chấm…" : "Kiểm tra"}
             </button>
-          </div>
+          ) : (
+            <>
+              <span className={feedback.correct ? "ok" : "error"} style={{ fontWeight: 700, alignSelf: "center" }}>
+                {feedback.correct ? "Chính xác!" : "Chưa đúng"}
+              </span>
+              <button type="button" onClick={next} disabled={idx >= data.questions.length - 1}>
+                Câu tiếp
+              </button>
+            </>
+          )}
+        </div>
+        {feedback?.explanation && (
+          <p className="muted" style={{ marginBottom: 0, marginTop: 12 }}>
+            {feedback.explanation}
+          </p>
         )}
       </div>
       {error && <p className="error">{error}</p>}
-    </section>
+    </div>
   );
 }
 

@@ -36,20 +36,35 @@ export default async function HomePage() {
 
   return (
     <>
-      <section className="hero">
-        <h1>EduCommerce</h1>
-        <p>
-          Nền tảng bán khóa học video, tài liệu số và combo — xem trước miễn phí, mua một lần,
-          hoặc mở khóa bằng quảng cáo thưởng.
-        </p>
+      <section className="gx-hero" style={{ minHeight: "min(58vh, 520px)" }}>
+        <div className="gx-hero-bg" aria-hidden />
+        <div className="gx-hero-road" aria-hidden />
+        <div className="gx-hero-content">
+          <p className="gx-brand" style={{ fontSize: "clamp(2.6rem, 8vw, 4.4rem)" }}>
+            EduCommerce
+          </p>
+          <h2>Học có lộ trình — đậu có công cụ</h2>
+          <p>
+            Khóa học, tài liệu và ôn GPLX trong một nền tảng. Bắt đầu với thi thử lý thuyết sống
+            động.
+          </p>
+          <div className="gx-cta-row">
+            <a className="btn btn-primary-light" href="/gplx">
+              Vào Đậu GPLX
+            </a>
+            <a className="btn btn-ghost-light" href="#catalog">
+              Xem catalog
+            </a>
+          </div>
+        </div>
       </section>
       {error && (
         <p className="error">
           {error}. Kiểm tra API đã chạy tại <code>NEXT_PUBLIC_API_URL</code>.
         </p>
       )}
-      <section>
-        <h2 style={{ fontFamily: "var(--font-display)" }}>Catalog</h2>
+      <section id="catalog">
+        <h2 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>Catalog</h2>
         {items.length === 0 && !error && <p className="muted">Chưa có sản phẩm công khai.</p>}
         <div className="grid">
           {items.map((p) => (

@@ -81,10 +81,15 @@ export default function GplxHomePage() {
       .catch((e) => setError(e instanceof Error ? e.message : "Lỗi tải dữ liệu"));
   }, [ready, token, licenseClass]);
 
-  const durationLabel = useMemo(() => {
-    if (!data) return "";
-    return `${Math.round(data.rules.durationSec / 60)} phút`;
+  const masteryPct = useMemo(() => {
+    if (!data || data.stats.totalQuestions === 0) return 0;
+    return Math.round((data.stats.mastered / data.stats.totalQuestions) * 100);
   }, [data]);
+
+  const ringOffset = useMemo(() => {
+    const c = 2 * Math.PI * 30;
+    return c - (masteryPct / 100) * c;
+  }, [masteryPct]);
 
   async function startExam(mode: "random" | "critical_only" = "random") {
     if (!token) return;
@@ -110,24 +115,41 @@ export default function GplxHomePage() {
   if (!ready) return <p className="muted">Đang tải…</p>;
 
   return (
-    <section>
-      <p className="muted" style={{ marginBottom: 8 }}>
-        Ôn lý thuyết · Thi thử · Flashcard · Bộ đề cố định
-      </p>
-      <h1 style={{ fontFamily: "var(--font-display)", marginTop: 0 }}>GPLX 2026</h1>
-      <p className="muted" style={{ maxWidth: 560 }}>
-        Học theo chuyên đề, câu điểm liệt, biển báo, bookmark và thi thử chấm trên server — các
-        tính năng chuẩn app ôn GPLX phổ biến.
-      </p>
+    <div className="gx-page">
+      <section className="gx-hero" aria-label="Đậu GPLX">
+        <div className="gx-hero-bg" aria-hidden />
+        <div className="gx-hero-road" aria-hidden />
+        <div className="gx-hero-content">
+          <p className="gx-brand">Đậu</p>
+          <h2>Ôn GPLX sống động — thi là nhớ</h2>
+          <p>
+            Luyện đề chuẩn thời gian, điểm liệt, flashcard biển báo và lộ trình 7 ngày. Giao diện
+            tập trung, phản hồi tức thì.
+          </p>
+          <div className="gx-cta-row">
+            <button
+              type="button"
+              className="btn-primary-light"
+              onClick={() => void startExam("random")}
+              disabled={!!starting}
+            >
+              {starting === "random" ? "Đang tạo đề…" : "Thi thử ngay"}
+            </button>
+            <a className="btn btn-ghost-light" href={`/gplx/flashcards?licenseClass=${licenseClass}`}>
+              Flashcard nhanh
+            </a>
+          </div>
+        </div>
+      </section>
 
-      <div className="panel" style={{ marginTop: 20, marginBottom: 20 }}>
-        <strong>Hạng bằng</strong>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <strong>Chọn hạng bằng</strong>
+        <div className="gx-class-bar">
           {CLASSES.map((c) => (
             <button
               key={c}
               type="button"
-              className={c === licenseClass ? "" : "secondary"}
+              className={`gx-chip${c === licenseClass ? " on" : ""}`}
               onClick={() => setLicenseClass(c)}
             >
               {c}
@@ -141,90 +163,83 @@ export default function GplxHomePage() {
 
       {data && (
         <>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-              gap: 12,
-              marginBottom: 24,
-            }}
-          >
-            <div className="panel">
-              <div className="muted">Chuỗi ngày</div>
-              <strong style={{ fontSize: "1.4rem" }}>
-                {data.streak?.currentStreak ?? 0}
-              </strong>
-              <div className="muted" style={{ fontSize: "0.85rem" }}>
-                kỷ lục {data.streak?.longestStreak ?? 0}
+          <div className="gx-stats">
+            <div className="gx-stat" style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <div
+                className="gx-progress-ring"
+                style={{ ["--offset" as string]: String(ringOffset) }}
+              >
+                <svg viewBox="0 0 72 72" width="72" height="72" aria-hidden>
+                  <circle className="track" cx="36" cy="36" r="30" />
+                  <circle className="value" cx="36" cy="36" r="30" />
+                </svg>
+                <strong style={{ fontSize: "0.95rem" }}>{masteryPct}%</strong>
+              </div>
+              <div>
+                <div className="label">Thuộc</div>
+                <strong style={{ fontSize: "1.1rem" }}>
+                  {data.stats.mastered}/{data.stats.totalQuestions}
+                </strong>
               </div>
             </div>
-            <div className="panel">
-              <div className="muted">Tổng câu</div>
-              <strong style={{ fontSize: "1.4rem" }}>{data.stats.totalQuestions}</strong>
+            <div className="gx-stat">
+              <div className="label">Chuỗi ngày</div>
+              <strong>{data.streak?.currentStreak ?? 0}</strong>
+              <div className="hint">kỷ lục {data.streak?.longestStreak ?? 0}</div>
             </div>
-            <div className="panel">
-              <div className="muted">Đã thuộc</div>
-              <strong style={{ fontSize: "1.4rem" }}>{data.stats.mastered}</strong>
+            <div className="gx-stat">
+              <div className="label">Hay sai</div>
+              <strong>{data.stats.wrong}</strong>
             </div>
-            <div className="panel">
-              <div className="muted">Hay sai</div>
-              <strong style={{ fontSize: "1.4rem" }}>{data.stats.wrong}</strong>
+            <div className="gx-stat">
+              <div className="label">Điểm liệt</div>
+              <strong>{data.stats.criticalCount}</strong>
             </div>
-            <div className="panel">
-              <div className="muted">Câu liệt</div>
-              <strong style={{ fontSize: "1.4rem" }}>{data.stats.criticalCount}</strong>
+            <div className="gx-stat">
+              <div className="label">Bookmark</div>
+              <strong>{data.bookmarkCount ?? 0}</strong>
             </div>
-            <div className="panel">
-              <div className="muted">Bookmark</div>
-              <strong style={{ fontSize: "1.4rem" }}>{data.bookmarkCount ?? 0}</strong>
-            </div>
-          </div>
-
-          <div className="panel" style={{ marginBottom: 24 }}>
-            <h2 style={{ marginTop: 0, fontFamily: "var(--font-display)" }}>
-              Thi thử hạng {data.licenseClass}
-            </h2>
-            <p className="muted">
-              {data.rules.questionCount} câu · Đạt từ {data.rules.passCorrectCount}/
-              {data.rules.questionCount} · {durationLabel}
-              {data.rules.criticalFailEnabled ? " · Sai câu liệt = không đạt" : ""}
-            </p>
-            <p className="muted">
-              {data.isPro
-                ? "GPLX Pro: thi thử không giới hạn"
-                : `Free: còn ${data.mocksRemainingToday ?? 0}/${data.freeMocksPerDay} đề hôm nay`}
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-              <button
-                type="button"
-                onClick={() => void startExam("random")}
-                disabled={!!starting}
-              >
-                {starting === "random" ? "Đang tạo đề…" : "Đề ngẫu nhiên (chuẩn)"}
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => void startExam("critical_only")}
-                disabled={!!starting}
-              >
-                {starting === "critical_only" ? "Đang tạo…" : "Chỉ câu điểm liệt"}
-              </button>
-              <a className="btn secondary" href={`/gplx/sets?licenseClass=${licenseClass}`}>
-                Bộ đề cố định
-              </a>
-              {!data.isPro && data.proProduct && (
-                <a className="btn secondary" href={`/products/${data.proProduct.slug}`}>
-                  Nâng cấp {data.proProduct.name}
-                  {data.proProduct.price
-                    ? ` — ${(data.proProduct.price.amountMinor / 100).toLocaleString("vi-VN")}₫`
-                    : ""}
-                </a>
-              )}
+            <div className="gx-stat">
+              <div className="label">Đề hôm nay</div>
+              <strong>
+                {data.isPro ? "∞" : `${data.mocksRemainingToday ?? 0}`}
+              </strong>
+              <div className="hint">{data.isPro ? "Pro" : `/ ${data.freeMocksPerDay} free`}</div>
             </div>
           </div>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 24 }}>
+          <div className="gx-modes">
+            <button
+              type="button"
+              className="gx-mode"
+              onClick={() => void startExam("random")}
+              disabled={!!starting}
+            >
+              <span className="kicker">Chuẩn sát hạch</span>
+              <strong>Đề ngẫu nhiên</strong>
+              <span>
+                {data.rules.questionCount} câu · {Math.round(data.rules.durationSec / 60)} phút · đạt{" "}
+                {data.rules.passCorrectCount}+
+              </span>
+            </button>
+            <button
+              type="button"
+              className="gx-mode"
+              onClick={() => void startExam("critical_only")}
+              disabled={!!starting}
+            >
+              <span className="kicker">Ưu tiên</span>
+              <strong>Chỉ điểm liệt</strong>
+              <span>Drill đến khi vững — sai 1 câu là trượt</span>
+            </button>
+            <a className="gx-mode" href={`/gplx/sets?licenseClass=${licenseClass}`}>
+              <span className="kicker">Lặp lại</span>
+              <strong>Bộ đề cố định</strong>
+              <span>Làm lại cùng một đề đến khi ổn định</span>
+            </a>
+          </div>
+
+          <div className="gx-links">
             <a className="btn secondary" href={`/gplx/search?licenseClass=${licenseClass}`}>
               Tìm câu hỏi
             </a>
@@ -241,24 +256,27 @@ export default function GplxHomePage() {
               Câu hay sai
             </a>
             <a className="btn secondary" href={`/gplx/hardest?licenseClass=${licenseClass}`}>
-              Top câu khó
+              Top khó
             </a>
-            <a className="btn secondary" href={`/gplx/tips`}>
-              Mẹo ghi nhớ
+            <a className="btn secondary" href="/gplx/tips">
+              Mẹo
             </a>
-            <a className="btn secondary" href={`/gplx/signs`}>
-              Thư viện biển báo
+            <a className="btn secondary" href="/gplx/signs">
+              Biển báo
             </a>
             <a className="btn secondary" href={`/gplx/plan?licenseClass=${licenseClass}`}>
               Lộ trình 7 ngày
             </a>
+            {!data.isPro && data.proProduct && (
+              <a className="btn" href={`/products/${data.proProduct.slug}`}>
+                Nâng cấp Pro
+              </a>
+            )}
           </div>
 
           {data.weakTopics && data.weakTopics.length > 0 && (
-            <div className="panel" style={{ marginBottom: 24 }}>
-              <h2 style={{ marginTop: 0, fontFamily: "var(--font-display)" }}>
-                Chuyên đề yếu
-              </h2>
+            <div className="panel" style={{ marginBottom: 20 }}>
+              <h2 style={{ marginTop: 0, fontFamily: "var(--font-display)" }}>Chuyên đề cần vá</h2>
               <ul className="lesson-list">
                 {data.weakTopics.map((t) => (
                   <li key={t.topicId}>
@@ -266,7 +284,7 @@ export default function GplxHomePage() {
                       {t.topicTitle}
                     </a>
                     <span className="muted">
-                      sai {t.wrong}/{t.attempted} ({Math.round(t.wrongRate * 100)}%)
+                      sai {Math.round(t.wrongRate * 100)}%
                     </span>
                   </li>
                 ))}
@@ -274,11 +292,24 @@ export default function GplxHomePage() {
             </div>
           )}
 
+          <h2 style={{ fontFamily: "var(--font-display)" }}>Học theo chuyên đề</h2>
+          <ul className="lesson-list">
+            {data.topics.map((t, i) => (
+              <li
+                key={t.id}
+                style={{ animation: `rise 0.5s var(--ease-out) ${0.04 * i}s both` }}
+              >
+                <a href={`/gplx/topics/${t.id}?licenseClass=${licenseClass}`}>
+                  {t.title}
+                </a>
+                <span className="muted">{t.questionCount} câu</span>
+              </li>
+            ))}
+          </ul>
+
           {data.planPreview?.length > 0 && (
-            <div className="panel" style={{ marginBottom: 24 }}>
-              <h2 style={{ marginTop: 0, fontFamily: "var(--font-display)" }}>
-                Lộ trình nhanh
-              </h2>
+            <div className="panel" style={{ marginTop: 20 }}>
+              <h2 style={{ marginTop: 0, fontFamily: "var(--font-display)" }}>Lộ trình nhanh</h2>
               <ul className="lesson-list">
                 {data.planPreview.map((d) => (
                   <li key={d.day}>
@@ -293,20 +324,9 @@ export default function GplxHomePage() {
             </div>
           )}
 
-          <h2 style={{ fontFamily: "var(--font-display)" }}>Học theo chuyên đề</h2>
-          <ul className="lesson-list">
-            {data.topics.map((t) => (
-              <li key={t.id}>
-                <a href={`/gplx/topics/${t.id}?licenseClass=${licenseClass}`}>
-                  {t.title} <span className="muted">({t.questionCount} câu)</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-
           {data.recentAttempts.length > 0 && (
             <>
-              <h2 style={{ fontFamily: "var(--font-display)" }}>Lịch sử thi thử</h2>
+              <h2 style={{ fontFamily: "var(--font-display)" }}>Lịch sử gần đây</h2>
               <ul className="lesson-list">
                 {data.recentAttempts.map((a) => (
                   <li key={a.id}>
@@ -314,12 +334,11 @@ export default function GplxHomePage() {
                       {a.submittedAt
                         ? `${a.passed ? "ĐẠT" : "CHƯA ĐẠT"} — ${a.correctCount}/${a.total}`
                         : "Đang làm dở"}
-                      {a.mode && a.mode !== "random" ? ` · ${a.mode}` : ""}
-                      {a.failedCritical ? " (sai câu liệt)" : ""}{" "}
-                      <span className="muted">
-                        {new Date(a.startedAt).toLocaleString("vi-VN")}
-                      </span>
+                      {a.failedCritical ? " · liệt" : ""}
                     </a>
+                    <span className="muted">
+                      {new Date(a.startedAt).toLocaleString("vi-VN")}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -327,6 +346,6 @@ export default function GplxHomePage() {
           )}
         </>
       )}
-    </section>
+    </div>
   );
 }

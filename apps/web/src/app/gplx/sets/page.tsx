@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiGet, apiPost } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
+import { GplxCrumb } from "@/components/gplx/GplxChrome";
 
 type SetItem = {
   id: string;
@@ -55,36 +56,47 @@ export default function GplxFixedSetsPage() {
   if (!ready) return <p className="muted">Đang tải…</p>;
 
   return (
-    <section>
-      <p className="muted">
-        <a href={`/gplx?licenseClass=${licenseClass}`}>← GPLX</a>
-      </p>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Bộ đề cố định</h1>
+    <div className="gx-page">
+      <GplxCrumb licenseClass={licenseClass} trail={[{ label: "Bộ đề cố định" }]} />
+      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.03em", marginTop: 0 }}>
+        Bộ đề cố định
+      </h1>
       <p className="muted">
         Luyện lại cùng một đề nhiều lần (kiểu danh sách đề sẵn có trên app ôn GPLX phổ biến).
       </p>
       {error && <p className="error">{error}</p>}
-      <ul className="lesson-list">
-        {items.map((s) => (
-          <li key={s.id}>
-            <span>
-              <strong>{s.title}</strong>
-              <span className="muted">
-                {" "}
-                · {s.licenseClass} · {s.questionCount} câu
-              </span>
+      {items.map((s) => (
+        <div
+          className="panel"
+          key={s.id}
+          style={{
+            marginBottom: 10,
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 12,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <strong style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>
+              {s.title}
+            </strong>
+            <span className="muted">
+              {" "}
+              · {s.licenseClass} · {s.questionCount} câu
             </span>
-            <button
-              type="button"
-              disabled={starting === s.id}
-              onClick={() => void start(s.id)}
-            >
-              {starting === s.id ? "…" : "Làm đề"}
-            </button>
-          </li>
-        ))}
-      </ul>
+          </div>
+          <button
+            type="button"
+            disabled={starting === s.id}
+            onClick={() => void start(s.id)}
+          >
+            {starting === s.id ? "…" : "Làm đề"}
+          </button>
+        </div>
+      ))}
       {items.length === 0 && !error && <p className="muted">Chưa có bộ đề cho hạng này.</p>}
-    </section>
+    </div>
   );
 }

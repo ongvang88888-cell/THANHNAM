@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiGet } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
+import { GplxCrumb } from "@/components/gplx/GplxChrome";
 
 type Card = {
   id: string;
@@ -15,7 +16,7 @@ const KINDS = [
   { id: "mixed", label: "Hỗn hợp" },
   { id: "signs", label: "Biển báo" },
   { id: "critical", label: "Điểm liệt" },
-  { id: "wrong", label: "Câu hay sai" },
+  { id: "wrong", label: "Hay sai" },
 ] as const;
 
 export default function GplxFlashcardsPage() {
@@ -53,18 +54,18 @@ export default function GplxFlashcardsPage() {
   const card = cards[idx];
 
   return (
-    <section>
-      <p className="muted">
-        <a href={`/gplx?licenseClass=${licenseClass}`}>← GPLX</a>
-      </p>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Flashcard</h1>
-      <p className="muted">Ôn nhanh biển báo và câu hỏi — lật thẻ để xem đáp án / giải thích.</p>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+    <div className="gx-page">
+      <GplxCrumb licenseClass={licenseClass} trail={[{ label: "Flashcard" }]} />
+      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.03em", marginTop: 0 }}>
+        Flashcard
+      </h1>
+      <p className="muted">Chạm để lật — ôn nhanh biển báo và câu hỏi.</p>
+      <div className="gx-class-bar" style={{ marginBottom: 16 }}>
         {KINDS.map((k) => (
           <button
             key={k.id}
             type="button"
-            className={kind === k.id ? "" : "secondary"}
+            className={`gx-chip${kind === k.id ? " on" : ""}`}
             onClick={() => setKind(k.id)}
           >
             {k.label}
@@ -77,24 +78,28 @@ export default function GplxFlashcardsPage() {
         <>
           <button
             type="button"
-            className="panel"
+            className={`gx-flash${flipped ? " flipped" : ""}`}
             onClick={() => setFlipped((f) => !f)}
-            style={{
-              width: "100%",
-              minHeight: 180,
-              textAlign: "left",
-              cursor: "pointer",
-              marginBottom: 12,
-            }}
+            aria-label="Lật thẻ"
           >
-            <p className="muted" style={{ marginTop: 0 }}>
-              {card.kind} · {idx + 1}/{cards.length} · chạm để lật
-            </p>
-            <p style={{ fontSize: "1.1rem", lineHeight: 1.5 }}>
-              {flipped ? card.back : card.front}
-            </p>
+            <div className="gx-flash-inner">
+              <div className="gx-flash-face">
+                <p className="muted" style={{ marginTop: 0 }}>
+                  {card.kind} · {idx + 1}/{cards.length}
+                </p>
+                <p style={{ fontSize: "1.2rem", lineHeight: 1.5, fontWeight: 700, margin: 0 }}>
+                  {card.front}
+                </p>
+              </div>
+              <div className="gx-flash-face back">
+                <p className="muted" style={{ marginTop: 0 }}>
+                  Đáp án / giải thích
+                </p>
+                <p style={{ fontSize: "1.15rem", lineHeight: 1.55, margin: 0 }}>{card.back}</p>
+              </div>
+            </div>
           </button>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
             <button
               type="button"
               className="secondary"
@@ -120,6 +125,6 @@ export default function GplxFlashcardsPage() {
           </div>
         </>
       )}
-    </section>
+    </div>
   );
 }

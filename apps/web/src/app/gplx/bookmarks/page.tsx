@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiGet, apiDelete, apiPost } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
+import { GplxCrumb } from "@/components/gplx/GplxChrome";
 
 type Item = {
   id: string;
@@ -69,34 +70,46 @@ export default function GplxBookmarksPage() {
   if (!ready) return <p className="muted">Đang tải…</p>;
 
   return (
-    <section>
-      <p className="muted">
-        <a href={`/gplx?licenseClass=${licenseClass}`}>← GPLX</a>
-      </p>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Câu đã bookmark</h1>
+    <div className="gx-page">
+      <GplxCrumb licenseClass={licenseClass} trail={[{ label: "Bookmark" }]} />
+      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.03em", marginTop: 0 }}>
+        Câu đã bookmark
+      </h1>
       {error && <p className="error">{error}</p>}
       {items.length === 0 && <p className="muted">Chưa bookmark câu nào.</p>}
       {items.map((q) => (
         <div className="panel" key={q.id} style={{ marginBottom: 12 }}>
-          <p>
+          <p style={{ fontWeight: 600 }}>
             {q.isCritical ? "· Liệt · " : ""}
             {q.stem}
           </p>
           <p className="muted">{q.topicTitle}</p>
-          <ul className="lesson-list">
-            {q.answers.map((a) => (
-              <li key={a.id}>
+          <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+            {q.answers.map((a) => {
+              const on = (selected[q.id] ?? []).includes(a.id);
+              const fb = feedback[q.id];
+              const showCorrect = fb?.startsWith("Đúng") && on;
+              const showWrong = fb && !fb.startsWith("Đúng") && on;
+              return (
                 <button
+                  key={a.id}
                   type="button"
-                  className={(selected[q.id] ?? []).includes(a.id) ? "" : "secondary"}
+                  className={[
+                    "gx-answer",
+                    on && !fb ? "on" : "",
+                    showCorrect ? "correct" : "",
+                    showWrong ? "wrong" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                   onClick={() => setSelected((s) => ({ ...s, [q.id]: [a.id] }))}
                 >
                   {a.body}
                 </button>
-              </li>
-            ))}
-          </ul>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
             <button type="button" onClick={() => void answer(q.id)}>
               Kiểm tra
             </button>
@@ -107,6 +120,6 @@ export default function GplxBookmarksPage() {
           {feedback[q.id] && <p className="muted">{feedback[q.id]}</p>}
         </div>
       ))}
-    </section>
+    </div>
   );
 }

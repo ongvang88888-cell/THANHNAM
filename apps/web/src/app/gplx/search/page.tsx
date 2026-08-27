@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiGet, apiPost, apiDelete } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
+import { GplxCrumb } from "@/components/gplx/GplxChrome";
 
 type Hit = {
   id: string;
@@ -66,11 +67,11 @@ export default function GplxSearchPage() {
   if (!ready) return <p className="muted">Đang tải…</p>;
 
   return (
-    <section>
-      <p className="muted">
-        <a href={`/gplx?licenseClass=${licenseClass}`}>← GPLX</a>
-      </p>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Tìm câu hỏi</h1>
+    <div className="gx-page">
+      <GplxCrumb licenseClass={licenseClass} trail={[{ label: "Tìm câu hỏi" }]} />
+      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.03em", marginTop: 0 }}>
+        Tìm câu hỏi
+      </h1>
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
@@ -78,30 +79,28 @@ export default function GplxSearchPage() {
         style={{ width: "100%", maxWidth: 480, padding: "10px 12px", marginBottom: 16 }}
       />
       {error && <p className="error">{error}</p>}
-      <ul className="lesson-list">
-        {items.map((item) => (
-          <li key={item.id} style={{ flexDirection: "column", alignItems: "stretch" }}>
-            <p style={{ margin: "0 0 8px" }}>
-              {item.officialNo != null ? `#${item.officialNo} · ` : ""}
-              {item.stem}
-              {item.isCritical ? " · Liệt" : ""}
-            </p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <span className="muted">{item.topicTitle}</span>
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => void toggleBookmark(item)}
-              >
-                {item.bookmarked ? "Bỏ bookmark" : "Bookmark"}
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {items.map((item) => (
+        <div className="panel" key={item.id} style={{ marginBottom: 10 }}>
+          <p style={{ margin: "0 0 8px", fontWeight: 600 }}>
+            {item.officialNo != null ? `#${item.officialNo} · ` : ""}
+            {item.stem}
+            {item.isCritical ? " · Liệt" : ""}
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <span className="muted">{item.topicTitle}</span>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => void toggleBookmark(item)}
+            >
+              {item.bookmarked ? "Bỏ bookmark" : "Bookmark"}
+            </button>
+          </div>
+        </div>
+      ))}
       {q.trim().length >= 2 && items.length === 0 && !error && (
         <p className="muted">Không có kết quả.</p>
       )}
-    </section>
+    </div>
   );
 }
