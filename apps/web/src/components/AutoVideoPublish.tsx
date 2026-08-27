@@ -379,7 +379,7 @@ export function AutoVideoPublish(props: {
           {phase === "saved" && <p className="ok">Đã lưu vào bài.</p>}
           {sourceVideoId && (phase === "ready" || phase === "saving" || phase === "saved") && (
             <>
-            <div className="muted">Bài học đã chỉnh — giữ hình giáo viên</div>
+            <div className="muted">Bài học đã chỉnh — người dẫn ảo che người gốc, giữ tiếng</div>
             <VideoQuickAdjust
               token={props.token}
               videoId={sourceVideoId}
