@@ -1,5 +1,20 @@
-/** Official-style GPLX theory exam rules (Vietnam). Tunable per class. */
-export type GplxLicenseClassCode = "A1" | "A" | "B1" | "B" | "C" | "D" | "E" | "F";
+/** Official-style GPLX theory exam rules (Vietnam, 2026 / Luật TTATGTĐB + CV 2262/CSGT-P5). */
+export type GplxLicenseClassCode =
+  | "A1"
+  | "A"
+  | "B1"
+  | "B"
+  | "C1"
+  | "C"
+  | "D1"
+  | "D2"
+  | "D"
+  | "BE"
+  | "CE"
+  | "DE"
+  /** Legacy aliases kept for older clients — map to DE-class rules. */
+  | "E"
+  | "F";
 
 export type GplxExamRules = {
   licenseClass: GplxLicenseClassCode;
@@ -9,8 +24,14 @@ export type GplxExamRules = {
   durationSec: number;
   /** If true, any wrong critical (điểm liệt) question fails the exam. */
   criticalFailEnabled: boolean;
+  /** Official bank size this class draws from (informational). */
+  bankSizeHint: number;
 };
 
+/**
+ * Exam configs used at test centres (2026).
+ * Each mock includes exactly 1 critical question when the pool allows.
+ */
 export const GPLX_EXAM_RULES: Record<GplxLicenseClassCode, GplxExamRules> = {
   A1: {
     licenseClass: "A1",
@@ -18,6 +39,7 @@ export const GPLX_EXAM_RULES: Record<GplxLicenseClassCode, GplxExamRules> = {
     passCorrectCount: 21,
     durationSec: 19 * 60,
     criticalFailEnabled: true,
+    bankSizeHint: 250,
   },
   A: {
     licenseClass: "A",
@@ -25,13 +47,15 @@ export const GPLX_EXAM_RULES: Record<GplxLicenseClassCode, GplxExamRules> = {
     passCorrectCount: 23,
     durationSec: 19 * 60,
     criticalFailEnabled: true,
+    bankSizeHint: 250,
   },
   B1: {
     licenseClass: "B1",
-    questionCount: 30,
-    passCorrectCount: 27,
+    questionCount: 25,
+    passCorrectCount: 23,
     durationSec: 20 * 60,
     criticalFailEnabled: true,
+    bankSizeHint: 300,
   },
   B: {
     licenseClass: "B",
@@ -39,6 +63,15 @@ export const GPLX_EXAM_RULES: Record<GplxLicenseClassCode, GplxExamRules> = {
     passCorrectCount: 27,
     durationSec: 20 * 60,
     criticalFailEnabled: true,
+    bankSizeHint: 600,
+  },
+  C1: {
+    licenseClass: "C1",
+    questionCount: 35,
+    passCorrectCount: 32,
+    durationSec: 22 * 60,
+    criticalFailEnabled: true,
+    bankSizeHint: 600,
   },
   C: {
     licenseClass: "C",
@@ -46,6 +79,23 @@ export const GPLX_EXAM_RULES: Record<GplxLicenseClassCode, GplxExamRules> = {
     passCorrectCount: 36,
     durationSec: 24 * 60,
     criticalFailEnabled: true,
+    bankSizeHint: 600,
+  },
+  D1: {
+    licenseClass: "D1",
+    questionCount: 45,
+    passCorrectCount: 41,
+    durationSec: 26 * 60,
+    criticalFailEnabled: true,
+    bankSizeHint: 600,
+  },
+  D2: {
+    licenseClass: "D2",
+    questionCount: 45,
+    passCorrectCount: 41,
+    durationSec: 26 * 60,
+    criticalFailEnabled: true,
+    bankSizeHint: 600,
   },
   D: {
     licenseClass: "D",
@@ -53,13 +103,40 @@ export const GPLX_EXAM_RULES: Record<GplxLicenseClassCode, GplxExamRules> = {
     passCorrectCount: 41,
     durationSec: 26 * 60,
     criticalFailEnabled: true,
+    bankSizeHint: 600,
   },
+  BE: {
+    licenseClass: "BE",
+    questionCount: 45,
+    passCorrectCount: 41,
+    durationSec: 26 * 60,
+    criticalFailEnabled: true,
+    bankSizeHint: 600,
+  },
+  CE: {
+    licenseClass: "CE",
+    questionCount: 45,
+    passCorrectCount: 41,
+    durationSec: 26 * 60,
+    criticalFailEnabled: true,
+    bankSizeHint: 600,
+  },
+  DE: {
+    licenseClass: "DE",
+    questionCount: 45,
+    passCorrectCount: 41,
+    durationSec: 26 * 60,
+    criticalFailEnabled: true,
+    bankSizeHint: 600,
+  },
+  // Legacy UI aliases → same as DE group
   E: {
     licenseClass: "E",
     questionCount: 45,
     passCorrectCount: 41,
     durationSec: 26 * 60,
     criticalFailEnabled: true,
+    bankSizeHint: 600,
   },
   F: {
     licenseClass: "F",
@@ -67,8 +144,24 @@ export const GPLX_EXAM_RULES: Record<GplxLicenseClassCode, GplxExamRules> = {
     passCorrectCount: 41,
     durationSec: 26 * 60,
     criticalFailEnabled: true,
+    bankSizeHint: 600,
   },
 };
+
+export const GPLX_PRIMARY_CLASSES: GplxLicenseClassCode[] = [
+  "A1",
+  "A",
+  "B1",
+  "B",
+  "C1",
+  "C",
+  "D1",
+  "D2",
+  "D",
+  "BE",
+  "CE",
+  "DE",
+];
 
 export function getGplxExamRules(licenseClass: string): GplxExamRules {
   const key = licenseClass.toUpperCase() as GplxLicenseClassCode;
@@ -157,8 +250,8 @@ export function shuffleIds<T>(items: T[], rng: () => number = Math.random): T[] 
 }
 
 /**
- * Build a mock exam set: prefer including critical questions, then fill from pool.
- * Returns up to `rules.questionCount` ids (caller must ensure pool is large enough).
+ * Build a mock exam set matching centre structure:
+ * exactly 1 critical (when available) + fill with non-critical.
  */
 export function pickMockQuestionIds(
   pool: Array<{ id: string; isCritical: boolean }>,
@@ -174,18 +267,17 @@ export function pickMockQuestionIds(
     rng,
   );
 
-  // Aim ~20% critical when available (official banks mix liệt questions).
-  const targetCritical = Math.min(
-    critical.length,
-    Math.max(1, Math.round(rules.questionCount * 0.2)),
-  );
-  const picked: string[] = critical.slice(0, targetCritical);
+  // Official: 1 câu điểm liệt / đề (when pool has any).
+  const picked: string[] = [];
+  if (critical.length > 0) {
+    picked.push(critical[0]!);
+  }
   for (const id of normal) {
     if (picked.length >= rules.questionCount) break;
     picked.push(id);
   }
-  // If still short, add remaining critical.
-  for (const id of critical.slice(targetCritical)) {
+  // Fallback if not enough normals: use remaining critical.
+  for (const id of critical.slice(1)) {
     if (picked.length >= rules.questionCount) break;
     if (!picked.includes(id)) picked.push(id);
   }
@@ -215,7 +307,6 @@ export function pickCriticalOnlyQuestionIds(
     rng,
   );
   if (critical.length === 0) return [];
-  // Prefer full critical bank when smaller than exam size; else sample exam-sized set.
   if (critical.length <= rules.questionCount) return critical;
   return critical.slice(0, rules.questionCount);
 }
@@ -242,7 +333,6 @@ export function scoreGplxMockByMode(
 ): GplxExamScoreResult {
   const base = scoreGplxExam(questions, answers, {
     ...rules,
-    // For critical drills shorter than exam, relax length check in base then override pass.
     questionCount:
       mode === "critical_only" && questions.length !== rules.questionCount
         ? questions.length

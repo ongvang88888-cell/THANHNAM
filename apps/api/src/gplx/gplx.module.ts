@@ -43,7 +43,22 @@ import { PrismaService } from "../common/prisma.service";
 import { AuthGuard, CurrentUser, type RequestUser } from "../auth/auth.guard";
 import { AuthModule } from "../auth/auth.module";
 
-const LICENSE_CLASSES = ["A1", "A", "B1", "B", "C", "D", "E", "F"] as const;
+const LICENSE_CLASSES = [
+  "A1",
+  "A",
+  "B1",
+  "B",
+  "C1",
+  "C",
+  "D1",
+  "D2",
+  "D",
+  "BE",
+  "CE",
+  "DE",
+  "E",
+  "F",
+] as const;
 const MOCK_MODES = ["random", "fixed", "critical_only"] as const;
 
 class AnswerDto {

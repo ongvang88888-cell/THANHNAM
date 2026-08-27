@@ -54,7 +54,20 @@ type Overview = {
   planPreview: Array<{ day: number; title: string; focus: string }>;
 };
 
-const CLASSES = ["A1", "A", "B1", "B", "C", "D", "E", "F"];
+const CLASSES = [
+  "A1",
+  "A",
+  "B1",
+  "B",
+  "C1",
+  "C",
+  "D1",
+  "D2",
+  "D",
+  "BE",
+  "CE",
+  "DE",
+];
 const LS_KEY = "gplx_license_class";
 
 export default function GplxHomePage() {
@@ -215,11 +228,12 @@ export default function GplxHomePage() {
               onClick={() => void startExam("random")}
               disabled={!!starting}
             >
-              <span className="kicker">Chuẩn sát hạch</span>
+              <span className="kicker">Chuẩn sát hạch · hạng {data.licenseClass}</span>
               <strong>Đề ngẫu nhiên</strong>
               <span>
-                {data.rules.questionCount} câu · {Math.round(data.rules.durationSec / 60)} phút · đạt{" "}
-                {data.rules.passCorrectCount}+
+                {data.rules.questionCount} câu · {Math.round(data.rules.durationSec / 60)} phút · đạt ≥
+                {data.rules.passCorrectCount}/{data.rules.questionCount}
+                {data.rules.criticalFailEnabled ? " · 1 câu liệt" : ""}
               </span>
             </button>
             <button

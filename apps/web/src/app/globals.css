@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap");
 
 :root {
   /* Road-signal study palette — not cream/serif, not purple */
@@ -20,8 +20,8 @@
   --shadow-soft: 0 18px 50px rgba(6, 79, 72, 0.1);
   --radius: 18px;
   --radius-sm: 12px;
-  --font-display: "Syne", "Avenir Next", sans-serif;
-  --font-body: "Figtree", "Segoe UI", sans-serif;
+  --font-display: "Be Vietnam Pro", "Segoe UI", sans-serif;
+  --font-body: "Be Vietnam Pro", "Segoe UI", sans-serif;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -96,7 +96,7 @@ body::before {
   font-weight: 800;
   color: var(--brand-deep);
   text-decoration: none;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.015em;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -114,18 +114,24 @@ body::before {
 }
 nav {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
+  flex-wrap: nowrap;
+  gap: 4px 8px;
   align-items: center;
   justify-content: flex-end;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  scrollbar-width: none;
 }
+nav::-webkit-scrollbar { display: none; }
 nav a {
   color: var(--muted);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
   padding: 6px 10px;
   border-radius: 999px;
+  white-space: nowrap;
   transition: color 0.2s ease, background 0.2s ease;
 }
 nav a:hover { color: var(--brand-deep); background: rgba(11, 110, 99, 0.08); }
@@ -144,7 +150,7 @@ nav a.nav-active {
   line-height: 0.98;
   margin: 0 0 14px;
   color: var(--brand-deep);
-  letter-spacing: -0.04em;
+  letter-spacing: -0.02em;
 }
 .hero p {
   margin: 0;
@@ -343,7 +349,7 @@ label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 
   font-family: var(--font-display);
   font-size: clamp(3rem, 10vw, 5.2rem);
   font-weight: 800;
-  letter-spacing: -0.05em;
+  letter-spacing: -0.02em;
   line-height: 0.92;
   margin: 0 0 12px;
   animation: brandPop 0.9s var(--ease-out) both;
@@ -414,7 +420,7 @@ label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 
   margin-top: 4px;
   font-family: var(--font-display);
   font-size: 1.55rem;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.015em;
   color: var(--brand-deep);
 }
 .gx-stat .hint { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }

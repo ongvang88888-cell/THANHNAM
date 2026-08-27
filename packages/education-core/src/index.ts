@@ -12,6 +12,7 @@ export {
 } from "./quiz";
 export {
   GPLX_EXAM_RULES,
+  GPLX_PRIMARY_CLASSES,
   getGplxExamRules,
   scoreGplxExam,
   scoreGplxMockByMode,

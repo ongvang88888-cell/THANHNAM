@@ -18,17 +18,27 @@ Feature set aligned with common store apps (GPLX Pro, ViGPLX, dtlx, Ôn thi 600 
 | `GplxBookmark` | Saved questions |
 | `GplxStudyStreak` | Consecutive study-day streak |
 
-## Exam rules (education-core)
+## Exam rules (education-core) — chuẩn 2026
 
-`getGplxExamRules(class)` — question count, pass correct count, duration, critical-fail.
+Nguồn tham chiếu cấu trúc đề: Luật TTATGTĐB / thực tiễn sát hạch 2026 (CV 2262/CSGT-P5). Mỗi đề **1 câu điểm liệt**; sai liệt = không đạt.
 
-`scoreGplxExam` / `scoreGplxMockByMode` — server-authoritative; **wrong critical ⇒ fail** when enabled; critical-only short drills require all correct.
+| Hạng | Câu/đề | Thời gian | Đạt |
+|------|--------|-----------|-----|
+| A1 | 25 | 19 phút | ≥21 |
+| A | 25 | 19 phút | ≥23 |
+| B1 | 25 | 20 phút | ≥23 |
+| B | 30 | 20 phút | ≥27 |
+| C1 | 35 | 22 phút | ≥32 |
+| C | 40 | 24 phút | ≥36 |
+| D1/D2/D/BE/CE/DE | 45 | 26 phút | ≥41 |
 
-`pickMockQuestionIds` · `pickCriticalOnlyQuestionIds` · `resolveFixedSetQuestionIds`
-
-`applyGplxStudyStreak` · `rankWeakTopics`
+`pickMockQuestionIds` rút **đúng 1** câu liệt + phần còn lại không liệt.
 
 Content helpers: `GPLX_TIPS`, `GPLX_SIGNS`, `buildGplxSevenDayPlan`, `GPLX_PRO_PRODUCT_SLUG`, `GPLX_FREE_MOCKS_PER_DAY`.
+
+## Content note
+
+Seed là **ngân hàng demo gốc** (100+ câu), đủ để thi thử mọi hạng theo cấu hình trên — **không** phải bản sao bộ 600 câu có bản quyền. Trước lên store cần thay bằng bank có giấy phép.
 
 ## API (`/api/v1/gplx`)
 

@@ -11,7 +11,20 @@ import {
 import { api } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
 
-const CLASSES = ["A1", "A", "B1", "B", "C", "D", "E", "F"];
+const CLASSES = [
+  "A1",
+  "A",
+  "B1",
+  "B",
+  "C1",
+  "C",
+  "D1",
+  "D2",
+  "D",
+  "BE",
+  "CE",
+  "DE",
+];
 
 export default function GplxHomeScreen() {
   const { token, ready } = useAuth();

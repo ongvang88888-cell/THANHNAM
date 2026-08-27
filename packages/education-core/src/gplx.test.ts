@@ -18,6 +18,19 @@ describe("getGplxExamRules", () => {
     expect(r.criticalFailEnabled).toBe(true);
   });
 
+  it("returns 2026 B1 rules (25/23, not same as B)", () => {
+    const r = getGplxExamRules("B1");
+    expect(r.questionCount).toBe(25);
+    expect(r.passCorrectCount).toBe(23);
+    expect(r.durationSec).toBe(20 * 60);
+  });
+
+  it("supports C1", () => {
+    const r = getGplxExamRules("C1");
+    expect(r.questionCount).toBe(35);
+    expect(r.passCorrectCount).toBe(32);
+  });
+
   it("throws on unknown class", () => {
     expect(() => getGplxExamRules("Z9")).toThrow(/Unsupported/);
   });
@@ -64,7 +77,7 @@ describe("scoreGplxExam", () => {
 });
 
 describe("pickMockQuestionIds", () => {
-  it("returns exact count and includes critical when available", () => {
+  it("returns exact count and includes exactly one critical when available", () => {
     const pool = [
       ...Array.from({ length: 10 }, (_, i) => ({ id: `c${i}`, isCritical: true })),
       ...Array.from({ length: 40 }, (_, i) => ({ id: `n${i}`, isCritical: false })),
@@ -76,7 +89,8 @@ describe("pickMockQuestionIds", () => {
     };
     const ids = pickMockQuestionIds(pool, getGplxExamRules("A1"), rng);
     expect(ids).toHaveLength(25);
-    expect(ids.some((id) => id.startsWith("c"))).toBe(true);
+    const criticalPicked = ids.filter((id) => id.startsWith("c"));
+    expect(criticalPicked).toHaveLength(1);
   });
 });
 

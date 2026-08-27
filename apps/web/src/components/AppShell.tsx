@@ -12,7 +12,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const onGplx = path.startsWith("/gplx");
 
   const link = (href: string, label: string) => (
-    <a href={href} className={path === href || (href !== "/" && path.startsWith(href)) ? "nav-active" : undefined}>
+    <a
+      href={href}
+      className={
+        path === href || (href !== "/" && path.startsWith(href)) ? "nav-active" : undefined
+      }
+    >
       {label}
     </a>
   );
@@ -24,12 +29,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="brand-mark">{onGplx ? "Đ" : "E"}</span>
           {onGplx ? "Đậu GPLX" : "EduCommerce"}
         </a>
-        <nav>
+        <nav className="top-nav" aria-label="Chính">
           {link("/", "Cửa hàng")}
           {user && link("/gplx", "Ôn GPLX")}
           {user && link("/library", "Thư viện")}
-          {user && link("/wishlist", "Yêu thích")}
-          {user && link("/certificates", "Chứng chỉ")}
           {user && link("/account", "Tài khoản")}
           {teacher && link("/teacher", "Giảng viên")}
           {admin && link("/admin", "Quản trị")}
