@@ -1,24 +1,37 @@
 import Link from "next/link";
 import { adRunSummary } from "@/domain/product-watch";
+import { parsePlatformTab } from "@/domain/platform-dashboards";
 import { ProductCell } from "@/ui/product-cell";
+import { PlatformPanel } from "@/ui/platform-panel";
 import { ResearchGrid } from "@/ui/research-grid";
 import { getRadarService } from "@/server/radar";
 
 export const dynamic = "force-dynamic";
 
-export default async function TrendPage() {
-  const { trending, fresh, hooks } = await getRadarService().listTrendLanes(Date.now());
+type Props = {
+  searchParams: Promise<{ kenh?: string }>;
+};
+
+export default async function TrendPage({ searchParams }: Props) {
+  const params = await searchParams;
+  const nowMs = Date.now();
+  const service = getRadarService();
+  const { trending, fresh, hooks } = await service.listTrendLanes(nowMs);
+  const kenh = parsePlatformTab(params.kenh);
+  const dashboard = await service.listPlatformDashboard(nowMs, kenh);
   return (
     <>
+      <p className="eyebrow">Trending + sàn</p>
       <h1>Xu hướng trên thẻ đã lưu</h1>
       <div className="banner">
-        Trending = điểm nóng / độ bền mạnh trên dữ liệu bạn lưu. Fresh = mới thấy ≤ 7 ngày hoặc tốc độ mới cao
-        nhưng chưa bền. Không phải ranking Facebook toàn quốc. Radar không tự kéo ads.
+        Khối dưới đây là <strong>từng nền tảng</strong> (Shopee, Lazada, Google, YouTube…) trên kho đã lưu — bấm
+        chip. Lưới Trending phía dưới vẫn là Facebook đã lưu, không phải ranking toàn quốc. Radar không crawl.
       </div>
+      <PlatformPanel dashboard={dashboard} base="kenh" limit={8} showTimeline={false} />
       <p className="muted">
-        <Link href="/manh">Sản phẩm ads mạnh nhất</Link> · <Link href="/tong-hop">Tổng hợp kênh</Link> ·{" "}
-        <Link href="/?lane=trending">Lọc bảng trending</Link> ·{" "}
-        <Link href="/?lane=fresh">Lọc fresh</Link> · <Link href="/?view=grid">Lưới creative</Link>
+        <Link href={`/top/${kenh}`}>999 tên {dashboard.tab.labelVi}</Link> ·{" "}
+        <Link href={`/kenh/${kenh}`}>Trang kênh đủ</Link> · <Link href="/manh">Ads mạnh nhất</Link> ·{" "}
+        <Link href="/?lane=trending">Lọc bảng trending</Link> · <Link href="/?view=grid">Lưới creative</Link>
       </p>
       <h2>Trending ({trending.length})</h2>
       {trending.length === 0 ? <p className="muted">Chưa đủ thẻ mạnh.</p> : <ResearchGrid rows={trending} />}
