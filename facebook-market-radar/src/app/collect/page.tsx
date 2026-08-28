@@ -16,7 +16,8 @@ export default async function CollectPage({ searchParams }: Props) {
       <div className="banner">
         Máy chủ không tải facebook.com hay sàn TMĐT. Chỉ đọc đường dẫn bạn dán, JSON bạn sao chép, và
         giá bán bạn tự điền. Bookmark chỉ mở form với đường dẫn trang bạn đang xem. Hàng đợi nhiều
-        cành: <Link href="/quet">Quét cành</Link>.
+        cành: <Link href="/quet">Quét cành</Link>. Bản đồ mọi nguồn hợp pháp:{" "}
+        <Link href="/nguon">Nguồn dữ liệu</Link>.
       </div>
       <h2>Bookmark lưu nhanh</h2>
       <p className="muted">

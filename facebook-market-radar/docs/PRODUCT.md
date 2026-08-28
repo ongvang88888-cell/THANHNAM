@@ -55,13 +55,15 @@ Không copy: scrape/index triệu ads; giả spend/ROAS; harvest pixel; `/ads_ar
 3. `/quet` sinh URL search chính thức (`active_status=active`, `country=VN`) cho hàng trăm cành ưu tiên và ~1.000.000 ô tìm mở rộng (không phải ads đã kéo). User mở Meta, rồi lưu thẻ. Radar đánh dấu cành đã khớp dữ liệu đã lưu.
 4. Nhập CSV sheet (`docs/v0/ad-library-sheet.template.csv`) qua `/api/collect/sheet` — cùng cổng collect, khóa `x-fmr-key`.
 5. Marketing API: insights của ad account user (token không log).
-6. Licensed feed: file/JSON đã mua, qua `IAdIndexProvider` source=`licensed`.
+6. Licensed feed: file / JSON dán / HTTPS vendor đã mua (`IAdIndexProvider` source=`licensed`). Cấm URL Facebook.
+7. Catalog nguồn: `/nguon` + `docs/SOURCES.md` — cái gì đồng bộ được, cái gì Meta không trả, cái gì cấm.
 
-Không scrape `facebook.com/ads/library`. Không gọi `/ads_archive` để lấy ads bán hàng VN (API không trả commercial VN).
+Không scrape `facebook.com/ads/library`. Không gọi `/ads_archive` để lấy ads bán hàng VN (API chỉ trả chính trị toàn cầu + commercial đã reach EU/UK).
 
 ## Ngoài phạm vi Vòng 1
 
 - SaaS multi-region, Chrome Web Store listing (extension **unpacked** trong repo thì được)
-- CASD / Meta Content Library
+- CASD / Meta Content Library (cấm dùng thương mại)
+- Gọi `/ads_archive` như thể đó là kho ads bán hàng VN
 - Ước đoán spend giả như số thật
 - Gắn vào monorepo education cores

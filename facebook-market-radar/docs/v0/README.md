@@ -32,6 +32,8 @@ Cả ba phải đúng:
 
 Các page / sản phẩm trong mẫu là **hư cấu**, chỉ để chạy phương pháp. Không lấy đây làm số thị trường thật.
 
+Nguồn nào Meta/vendor cho phép đồng bộ vào kho: [../SOURCES.md](../SOURCES.md) và UI `/nguon`.
+
 ## Việc cấm
 
 - Scrape facebook.com hoặc gọi Graph API ngoài phạm vi app đã review
