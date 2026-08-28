@@ -22,7 +22,8 @@ export function BoardsPanel({
   async function createBoard(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    const form = new FormData(event.currentTarget);
+    const formEl = event.currentTarget;
+    const form = new FormData(formEl);
     const response = await fetch("/api/boards", {
       method: "POST",
       headers: collectJsonHeaders(),
@@ -38,13 +39,14 @@ export function BoardsPanel({
     }
     setBoards((prev) => [json.board!, ...prev.filter((row) => row.slug !== json.board!.slug)]);
     setMessage(`Đã lưu bộ sưu tập ${json.board.name}`);
-    event.currentTarget.reset();
+    formEl.reset();
   }
 
   async function addItem(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    const form = new FormData(event.currentTarget);
+    const formEl = event.currentTarget;
+    const form = new FormData(formEl);
     const response = await fetch("/api/boards/items", {
       method: "POST",
       headers: collectJsonHeaders(),
@@ -60,6 +62,7 @@ export function BoardsPanel({
     }
     setItems((prev) => [json.item!, ...prev.filter((row) => !(row.boardSlug === json.item!.boardSlug && row.libraryId === json.item!.libraryId))]);
     setMessage(`Đã ghim ${json.item.libraryId}`);
+    formEl.reset();
   }
 
   async function removeItem(boardSlug: string, libraryId: string) {

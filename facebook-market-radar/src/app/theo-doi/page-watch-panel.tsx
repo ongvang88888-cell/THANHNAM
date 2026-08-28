@@ -13,7 +13,8 @@ export function PageWatchPanel({ initialWatches }: { initialWatches: Watch[] }) 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    const form = new FormData(event.currentTarget);
+    const formEl = event.currentTarget;
+    const form = new FormData(formEl);
     const response = await fetch("/api/theo-doi-trang", {
       method: "POST",
       headers: collectJsonHeaders(),
@@ -29,7 +30,7 @@ export function PageWatchPanel({ initialWatches }: { initialWatches: Watch[] }) 
       return;
     }
     setWatches((prev) => [json.watch!, ...prev.filter((row) => row.pageId !== json.watch!.pageId)]);
-    event.currentTarget.reset();
+    formEl.reset();
   }
 
   async function remove(pageId: string) {
