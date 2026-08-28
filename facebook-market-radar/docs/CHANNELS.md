@@ -8,7 +8,7 @@ UI: menu trái nhóm **Nền tảng / Phân tích / Kho** (Shopee đầu tiên) 
 
 **Tự động liên tục** = tính lại từ kho mỗi lần mở trang và mỗi 30 giây (tab đang mở). **Không** có crawler Shopee / Lazada / Google / YouTube / Facebook.
 
-KPI `/kenh` tách **có số** (observation đã nhập) và **có đích** (URL Shopee/Tiki/YouTube… đã dán trên thẻ hoặc nằm trong copy đã lưu). Ô 0% = chưa nhập số, không phải nền tảng biến mất. Hàng đợi nhập số ưu tiên cụm đã có đích. YouTube: `POST /api/youtube-views` gọi Data API cho video ID đã có trên kho — views **không** vào HeatScore.
+KPI `/kenh` tách **có số** (observation đã nhập) và **có đích** (URL trên thẻ, copy, hoặc research link từ YouTube search / Google CSE). Ô 0% = chưa nhập số, không phải nền tảng biến mất. Nút **Lấy thống kê API** trên `/kenh/*` gọi `POST /api/platform-stats`: YouTube Data API (views + search), Google Custom Search (URL listing), Open Platform shop của bạn. Views / CSE / shop mình **không** thành “đã bán đối thủ”. HeatScore vẫn chỉ sold sàn user nhập.
 
 ## 1. Kênh và việc được phép
 
@@ -16,9 +16,9 @@ KPI `/kenh` tách **có số** (observation đã nhập) và **có đích** (URL
 |------|----------------|-----------|----------|
 | Meta Ad Library (web) | Xem creative, ngày bắt đầu, còn chạy, page | Sinh URL; user lưu thẻ | Spend, ROAS, đơn Facebook, dump toàn quốc |
 | Google Ads Transparency | Xem creative Search/Display/YouTube, region=VN | Sinh URL; user **đếm tay** ads | Spend, chuyển đổi, API dump commercial VN |
-| YouTube public | Tìm video; Data API views nếu có ID trên thẻ đã lưu | User nhập, hoặc `POST /api/youtube-views` (googleapis.com) | Doanh số, ads spend đối thủ, Analytics kênh người khác, scrape youtube.com |
-| TikTok Creative Center | Top Ads đã chọn, region=VN | Sinh URL; user đếm tay | Mọi ads đang chạy, spend chính xác, đơn Shop |
-| Shopee / Lazada / Tiki / Sendo | Đọc “đã bán” trên listing | User nhập số | API đối thủ, GMV, bảng bán chạy toàn sàn |
+| YouTube public | Data API `videos.list` + `search.list` | `POST /api/youtube-views` và `platform-stats` (googleapis.com) | Doanh số, ads spend đối thủ, scrape youtube.com |
+| TikTok Creative Center | Top Ads đã chọn, region=VN | Sinh URL; user đếm tay | Mọi ads đang chạy, spend chính xác, đơn Shop đối thủ |
+| Shopee / Lazada / Tiki / Sendo | Đọc “đã bán” trên listing; CSE lấy URL; Open API shop mình | User nhập; CSE đích; `own_shop` | API đã bán đối thủ, GMV, bảng bán chạy toàn sàn |
 | Google Trends / Shopping | Nhu cầu tìm / listing giá | Chỉ URL | Doanh số tuyệt đối |
 | Ads / shop của bạn | Marketing API, Seller Center, Merchant | Bề mặt Own Ads | Không trộn vào bảng thị trường |
 
@@ -50,8 +50,12 @@ Sắp xếp `?xep=ads|sold|tong`.
 4. Đọc số trên trang → form hàng đợi, `/collect`, hoặc `POST /api/kenh` (cùng `x-fmr-key`).
 5. Sheet CSV: cột `lazadaSold`, `tikiSold`, `sendoSold`, `googleAdsSeen`, `youtubeAdsSeen`, `tiktokAdsSeen`, `youtubeViews`.
 6. Feed licensed HTTPS (không phải host sàn / Transparency / YouTube).
-7. YouTube Data API: `YOUTUBE_API_KEY` + nút trên `/kenh/youtube` — chỉ video ID đã có trên kho.
-8. Ads / shop **của bạn** trên `/own-ads` — không trộn HeatScore thị trường.
+7. YouTube Data API: `YOUTUBE_API_KEY` — `videos.list` (ID đã lưu) + `search.list` (title cụm, hạn ngạch).
+8. Google Custom Search: `GOOGLE_CSE_KEY` + `GOOGLE_CSE_CX` — URL `site:tiki.vn`… Không lấy đã bán.
+9. Open Platform shop **của bạn** (Shopee / Lazada / TikTok Shop) → `/own-ads`, bảng `own_shop_daily`.
+10. Ads Marketing API trên `/own-ads` — không trộn HeatScore thị trường.
+
+Catalog API: [mục Official APIs](./DATA.md) + `/nguon` + `GET /api/platform-stats`.
 
 Licensed feed **không** được trỏ vào host sàn / Transparency / YouTube (`licensed-host.ts`).
 

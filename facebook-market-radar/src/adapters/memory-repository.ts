@@ -8,6 +8,8 @@ import type {
   StoredCluster,
   StoredPage,
   StoredPageWatch,
+  StoredOwnShopItem,
+  StoredResearchLink,
   StoredSalesProxy,
   StoredSnapshot,
   StoredWatch,
@@ -31,6 +33,8 @@ export class MemoryRadarRepository implements IRadarRepository {
   private readonly boards = new Map<string, StoredBoard>();
   private readonly boardItems: StoredBoardItem[] = [];
   private readonly tags: StoredAdTag[] = [];
+  private readonly researchLinks: Array<{ appId: string; row: StoredResearchLink }> = [];
+  private readonly ownShop: Array<{ appId: string; row: StoredOwnShopItem }> = [];
 
   async upsertPage(appId: string, page: StoredPage): Promise<void> {
     this.pages.set(key(appId, page.pageId), page);
@@ -190,5 +194,44 @@ export class MemoryRadarRepository implements IRadarRepository {
   async listAdTags(appId: string): Promise<StoredAdTag[]> {
     void appId;
     return [...this.tags];
+  }
+
+  async upsertResearchLink(appId: string, row: StoredResearchLink): Promise<boolean> {
+    const exists = this.researchLinks.some(
+      (item) =>
+        item.appId === appId &&
+        item.row.clusterSlug === row.clusterSlug &&
+        item.row.platform === row.platform &&
+        item.row.url === row.url,
+    );
+    if (exists) {
+      return false;
+    }
+    this.researchLinks.push({ appId, row });
+    return true;
+  }
+
+  async listResearchLinks(appId: string): Promise<StoredResearchLink[]> {
+    return this.researchLinks.filter((item) => item.appId === appId).map((item) => item.row);
+  }
+
+  async upsertOwnShopItem(appId: string, row: StoredOwnShopItem): Promise<void> {
+    const idx = this.ownShop.findIndex(
+      (item) =>
+        item.appId === appId &&
+        item.row.platform === row.platform &&
+        item.row.shopId === row.shopId &&
+        item.row.itemId === row.itemId &&
+        item.row.date === row.date,
+    );
+    if (idx >= 0) {
+      this.ownShop[idx] = { appId, row };
+      return;
+    }
+    this.ownShop.push({ appId, row });
+  }
+
+  async listOwnShopItems(appId: string): Promise<StoredOwnShopItem[]> {
+    return this.ownShop.filter((item) => item.appId === appId).map((item) => item.row);
   }
 }

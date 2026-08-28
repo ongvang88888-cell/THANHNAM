@@ -49,10 +49,11 @@ model ProductCluster {
   niche        Niche                  @relation(fields: [nicheId], references: [id])
   ads          Ad[]
   links        AdProductLink[]
-  snapshots    MarketSnapshot[]
-  salesProxies SalesProxyObservation[]
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
+  snapshots      MarketSnapshot[]
+  salesProxies   SalesProxyObservation[]
+  researchLinks  ClusterResearchLink[]
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
 
   @@unique([appId, slug])
   @@index([appId])
@@ -149,6 +150,39 @@ model MarketSnapshot {
   @@unique([appId, clusterId, weekStart])
   @@index([appId, weekStart])
   @@map("market_snapshots")
+}
+
+model ClusterResearchLink {
+  id        String         @id @default(cuid())
+  appId     String
+  clusterId String
+  cluster   ProductCluster @relation(fields: [clusterId], references: [id])
+  platform  String
+  url       String
+  title     String?
+  source    String
+  createdAt DateTime       @default(now())
+
+  @@unique([appId, clusterId, platform, url])
+  @@index([appId, clusterId])
+  @@map("cluster_research_links")
+}
+
+model OwnShopDaily {
+  id        String   @id @default(cuid())
+  appId     String
+  platform  String
+  shopId    String
+  itemId    String
+  itemName  String
+  soldCount Int
+  date      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([appId, platform, shopId, itemId, date])
+  @@index([appId, platform])
+  @@map("own_shop_daily")
 }
 
 model OwnInsightsDaily {

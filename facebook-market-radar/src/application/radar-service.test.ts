@@ -411,6 +411,71 @@ describe("RadarService", () => {
     await expect(disabled.refreshYoutubeViewsFromWarehouse(now, null, undefined)).rejects.toThrow(/YOUTUBE_API_KEY/);
   });
 
+  it("YouTube search and CSE fill warehouse without inventing competitor sold or HeatScore", async () => {
+    const youtube = {
+      enabled: true,
+      fetchViewCounts: async () => [],
+      searchVideos: async (query: string) => {
+        expect(query).toContain("Serum");
+        return [{ videoId: "dQw4w9wgXcQ", title: "Review", viewCount: 2200 }];
+      },
+    };
+    const cse = {
+      enabled: true,
+      searchOfficialListings: async (input: { query: string; site: string }) => {
+        if (input.site !== "tiki") {
+          return [];
+        }
+        return [{ url: "https://tiki.vn/serum-p1.html", title: "Serum", site: "tiki" as const }];
+      },
+    };
+    const shop = {
+      platform: "shopee" as const,
+      enabled: true,
+      fetchOwnItems: async () => [
+        { platform: "shopee" as const, shopId: "99", itemId: "11", itemName: "Serum shop tôi", soldCount: 3 },
+      ],
+    };
+    const service = new RadarService(new MemoryRadarRepository(), "fmr_vn", youtube, {
+      youtubeSearch: youtube,
+      listingSearch: cse,
+      ownShops: [shop],
+    });
+    await service.collectManual(
+      {
+        libraryId: "api-1",
+        pageId: "900501",
+        pageName: "API Shop",
+        productTitle: "Serum vitamin C API",
+        startDate: "2026-08-01",
+        nicheSlug: "my-pham",
+      },
+      now,
+      null,
+      undefined,
+    );
+    const heatBefore = (await service.listRankings(now)).find((row) => row.clusterTitle.includes("Serum vitamin C"));
+    const search = await service.refreshYoutubeSearchFromWarehouse(now, null, undefined);
+    expect(search.viewsUpdated).toBe(1);
+    expect(search.linksSaved).toBe(1);
+    const listing = await service.refreshListingSearchFromWarehouse(now, null, undefined);
+    expect(listing.linksSaved).toBeGreaterThan(0);
+    const own = await service.refreshOwnShopStats(now, null, undefined);
+    expect(own[0]?.items).toBe(1);
+    const tiki = await service.listPlatformDashboard(now, "tiki");
+    expect(tiki.landingCount).toBeGreaterThan(0);
+    expect(tiki.withDataCount).toBe(0);
+    const youtubeDash = await service.listPlatformDashboard(now, "youtube");
+    expect(youtubeDash.withDataCount).toBe(1);
+    const shopee = await service.listPlatformDashboard(now, "shopee");
+    expect(shopee.withDataCount).toBe(0);
+    const shopRows = await service.listOwnShopItems();
+    expect(shopRows[0]?.soldCount).toBe(3);
+    const heatAfter = (await service.listRankings(now)).find((row) => row.clusterTitle.includes("Serum vitamin C"));
+    expect(heatAfter?.scores.salesProxy).toBe(heatBefore?.scores.salesProxy ?? 0);
+    expect(heatAfter?.scores.salesProxy).toBe(0);
+  });
+
   it("records a channel observation with collect-key authz", async () => {
     const service = await seededService();
     const rankings = await service.listRankings(now);

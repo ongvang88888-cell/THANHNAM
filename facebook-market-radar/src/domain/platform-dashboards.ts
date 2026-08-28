@@ -562,9 +562,21 @@ export const LEGAL_FILL_PATHS = [
     href: "/kenh/youtube",
   },
   {
+    id: "youtube_search",
+    titleVi: "YouTube search.list theo tên cụm",
+    detailVi: "Tìm video công khai + view. Hạn ngạch 100 đơn vị/lần tìm. Không vào điểm nóng.",
+    href: "/kenh/youtube",
+  },
+  {
+    id: "google_cse",
+    titleVi: "Google Custom Search — URL Tiki/Shopee/Lazada",
+    detailVi: "Tăng cột “có đích”. Không lấy đã bán. Không mở HTML sàn.",
+    href: "/kenh/tiki",
+  },
+  {
     id: "own_ads",
-    titleVi: "Ads / shop của bạn",
-    detailVi: "Marketing API hoặc Seller Center. Không trộn vào HeatScore thị trường.",
+    titleVi: "Ads / shop Open API của bạn",
+    detailVi: "Marketing API, Shopee/Lazada/TikTok Shop Open. Không trộn vào HeatScore thị trường.",
     href: "/own-ads",
   },
 ] as const;

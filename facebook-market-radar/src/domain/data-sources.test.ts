@@ -37,8 +37,13 @@ describe("data source catalog", () => {
     expect(auto).not.toContain("competitor_pixel_roas");
     expect(auto).not.toContain("meta_content_library_casd");
     expect(auto).not.toContain("youtube_data_api");
+    expect(auto).not.toContain("youtube_search_api");
+    expect(auto).not.toContain("google_cse_listings");
+    expect(auto).not.toContain("shopee_open_platform");
     expect(auto).not.toContain("warehouse_landing_mine");
     expect(sourceById("youtube_data_api")?.status).toBe("wired");
+    expect(sourceById("google_cse_listings")?.status).toBe("wired");
+    expect(sourceById("shopee_open_platform")?.radarPort).toBe("own_ads");
     expect(sourceById("warehouse_landing_mine")?.ingestPath).toContain("/kenh");
   });
 

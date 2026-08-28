@@ -6,6 +6,7 @@ import {
   type DataSource,
   type SourceFamily,
 } from "@/domain/data-sources";
+import { OFFICIAL_PLATFORM_APIS } from "@/domain/official-platform-apis";
 import { CHANNEL_FAMILY_VI, SALES_CHANNELS } from "@/domain/sales-channels";
 import { getRadarService } from "@/server/radar";
 
@@ -87,9 +88,9 @@ export default async function SourcesPage() {
         </div>
       </div>
       <p>
-        Đồng bộ ngay: <Link href="/collect">Lưu thẻ / sheet / JSON</Link> ·{" "}
-        <Link href="/quet">Mở URL Thư viện</Link> · <Link href="/tong-hop">Tổng hợp kênh</Link> ·{" "}
-        <Link href="/own-ads">Ads của tôi</Link>.
+        Đồng bộ ngay: <Link href="/kenh/shopee">Lấy thống kê API trên /kenh</Link> ·{" "}
+        <Link href="/collect">Lưu thẻ / sheet / JSON</Link> · <Link href="/quet">Mở URL Thư viện</Link> ·{" "}
+        <Link href="/own-ads">Ads / shop của tôi</Link>.
       </p>
       {groups.map((group) => (
         <section key={group.family}>
@@ -125,6 +126,41 @@ export default async function SourcesPage() {
           </table>
         </section>
       ))}
+      <h2>API chính thức để lấy thống kê sản phẩm</h2>
+      <p className="muted">
+        Mọi cổng dưới đây <strong>không</strong> trả “đã bán đối thủ” hay GMV toàn quốc. CSE chỉ tăng cột đích.
+        YouTube chỉ view công khai. Open Platform chỉ shop của bạn.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>API</th>
+            <th>Host</th>
+            <th>Phạm vi</th>
+            <th>Trạng thái</th>
+            <th>Có / không</th>
+          </tr>
+        </thead>
+        <tbody>
+          {OFFICIAL_PLATFORM_APIS.map((row) => (
+            <tr key={row.id}>
+              <td>
+                <strong>{row.nameVi}</strong>
+                <div className="muted">{row.notesVi}</div>
+              </td>
+              <td>
+                <code>{row.host}</code>
+              </td>
+              <td>{row.scope}</td>
+              <td>{row.status}</td>
+              <td>
+                {row.provides.join(", ") || "—"}
+                <div className="muted">Thiếu: {row.missing.join(", ") || "—"}</div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       <h2>Kênh bán hàng / ads ngoài Facebook</h2>
       <p className="muted">
         Không có API dump “sản phẩm bán chạy nhất VN” trên Google, YouTube hay sàn. Radar chỉ sinh URL

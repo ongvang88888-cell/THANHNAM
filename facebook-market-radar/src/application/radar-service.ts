@@ -58,9 +58,21 @@ import { buildClusterSignals } from "../domain/signals";
 import { weekStartUtc } from "../domain/week";
 import { buildWeeklyReportMarkdown, type RankingRow } from "../domain/weekly-report";
 import { summarizeOwnInsights } from "../domain/own-insights";
-import type { IOwnAdsInsightsProvider, IYoutubeViewsProvider, NormalizedAd } from "../domain/ports";
+import type {
+  IListingSearchProvider,
+  IOwnAdsInsightsProvider,
+  IOwnShopStatsProvider,
+  IYoutubeSearchProvider,
+  IYoutubeViewsProvider,
+  NormalizedAd,
+} from "../domain/ports";
 import { urlsFromSavedCopy } from "../domain/landing";
-import { mapYoutubeVideosToClusters, peakViewsByCluster } from "../domain/youtube-video";
+import { ownShopDateKey } from "../domain/own-shop";
+import {
+  pickClustersForYoutubeSearch,
+  pickListingSearchJobs,
+} from "../domain/platform-stats-plan";
+import { mapYoutubeVideosToClusters, peakViewsByCluster, youtubeWatchUrl } from "../domain/youtube-video";
 import type {
   IRadarRepository,
   StoredAd,
@@ -69,6 +81,7 @@ import type {
   StoredBoard,
   StoredBoardItem,
   StoredCluster,
+  StoredOwnShopItem,
   StoredPage,
   StoredPageWatch,
   StoredSnapshot,
@@ -92,12 +105,62 @@ export type YoutubeViewsRefreshResult = {
   enabled: boolean;
 };
 
+export const PLATFORM_STATS_ACTIONS = [
+  "youtube_ids",
+  "youtube_search",
+  "listing_search",
+  "own_shop",
+  "all",
+] as const;
+export type PlatformStatsAction = (typeof PLATFORM_STATS_ACTIONS)[number];
+
+export type PlatformStatsCapabilities = {
+  youtube: boolean;
+  googleCse: boolean;
+  shopeeShop: boolean;
+  lazadaShop: boolean;
+  tiktokShop: boolean;
+};
+
+export type PlatformStatsRefreshResult = {
+  action: PlatformStatsAction;
+  youtubeIds: YoutubeViewsRefreshResult | null;
+  youtubeSearch: { queried: number; viewsUpdated: number; linksSaved: number } | null;
+  listingSearch: { queried: number; linksSaved: number } | null;
+  ownShop: Array<{ platform: string; items: number; enabled: boolean }>;
+  viewsEnterHeat: false;
+  marketSoldFromApi: false;
+  enabled: PlatformStatsCapabilities;
+};
+
+export type RadarServiceExtras = {
+  youtubeSearch?: IYoutubeSearchProvider;
+  listingSearch?: IListingSearchProvider;
+  ownShops?: readonly IOwnShopStatsProvider[];
+};
+
+export function parsePlatformStatsAction(raw: unknown): PlatformStatsAction {
+  if (typeof raw === "string" && (PLATFORM_STATS_ACTIONS as readonly string[]).includes(raw)) {
+    return raw as PlatformStatsAction;
+  }
+  return "all";
+}
+
 export class RadarService {
+  private readonly youtubeSearch?: IYoutubeSearchProvider;
+  private readonly listingSearch?: IListingSearchProvider;
+  private readonly ownShops: readonly IOwnShopStatsProvider[];
+
   constructor(
     private readonly repo: IRadarRepository,
     private readonly appId: string = DEFAULT_APP_ID,
     private readonly youtubeViews?: IYoutubeViewsProvider,
-  ) {}
+    extras: RadarServiceExtras = {},
+  ) {
+    this.youtubeSearch = extras.youtubeSearch;
+    this.listingSearch = extras.listingSearch;
+    this.ownShops = extras.ownShops ?? [];
+  }
 
   async collectManual(
     input: CollectManualInput,
@@ -399,6 +462,7 @@ export class RadarService {
     const landingByCluster = new Map<string, Array<string | null>>();
     const platformsByCluster = new Map<string, string[]>();
     const lastSeenByCluster = new Map<string, number>();
+    const researchLinks = await this.repo.listResearchLinks(this.appId);
     for (const ad of ads) {
       const urls = landingByCluster.get(ad.clusterSlug) ?? [];
       urls.push(...urlsFromSavedCopy(ad.landingUrl, ad.body, ad.title));
@@ -410,6 +474,11 @@ export class RadarService {
         ad.clusterSlug,
         Math.max(lastSeenByCluster.get(ad.clusterSlug) ?? 0, ad.lastSeenMs),
       );
+    }
+    for (const link of researchLinks) {
+      const urls = landingByCluster.get(link.clusterSlug) ?? [];
+      urls.push(link.url);
+      landingByCluster.set(link.clusterSlug, urls);
     }
     const rows = research.map((row) =>
       buildChannelAnalysisRow(row, observations, landingByCluster.get(row.clusterSlug) ?? [], {
@@ -506,7 +575,15 @@ export class RadarService {
       );
     }
     const ads = await this.repo.listAds(this.appId);
-    const mapping = mapYoutubeVideosToClusters(ads);
+    const mapping = mapYoutubeVideosToClusters([
+      ...ads,
+      ...(await this.repo.listResearchLinks(this.appId)).map((link) => ({
+        clusterSlug: link.clusterSlug,
+        landingUrl: link.url,
+        body: null,
+        title: null,
+      })),
+    ]);
     const videoIds = [...mapping.keys()];
     if (videoIds.length === 0) {
       return { updated: 0, skipped: 0, videoCount: 0, viewsEnterHeat: false, enabled: true };
@@ -536,6 +613,213 @@ export class RadarService {
       await this.recompute(nowMs);
     }
     return { updated, skipped, videoCount: videoIds.length, viewsEnterHeat: false, enabled: true };
+  }
+
+  platformStatsCapabilities(): PlatformStatsCapabilities {
+    return {
+      youtube: Boolean(this.youtubeViews?.enabled || this.youtubeSearch?.enabled),
+      googleCse: Boolean(this.listingSearch?.enabled),
+      shopeeShop: Boolean(this.ownShops.find((shop) => shop.platform === "shopee")?.enabled),
+      lazadaShop: Boolean(this.ownShops.find((shop) => shop.platform === "lazada")?.enabled),
+      tiktokShop: Boolean(this.ownShops.find((shop) => shop.platform === "tiktok")?.enabled),
+    };
+  }
+
+  async refreshYoutubeSearchFromWarehouse(
+    nowMs: number,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<{ queried: number; viewsUpdated: number; linksSaved: number }> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    if (!this.youtubeSearch?.enabled) {
+      throw new Error("Chưa cấu hình YOUTUBE_API_KEY — search.list chỉ gọi googleapis.com, không scrape youtube.com");
+    }
+    const rows = await this.listChannelAnalysis(nowMs, "tong");
+    const jobs = pickClustersForYoutubeSearch(rows);
+    const existing = normalizeChannelObservations(await this.repo.listSalesProxies(this.appId));
+    let viewsUpdated = 0;
+    let linksSaved = 0;
+    for (const job of jobs) {
+      const hits = await this.youtubeSearch.searchVideos(job.clusterTitle, 2);
+      let peak = -1;
+      for (const hit of hits) {
+        const created = await this.repo.upsertResearchLink(this.appId, {
+          clusterSlug: job.clusterSlug,
+          platform: "youtube",
+          url: youtubeWatchUrl(hit.videoId),
+          title: hit.title || null,
+          source: "youtube_search",
+          createdMs: nowMs,
+        });
+        if (created) {
+          linksSaved += 1;
+        }
+        if (hit.viewCount > peak) {
+          peak = hit.viewCount;
+        }
+      }
+      if (peak < 0) {
+        continue;
+      }
+      const current = existing
+        .filter((item) => item.clusterSlug === job.clusterSlug && item.source === "YOUTUBE_VIEWS")
+        .reduce((max, item) => Math.max(max, item.value), -1);
+      if (current === peak) {
+        continue;
+      }
+      await this.repo.addSalesProxy(this.appId, {
+        clusterSlug: job.clusterSlug,
+        source: "YOUTUBE_VIEWS",
+        soldCount: peak,
+        observedMs: nowMs,
+      });
+      existing.push({
+        clusterSlug: job.clusterSlug,
+        source: "YOUTUBE_VIEWS",
+        value: peak,
+        observedMs: nowMs,
+      });
+      viewsUpdated += 1;
+    }
+    if (viewsUpdated > 0) {
+      await this.recompute(nowMs);
+    }
+    return { queried: jobs.length, viewsUpdated, linksSaved };
+  }
+
+  async refreshListingSearchFromWarehouse(
+    nowMs: number,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<{ queried: number; linksSaved: number }> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    if (!this.listingSearch?.enabled) {
+      throw new Error(
+        "Chưa cấu hình GOOGLE_CSE_KEY + GOOGLE_CSE_CX — chỉ lấy URL listing, không scrape sàn",
+      );
+    }
+    const rows = await this.listChannelAnalysis(nowMs, "tong");
+    const jobs = pickListingSearchJobs(rows);
+    let linksSaved = 0;
+    for (const job of jobs) {
+      const hits = await this.listingSearch.searchOfficialListings({
+        query: job.clusterTitle,
+        site: job.site,
+      });
+      const hit = hits[0];
+      if (!hit) {
+        continue;
+      }
+      const created = await this.repo.upsertResearchLink(this.appId, {
+        clusterSlug: job.clusterSlug,
+        platform: job.site,
+        url: hit.url,
+        title: hit.title || null,
+        source: "google_cse",
+        createdMs: nowMs,
+      });
+      if (created) {
+        linksSaved += 1;
+      }
+    }
+    return { queried: jobs.length, linksSaved };
+  }
+
+  async refreshOwnShopStats(
+    nowMs: number,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<Array<{ platform: string; items: number; enabled: boolean }>> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    const date = ownShopDateKey(nowMs);
+    const out: Array<{ platform: string; items: number; enabled: boolean }> = [];
+    for (const shop of this.ownShops) {
+      if (!shop.enabled) {
+        out.push({ platform: shop.platform, items: 0, enabled: false });
+        continue;
+      }
+      const items = await shop.fetchOwnItems();
+      for (const item of items) {
+        await this.repo.upsertOwnShopItem(this.appId, {
+          platform: item.platform,
+          shopId: item.shopId,
+          itemId: item.itemId,
+          itemName: item.itemName,
+          soldCount: item.soldCount,
+          date,
+        });
+      }
+      out.push({ platform: shop.platform, items: items.length, enabled: true });
+    }
+    if (out.every((row) => !row.enabled)) {
+      throw new Error(
+        "Chưa cấu hình Shopee / Lazada / TikTok Shop Open — chỉ shop của bạn, không lấy đã bán đối thủ",
+      );
+    }
+    return out;
+  }
+
+  async refreshPlatformStats(
+    action: PlatformStatsAction,
+    nowMs: number,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<PlatformStatsRefreshResult> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    const enabled = this.platformStatsCapabilities();
+    const result: PlatformStatsRefreshResult = {
+      action,
+      youtubeIds: null,
+      youtubeSearch: null,
+      listingSearch: null,
+      ownShop: [],
+      viewsEnterHeat: false,
+      marketSoldFromApi: false,
+      enabled,
+    };
+    if (action === "youtube_ids") {
+      result.youtubeIds = await this.refreshYoutubeViewsFromWarehouse(nowMs, collectKey, expectedKey);
+      return result;
+    }
+    if (action === "youtube_search") {
+      result.youtubeSearch = await this.refreshYoutubeSearchFromWarehouse(nowMs, collectKey, expectedKey);
+      return result;
+    }
+    if (action === "listing_search") {
+      result.listingSearch = await this.refreshListingSearchFromWarehouse(nowMs, collectKey, expectedKey);
+      return result;
+    }
+    if (action === "own_shop") {
+      result.ownShop = await this.refreshOwnShopStats(nowMs, collectKey, expectedKey);
+      return result;
+    }
+    if (this.youtubeViews?.enabled) {
+      result.youtubeIds = await this.refreshYoutubeViewsFromWarehouse(nowMs, collectKey, expectedKey);
+    }
+    if (this.youtubeSearch?.enabled) {
+      result.youtubeSearch = await this.refreshYoutubeSearchFromWarehouse(nowMs, collectKey, expectedKey);
+    }
+    if (this.listingSearch?.enabled) {
+      result.listingSearch = await this.refreshListingSearchFromWarehouse(nowMs, collectKey, expectedKey);
+    }
+    if (this.ownShops.some((shop) => shop.enabled)) {
+      result.ownShop = await this.refreshOwnShopStats(nowMs, collectKey, expectedKey);
+    }
+    if (
+      result.youtubeIds === null &&
+      result.youtubeSearch === null &&
+      result.listingSearch === null &&
+      result.ownShop.length === 0
+    ) {
+      throw new Error(
+        "Chưa có khóa API nào — cần YOUTUBE_API_KEY, GOOGLE_CSE_KEY+CX, hoặc Open Platform shop của bạn",
+      );
+    }
+    return result;
+  }
+
+  async listOwnShopItems(): Promise<StoredOwnShopItem[]> {
+    return this.repo.listOwnShopItems(this.appId);
   }
 
   async listPageWatches(): Promise<StoredPageWatch[]> {

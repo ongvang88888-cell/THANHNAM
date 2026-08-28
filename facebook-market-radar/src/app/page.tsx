@@ -107,9 +107,10 @@ export default async function HomePage({ searchParams }: Props) {
       <PageHead
         eyebrow="Đa nền tảng · kho đã lưu"
         title="Thống kê ads & sàn"
-        lede="Shopee, Lazada, Google, YouTube, TikTok, Facebook trên cùng một bảng. Số sàn / ads ngoài Facebook = bạn nhập. Điểm nóng Facebook luôn ước lượng."
+        lede="Shopee, Lazada, Google, YouTube, TikTok, Facebook trên cùng một bảng. Số sàn = bạn nhập hoặc API chính thức (YouTube / CSE / shop của bạn). Điểm nóng Facebook luôn ước lượng — không có dump đã bán đối thủ."
         actions={[
           { href: ten ? `/quet?ten=${encodeURIComponent(ten)}` : "/quet", label: "Quét" },
+          { href: "/kenh/shopee", label: "Lấy API" },
           { href: "/collect", label: "Nhập số", primary: true },
         ]}
       />

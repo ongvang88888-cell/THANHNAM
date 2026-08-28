@@ -7,8 +7,10 @@ import type {
   StoredBoard,
   StoredBoardItem,
   StoredCluster,
+  StoredOwnShopItem,
   StoredPage,
   StoredPageWatch,
+  StoredResearchLink,
   StoredSalesProxy,
   StoredSnapshot,
   StoredWatch,
@@ -16,6 +18,8 @@ import type {
 import type { AlertType } from "../domain/alerts";
 import { nicheName } from "../domain/niches";
 import { LOCKED_NICHES } from "../domain/niches";
+import { isOwnShopPlatform } from "../domain/own-shop";
+import { isResearchLinkSource } from "../domain/platform-stats-plan";
 import type { OwnCampaignInsight } from "../domain/ports";
 import { parseChannelMetricSource } from "../domain/sales-channels";
 
@@ -501,6 +505,107 @@ export class PrismaRadarRepository implements IRadarRepository {
   async listAdTags(appId: string): Promise<StoredAdTag[]> {
     const rows = await this.db.adTag.findMany({ where: { appId } });
     return rows.map((row) => ({ libraryId: row.libraryId, tag: row.tag }));
+  }
+
+  async upsertResearchLink(appId: string, row: StoredResearchLink): Promise<boolean> {
+    const cluster = await this.db.productCluster.findUnique({
+      where: { appId_slug: { appId, slug: row.clusterSlug } },
+    });
+    if (!cluster) {
+      throw new Error("Cluster không tồn tại cho research link");
+    }
+    const existing = await this.db.clusterResearchLink.findUnique({
+      where: {
+        appId_clusterId_platform_url: {
+          appId,
+          clusterId: cluster.id,
+          platform: row.platform,
+          url: row.url,
+        },
+      },
+    });
+    if (existing) {
+      return false;
+    }
+    await this.db.clusterResearchLink.create({
+      data: {
+        appId,
+        clusterId: cluster.id,
+        platform: row.platform,
+        url: row.url,
+        title: row.title,
+        source: row.source,
+      },
+    });
+    return true;
+  }
+
+  async listResearchLinks(appId: string): Promise<StoredResearchLink[]> {
+    const rows = await this.db.clusterResearchLink.findMany({
+      where: { appId },
+      include: { cluster: true },
+    });
+    return rows.flatMap((row) => {
+      if (!isResearchLinkSource(row.source)) {
+        return [];
+      }
+      return [
+        {
+          clusterSlug: row.cluster.slug,
+          platform: row.platform,
+          url: row.url,
+          title: row.title,
+          source: row.source,
+          createdMs: row.createdAt.getTime(),
+        },
+      ];
+    });
+  }
+
+  async upsertOwnShopItem(appId: string, row: StoredOwnShopItem): Promise<void> {
+    await this.db.ownShopDaily.upsert({
+      where: {
+        appId_platform_shopId_itemId_date: {
+          appId,
+          platform: row.platform,
+          shopId: row.shopId,
+          itemId: row.itemId,
+          date: row.date,
+        },
+      },
+      create: {
+        appId,
+        platform: row.platform,
+        shopId: row.shopId,
+        itemId: row.itemId,
+        itemName: row.itemName,
+        soldCount: row.soldCount,
+        date: row.date,
+      },
+      update: {
+        itemName: row.itemName,
+        soldCount: row.soldCount,
+      },
+    });
+  }
+
+  async listOwnShopItems(appId: string): Promise<StoredOwnShopItem[]> {
+    const rows = await this.db.ownShopDaily.findMany({ where: { appId } });
+    return rows.flatMap((row) => {
+      if (!isOwnShopPlatform(row.platform)) {
+        return [];
+      }
+      return [
+        {
+          platform: row.platform,
+          shopId: row.shopId,
+          itemId: row.itemId,
+          itemName: row.itemName,
+          soldCount: row.soldCount,
+          date: row.date,
+        },
+      ];
+    });
   }
 }
 

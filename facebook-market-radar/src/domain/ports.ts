@@ -65,6 +65,48 @@ export interface IYoutubeViewsProvider {
   fetchViewCounts(videoIds: readonly string[]): Promise<Array<{ videoId: string; viewCount: number }>>;
 }
 
+export type YoutubeSearchVideo = {
+  videoId: string;
+  title: string;
+  viewCount: number;
+};
+
+/** Official search.list + videos.list. Never youtube.com HTML. */
+export interface IYoutubeSearchProvider {
+  readonly enabled: boolean;
+  searchVideos(query: string, maxResults: number): Promise<YoutubeSearchVideo[]>;
+}
+
+export type ListingSearchHit = {
+  url: string;
+  title: string;
+  site: "shopee" | "lazada" | "tiki" | "sendo";
+};
+
+/** Google Custom Search → official listing URLs. Does not fetch marketplace HTML. */
+export interface IListingSearchProvider {
+  readonly enabled: boolean;
+  searchOfficialListings(input: {
+    query: string;
+    site: "shopee" | "lazada" | "tiki" | "sendo";
+  }): Promise<ListingSearchHit[]>;
+}
+
+export type OwnShopItemStat = {
+  platform: "shopee" | "lazada" | "tiktok";
+  shopId: string;
+  itemId: string;
+  itemName: string;
+  soldCount: number;
+};
+
+/** Partner Open APIs for the user's own shop — never competitor GMV. */
+export interface IOwnShopStatsProvider {
+  readonly platform: "shopee" | "lazada" | "tiktok";
+  readonly enabled: boolean;
+  fetchOwnItems(): Promise<OwnShopItemStat[]>;
+}
+
 export type ClusterSignals = {
   activeAdCount: number;
   distinctPageCount: number;

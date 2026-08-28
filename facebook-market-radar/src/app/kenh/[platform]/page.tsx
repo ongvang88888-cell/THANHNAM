@@ -7,6 +7,7 @@ import { NicheFilter } from "@/ui/niche-filter";
 import { PageHead } from "@/ui/page-head";
 import { PlatformPanel } from "@/ui/platform-panel";
 import { StatStrip } from "@/ui/stat-strip";
+import { PlatformStatsButton } from "@/ui/platform-stats-button";
 import { YoutubeViewsButton } from "@/ui/youtube-views-button";
 import { formatMetric } from "@/ui/platform-metric";
 import { getRadarService } from "@/server/radar";
@@ -64,14 +65,16 @@ export default async function PlatformDashboardPage({ params, searchParams }: Pr
       <PageHead
         eyebrow="Thống kê kho"
         title={dashboard.tab.labelVi}
-        lede="Số đã nhập ≠ đích đã lưu. Radar tính lại từ kho — không tự kéo Shopee, Tiki, Google hay YouTube HTML. Ô 0% nghĩa là chưa nhập số, không phải nền tảng biến mất."
+        lede="Số đã nhập ≠ đích đã lưu. Nút API gọi googleapis / Open Platform shop của bạn — không scrape HTML sàn. Ô 0% nghĩa là chưa nhập số hoặc chưa khóa API, không phải nền tảng biến mất."
         actions={[
           { href: `/top/${tab}`, label: "999 tên" },
+          { href: "/nguon", label: "API nguồn" },
           { href: "/collect", label: "Sheet / feed", primary: true },
         ]}
       />
       <StatStrip items={stats} />
       <NicheFilter action={platformHref(tab)} niche={niche} />
+      <PlatformStatsButton />
       {tab === "youtube" ? <YoutubeViewsButton videoCount={dashboard.youtubeVideoCount} /> : null}
       <FillPaths />
       <CollectQueue

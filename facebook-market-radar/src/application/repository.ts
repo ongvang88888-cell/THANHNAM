@@ -1,6 +1,8 @@
 import type { AlertType } from "../domain/alerts";
 import type { OwnCampaignInsight } from "../domain/ports";
+import type { ResearchLinkSource } from "../domain/platform-stats-plan";
 import type { ChannelMetricSource } from "../domain/sales-channels";
+import type { OwnShopPlatform } from "../domain/own-shop";
 
 export type StoredPage = {
   pageId: string;
@@ -95,6 +97,24 @@ export type StoredAlert = {
   createdMs: number;
 };
 
+export type StoredResearchLink = {
+  clusterSlug: string;
+  platform: string;
+  url: string;
+  title: string | null;
+  source: ResearchLinkSource;
+  createdMs: number;
+};
+
+export type StoredOwnShopItem = {
+  platform: OwnShopPlatform;
+  shopId: string;
+  itemId: string;
+  itemName: string;
+  soldCount: number;
+  date: string;
+};
+
 export interface IRadarRepository {
   upsertPage(appId: string, page: StoredPage): Promise<void>;
   getPage(appId: string, pageId: string): Promise<StoredPage | null>;
@@ -125,4 +145,8 @@ export interface IRadarRepository {
   removeBoardItem(appId: string, boardSlug: string, libraryId: string): Promise<void>;
   replaceAdTags(appId: string, libraryId: string, tags: string[]): Promise<void>;
   listAdTags(appId: string): Promise<StoredAdTag[]>;
+  upsertResearchLink(appId: string, row: StoredResearchLink): Promise<boolean>;
+  listResearchLinks(appId: string): Promise<StoredResearchLink[]>;
+  upsertOwnShopItem(appId: string, row: StoredOwnShopItem): Promise<void>;
+  listOwnShopItems(appId: string): Promise<StoredOwnShopItem[]>;
 }

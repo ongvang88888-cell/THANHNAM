@@ -51,7 +51,15 @@ Chỉ parse query string user dán:
 
 ## YouTube Data API (không scrape)
 
-`POST /api/youtube-views` (cùng `x-fmr-key`) lấy `viewCount` công khai qua `www.googleapis.com/youtube/v3/videos` cho video ID đã parse từ thẻ đã lưu. Client **không** gửi id. Views ghi `YOUTUBE_VIEWS` và **không** vào HeatScore. Cần `YOUTUBE_API_KEY`. Server không HTTP GET youtube.com.
+`POST /api/youtube-views` (cùng `x-fmr-key`) lấy `viewCount` công khai qua `www.googleapis.com/youtube/v3/videos` cho video ID đã parse từ thẻ / research link. Client **không** gửi id. Views ghi `YOUTUBE_VIEWS` và **không** vào HeatScore. Cần `YOUTUBE_API_KEY`. Server không HTTP GET youtube.com.
+
+`GET/POST /api/platform-stats` — catalog + nút lấy thống kê:
+- `youtube_ids` / `youtube_search` → googleapis.com/youtube/v3 only
+- `listing_search` → googleapis.com/customsearch/v1, persist URL nếu `classifyLanding` khớp (bảng `cluster_research_links`)
+- `own_shop` → partner.shopeemobile.com / api.lazada.vn / open-api.tiktokglobalshop.com → `own_shop_daily` (không `sales_proxy_observations`)
+- `all` chạy mọi cổng đã khóa
+
+Rollback schema: drop `cluster_research_links` + `own_shop_daily`. Expand-only; không đụng lịch sử sold/ads.
 `GET /api/nguon` — catalog nguồn (official / user / licensed / own / blocked) + thống kê kho.
 `GET /api/manh` — sản phẩm đạt ngưỡng mạnh trên kho đã lưu (`estimated: true`, `facebookNationalDump: false`).
 `GET /api/tong-hop` — bảng đa kênh (`estimated: true`, `nationalSalesDump: false`).
