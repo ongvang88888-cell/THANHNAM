@@ -556,7 +556,11 @@ tr.scan-uncovered td { background: #fff7ed; }
 .ad-actions form { display: grid; gap: 4px; }
 .ad-actions label { display: flex; gap: 6px; align-items: center; font-size: 0.78rem; }
 
+@media (min-width: 961px) {
+  .spy-top-meta { display: none; }
+}
 @media (max-width: 960px) {
+  .spy-chrome .spy-networks { display: none; }
   .spy-app { grid-template-columns: 1fr; }
   .spy-side {
     position: fixed;
