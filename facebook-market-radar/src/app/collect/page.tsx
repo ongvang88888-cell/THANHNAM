@@ -12,17 +12,21 @@ export default async function CollectPage({ searchParams }: Props) {
 
   return (
     <>
+      <p className="eyebrow">Save Ad</p>
       <h1>Lưu quảng cáo từ Thư viện</h1>
       <div className="banner">
         Máy chủ không tải facebook.com hay sàn TMĐT. Chỉ đọc đường dẫn bạn dán, JSON bạn sao chép, và
         giá bán bạn tự điền. Bookmark chỉ mở form với đường dẫn trang bạn đang xem. Hàng đợi nhiều
-        cành: <Link href="/quet">Quét cành</Link>.
+        cành: <Link href="/quet">Quét cành</Link>. Bản đồ mọi nguồn hợp pháp:{" "}
+        <Link href="/nguon">Nguồn dữ liệu</Link>.
       </div>
       <h2>Bookmark lưu nhanh</h2>
       <p className="muted">
         Kéo liên kết này lên thanh bookmark. Khi đang ở Thư viện quảng cáo, bấm bookmark để mở form
         trên cùng origin máy chủ (kể cả VPS). Extension unpacked trong thư mục{" "}
         <code>extension/</code> cũng chỉ mở <code>/collect?url=</code> — không đọc facebook.com.
+        Chỉ số sàn / Google / YouTube: nhập dưới form, xem chip trên <Link href="/">trang chủ</Link> /{" "}
+        <Link href="/kenh/shopee">Sàn / kênh</Link> / <Link href="/tong-hop">Tổng hợp kênh</Link>.
       </p>
       <p>
         <CollectBookmarklet />

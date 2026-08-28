@@ -2,11 +2,14 @@ import Link from "next/link";
 import { MEGA_SCAN_CAP } from "@/domain/mega-scan";
 import { LOCKED_NICHES, NICHE_GROUPS, nicheGroup, nichesInGroup } from "@/domain/niches";
 import { adRunSummary } from "@/domain/product-watch";
+import { rankStrongProducts } from "@/domain/strong-ads";
 import { parseSavedFilter } from "@/domain/saved-research";
 import { ProductCell } from "@/ui/product-cell";
 import { ResearchFilters } from "@/ui/research-filters";
 import { ResearchGrid } from "@/ui/research-grid";
 import { queryFromParams, researchHref } from "@/ui/research-query";
+import { parsePlatformTab } from "@/domain/platform-dashboards";
+import { PlatformPanel } from "@/ui/platform-panel";
 import { getRadarService } from "@/server/radar";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +31,7 @@ type Props = {
     maxPrice?: string;
     lane?: string;
     shop?: string;
+    kenh?: string;
   }>;
 };
 
@@ -50,14 +54,18 @@ export default async function HomePage({ searchParams }: Props) {
   const { industries, coverage } = await service.industryOverview(nowMs);
   const plan = await service.scanPlan(nowMs);
   const hot = industries.filter((row) => row.isHot).slice(0, 8);
+  const topStrong = rankStrongProducts(scoped).slice(0, 8);
   const visibleNiches = params.group ? nichesInGroup(params.group) : LOCKED_NICHES;
+  const kenh = parsePlatformTab(params.kenh);
+  const dashboard = await service.listPlatformDashboard(nowMs, kenh, params.niche);
 
   return (
     <>
-      <h1>Xếp hạng sản phẩm đang chạy quảng cáo</h1>
+      <h1>Thống kê ads &amp; sàn (Facebook, Google, YouTube, TMĐT)</h1>
       <p className="muted">
-        Điểm nóng là ước lượng từ cường độ quảng cáo, độ bền, tốc độ mới và proxy Shopee/TikTok — không
-        phải doanh số Facebook.
+        Bấm chip nền tảng bên dưới để xem bảng <strong>chi tiết từng kênh</strong>. Số sàn / Google /
+        YouTube lấy từ kho đã lưu và được tính lại liên tục — không phải crawler. Điểm nóng Facebook
+        vẫn là ước lượng; lượt xem YouTube không vào điểm nóng.
       </p>
       <div className="banner">
         Bảng dưới chỉ ads <strong>bạn đã lưu</strong> ({allRankings.length} sản phẩm) — không phải tổng sản phẩm
@@ -73,6 +81,10 @@ export default async function HomePage({ searchParams }: Props) {
         <Link href={researchHref("/", query, { view: "grid" })} className={view === "grid" ? "on" : ""}>
           Lưới creative
         </Link>
+        <Link href="/manh">Ads mạnh nhất</Link>
+        <Link href="/tong-hop">Tổng hợp kênh</Link>
+        <Link href={`/kenh/${kenh}`}>Trang kênh đủ</Link>
+        <Link href={`/top/${kenh}`}>999 tên / {kenh}</Link>
         <Link href="/xu-huong">Xu hướng / hook</Link>
         <Link href="/bo-suu-tap">Bộ sưu tập</Link>
       </div>
@@ -97,7 +109,9 @@ export default async function HomePage({ searchParams }: Props) {
         </div>
         <div className="card">
           <div className="n">{coverage.strongProductCount}</div>
-          <div className="muted">Sản phẩm mạnh</div>
+          <div className="muted">
+            <Link href="/manh">Sản phẩm ads mạnh nhất</Link>
+          </div>
         </div>
         <div className="card">
           <div className="n">{alerts.length}</div>
@@ -115,13 +129,71 @@ export default async function HomePage({ searchParams }: Props) {
             <Link href={ten ? `/quet?ten=${encodeURIComponent(ten)}` : "/quet"}>Ô tìm mở rộng</Link>
           </div>
         </div>
+        <div className="card">
+          <div className="n">999</div>
+          <div className="muted">
+            <Link href={`/top/${kenh}`}>Tên nghiên cứu / kênh</Link>
+          </div>
+        </div>
       </div>
+
+      <h2>Thống kê từng nền tảng / sàn</h2>
+      <PlatformPanel
+        dashboard={dashboard}
+        base="home"
+        niche={params.niche}
+        extra={{ ten, group: params.group, view }}
+        limit={12}
+      />
+
       {ten.length >= 2 ? (
         <p className="muted">
           Lọc “{ten}”: {research.length}/{scoped.length} sản phẩm đã lưu. Muốn thêm bài đang chạy trên Facebook,
           mở <Link href={`/quet?ten=${encodeURIComponent(ten)}`}>hàng đợi Thư viện</Link> — Radar không tự kéo ads.
         </p>
       ) : null}
+
+      <h2>Sản phẩm ads mạnh nhất trên kho đã lưu</h2>
+      <p className="muted">
+        Ngưỡng mạnh = điểm nóng ≥ 40 hoặc độ bền ≥ 50 và ≥ 2 ads đang chạy.{" "}
+        <Link href="/manh">Xem playbook + bảng đủ</Link> · <Link href="/tong-hop">Tổng hợp Google / YouTube / sàn</Link>{" "}
+        — không phải ranking toàn quốc.
+      </p>
+      {topStrong.length === 0 ? (
+        <p className="muted">
+          Chưa có sản phẩm đạt ngưỡng. <Link href="/quet">Mở Thư viện</Link> rồi lưu thẻ Active lâu ngày / nhiều
+          page.
+        </p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Sản phẩm</th>
+              <th>Ngành</th>
+              <th>QC / trang</th>
+              <th>Điểm nóng</th>
+            </tr>
+          </thead>
+          <tbody>
+            {topStrong.map((row, index) => (
+              <tr key={row.clusterSlug}>
+                <td>{index + 1}</td>
+                <td>
+                  <Link href={`/san-pham/${row.clusterSlug}`}>{row.clusterTitle}</Link>
+                </td>
+                <td>{row.nicheName}</td>
+                <td>
+                  {row.activeAdCount} / {row.distinctPageCount}
+                </td>
+                <td>
+                  <span className="badge warn">{row.scores.heat} ước lượng</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       <h2>Ngành đang chạy mạnh</h2>
       <p className="muted">
@@ -192,6 +264,11 @@ export default async function HomePage({ searchParams }: Props) {
         ))}
       </div>
 
+      <h2>Xếp hạng điểm nóng Facebook (kho đã lưu)</h2>
+      <p className="muted">
+        Bảng này vẫn là ads Facebook đã lưu. Muốn Shopee / Lazada / Google / YouTube: chip phía trên hoặc{" "}
+        <Link href="/kenh/shopee">/kenh/shopee</Link>.
+      </p>
       {view === "grid" ? (
         <ResearchGrid rows={research} />
       ) : (

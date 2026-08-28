@@ -13,6 +13,7 @@ export type ResearchQuery = {
   maxPrice?: string;
   lane?: string;
   shop?: string;
+  sort?: string;
 };
 
 export function researchHref(path: string, current: ResearchQuery, patch: Partial<ResearchQuery> = {}): string {
@@ -44,5 +45,6 @@ export function queryFromParams(params: Record<string, string | undefined>): Res
     maxPrice: params.maxPrice,
     lane: params.lane,
     shop: params.shop,
+    sort: params.sort,
   };
 }

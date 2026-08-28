@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CREATIVE_ANGLE_VI } from "@/domain/creative-angles";
 import { LANDING_KIND_VI } from "@/domain/landing";
+import { safeImageSrc } from "@/domain/product-image";
 import { adRunSummary } from "@/domain/product-watch";
 import type { ResearchRow } from "@/domain/saved-research";
 
@@ -8,7 +9,7 @@ export function ResearchGrid({ rows }: { rows: ResearchRow[] }) {
   return (
     <div className="research-grid">
       {rows.map((row) => {
-        const cover = row.imageUrls[0];
+        const cover = safeImageSrc(row.imageUrls[0]);
         return (
           <article className="research-card" key={row.clusterSlug}>
             <Link href={`/san-pham/${row.clusterSlug}`} className="research-cover">

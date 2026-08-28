@@ -70,6 +70,10 @@ export function ResearchFilters({
           <option value="">Mọi loại</option>
           <option value="shopee">{LANDING_KIND_VI.shopee}</option>
           <option value="tiktok">{LANDING_KIND_VI.tiktok}</option>
+          <option value="lazada">{LANDING_KIND_VI.lazada}</option>
+          <option value="tiki">{LANDING_KIND_VI.tiki}</option>
+          <option value="sendo">{LANDING_KIND_VI.sendo}</option>
+          <option value="youtube">{LANDING_KIND_VI.youtube}</option>
           <option value="web">{LANDING_KIND_VI.web}</option>
         </select>
       </label>
@@ -101,11 +105,20 @@ export function ResearchFilters({
         <input name="maxPrice" inputMode="numeric" defaultValue={query.maxPrice ?? ""} />
       </label>
       <label>
-        Shop / landing đã dán
+        Shop
         <input name="shop" defaultValue={query.shop ?? ""} placeholder="shopee:shop-name" />
       </label>
+      <label>
+        Sort by
+        <select name="sort" defaultValue={query.sort ?? "heat"}>
+          <option value="heat">Heat ước lượng</option>
+          <option value="days">Running days</option>
+          <option value="latest">Latest creatives</option>
+          <option value="lastSeen">Last seen</option>
+        </select>
+      </label>
       <div className="watch-actions">
-        <button type="submit">Lọc thẻ đã lưu</button>
+        <button type="submit">Apply filters</button>
         <a className="btn secondary" href={action}>
           Xóa lọc
         </a>

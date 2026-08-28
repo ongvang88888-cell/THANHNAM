@@ -7,6 +7,7 @@ export default async function AlertsPage() {
   const alerts = await getRadarService().listAlerts();
   return (
     <>
+      <p className="eyebrow">Alerts</p>
       <h1>Cảnh báo</h1>
       <p className="muted">
         Trang mới, nội dung mới, tăng tốc, hoặc thẻ mới trên trang đang theo — chỉ từ dữ liệu bạn đã
