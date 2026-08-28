@@ -37,6 +37,7 @@ Trên dữ liệu user đã lưu (+ feed licensed nếu có), Radar có các b�
 
 1. **Hồ sơ sản phẩm** `/san-pham/[slug]` — mọi thẻ, trang, landing/shop đã dán, góc creative, URL tìm Thư viện.
 2. **Trending / Fresh** `/xu-huong` — mạnh (điểm nóng / độ bền) vs mới thấy ≤ 7 ngày hoặc tốc độ mới cao.
+2b. **Ads mạnh nhất** `/manh` — playbook hợp pháp + bảng sản phẩm đạt ngưỡng mạnh trên kho đã lưu (điểm nóng ≥ 40 hoặc độ bền ≥ 50 và ≥ 2 ads đang chạy). Không có dump Facebook toàn quốc.
 3. **Lưới creative** `/?view=grid` — hover hiện hook từ copy đã lưu.
 4. **Bộ lọc** trên `/` — ngày chạy, số trang, landing, Shopee/TikTok/web, góc, media, giá, shop key, làn.
 5. **Watch Page** `/theo-doi` — cảnh báo khi user lưu thẻ mới từ trang đó (không crawl 24/7).

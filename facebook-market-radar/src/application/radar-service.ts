@@ -30,6 +30,7 @@ import {
   type SavedFilter,
 } from "../domain/saved-research";
 import { scoreHeat } from "../domain/scoring";
+import { rankStrongProducts } from "../domain/strong-ads";
 import { parseAdLibrarySheet } from "../domain/sheet-import";
 import { buildClusterSignals, maxSold } from "../domain/signals";
 import { weekStartUtc } from "../domain/week";
@@ -350,6 +351,11 @@ export class RadarService {
       ...splitTrendLanes(rows),
       hooks: hookDigest(ads, nicheByCluster),
     };
+  }
+
+  async listStrongProducts(nowMs: number, nicheSlug?: string): Promise<ResearchRow[]> {
+    const rows = await this.listResearch(nowMs, { niche: nicheSlug });
+    return rankStrongProducts(rows);
   }
 
   async listPageWatches(): Promise<StoredPageWatch[]> {

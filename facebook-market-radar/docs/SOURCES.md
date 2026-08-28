@@ -6,6 +6,8 @@ Nghiên cứu mọi đường **có thật** để đưa bài ads, ngành hàng,
 
 Bản đồ máy: `GET /api/nguon` và UI `/nguon`.
 
+**Tìm sản phẩm ads mạnh nhất:** không có bảng Meta toàn quốc. Playbook + xếp kho đã lưu: UI `/manh`, `GET /api/manh`.
+
 ## 1. Việc Radar cần vs việc Meta cho
 
 | Cần cho kho ngành hàng VN | Meta có? |

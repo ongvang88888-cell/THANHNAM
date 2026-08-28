@@ -258,6 +258,13 @@ describe("RadarService", () => {
     expect(dossier?.officialSearchUrl).toContain("ads/library");
     const lanes = await service.listTrendLanes(now);
     expect(lanes.trending.length + lanes.fresh.length).toBeGreaterThan(0);
+    const strong = await service.listStrongProducts(now);
+    expect(strong.every((row) => row.scores.heat >= 40 || (row.scores.longevity >= 50 && row.activeAdCount >= 2))).toBe(
+      true,
+    );
+    expect(strong.every((row) => row.scores.estimated)).toBe(true);
+    const heats = strong.map((row) => row.scores.heat);
+    expect(heats).toEqual([...heats].sort((a, b) => b - a));
   });
 
   it("alerts when a watched page gets a newly saved card", async () => {

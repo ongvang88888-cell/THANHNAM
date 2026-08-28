@@ -49,6 +49,7 @@ Chỉ parse query string user dán:
 `GET /api/quet/mo-rong?offset=&limit=&niche=&q=` phân trang ~1.000.000 ô tìm chính thức (không dump Facebook).
 `GET /api/quet/tim?q=` và `GET /api/theo-doi?ten=` tìm bài đã lưu theo tên / từ khóa trong body, kèm URL Thư viện.
 `GET /api/nguon` — catalog nguồn (official / user / licensed / own / blocked) + thống kê kho.
+`GET /api/manh` — sản phẩm đạt ngưỡng mạnh trên kho đã lưu (`estimated: true`, `facebookNationalDump: false`).
 `POST /api/collect/sheet` nhập CSV (tối đa 200 dòng), idempotent theo `libraryId`.
 `POST /api/collect` nhận thêm `watchPage` + `tags[]` (góc creative).
 `POST /api/licensed/import` — JSON body `ads|items|data`, hoặc HTTP vendor, hoặc file. Bỏ ads chính trị / không reach VN. Cần `x-fmr-key`.

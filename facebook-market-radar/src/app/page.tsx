@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MEGA_SCAN_CAP } from "@/domain/mega-scan";
 import { LOCKED_NICHES, NICHE_GROUPS, nicheGroup, nichesInGroup } from "@/domain/niches";
 import { adRunSummary } from "@/domain/product-watch";
+import { rankStrongProducts } from "@/domain/strong-ads";
 import { parseSavedFilter } from "@/domain/saved-research";
 import { ProductCell } from "@/ui/product-cell";
 import { ResearchFilters } from "@/ui/research-filters";
@@ -50,6 +51,7 @@ export default async function HomePage({ searchParams }: Props) {
   const { industries, coverage } = await service.industryOverview(nowMs);
   const plan = await service.scanPlan(nowMs);
   const hot = industries.filter((row) => row.isHot).slice(0, 8);
+  const topStrong = rankStrongProducts(scoped).slice(0, 8);
   const visibleNiches = params.group ? nichesInGroup(params.group) : LOCKED_NICHES;
 
   return (
@@ -73,6 +75,7 @@ export default async function HomePage({ searchParams }: Props) {
         <Link href={researchHref("/", query, { view: "grid" })} className={view === "grid" ? "on" : ""}>
           Lưới creative
         </Link>
+        <Link href="/manh">Ads mạnh nhất</Link>
         <Link href="/xu-huong">Xu hướng / hook</Link>
         <Link href="/bo-suu-tap">Bộ sưu tập</Link>
       </div>
@@ -97,7 +100,9 @@ export default async function HomePage({ searchParams }: Props) {
         </div>
         <div className="card">
           <div className="n">{coverage.strongProductCount}</div>
-          <div className="muted">Sản phẩm mạnh</div>
+          <div className="muted">
+            <Link href="/manh">Sản phẩm ads mạnh nhất</Link>
+          </div>
         </div>
         <div className="card">
           <div className="n">{alerts.length}</div>
@@ -122,6 +127,47 @@ export default async function HomePage({ searchParams }: Props) {
           mở <Link href={`/quet?ten=${encodeURIComponent(ten)}`}>hàng đợi Thư viện</Link> — Radar không tự kéo ads.
         </p>
       ) : null}
+
+      <h2>Sản phẩm ads mạnh nhất trên kho đã lưu</h2>
+      <p className="muted">
+        Ngưỡng mạnh = điểm nóng ≥ 40 hoặc độ bền ≥ 50 và ≥ 2 ads đang chạy.{" "}
+        <Link href="/manh">Xem playbook + bảng đủ</Link> — không phải ranking Facebook toàn quốc.
+      </p>
+      {topStrong.length === 0 ? (
+        <p className="muted">
+          Chưa có sản phẩm đạt ngưỡng. <Link href="/quet">Mở Thư viện</Link> rồi lưu thẻ Active lâu ngày / nhiều
+          page.
+        </p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Sản phẩm</th>
+              <th>Ngành</th>
+              <th>QC / trang</th>
+              <th>Điểm nóng</th>
+            </tr>
+          </thead>
+          <tbody>
+            {topStrong.map((row, index) => (
+              <tr key={row.clusterSlug}>
+                <td>{index + 1}</td>
+                <td>
+                  <Link href={`/san-pham/${row.clusterSlug}`}>{row.clusterTitle}</Link>
+                </td>
+                <td>{row.nicheName}</td>
+                <td>
+                  {row.activeAdCount} / {row.distinctPageCount}
+                </td>
+                <td>
+                  <span className="badge warn">{row.scores.heat} ước lượng</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       <h2>Ngành đang chạy mạnh</h2>
       <p className="muted">
