@@ -169,6 +169,36 @@ describe("RadarService", () => {
     expect(ads.filter((ad) => ad.libraryId === "111000099")).toHaveLength(1);
   });
 
+  it("imports licensed snapshots into the warehouse without claiming competitor ROAS", async () => {
+    const service = await seededService();
+    const result = await service.importNormalizedAds(
+      [
+        {
+          libraryId: "licensed-1",
+          pageId: "900199",
+          pageName: "Licensed Shop",
+          body: "Serum niacinamide",
+          title: "Serum",
+          startDate: "2026-08-01",
+          isActive: true,
+          platforms: ["facebook"],
+          snapshotUrl: null,
+          landingUrl: "https://example.com/serum",
+          imageUrl: null,
+          productHint: "Serum licensed",
+          nicheHint: "my-pham",
+        },
+      ],
+      now,
+      null,
+      undefined,
+    );
+    expect(result.imported).toBe(1);
+    const stats = await service.warehouseStats();
+    expect(stats.adCount).toBeGreaterThanOrEqual(4);
+    expect(stats.productCount).toBeGreaterThanOrEqual(3);
+  });
+
   it("rejects collect when key is required", async () => {
     const service = new RadarService(new MemoryRadarRepository());
     await expect(

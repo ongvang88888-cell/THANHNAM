@@ -22,6 +22,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
               <Link href="/theo-doi">Theo dõi</Link>
               <Link href="/bo-suu-tap">Bộ sưu tập</Link>
               <Link href="/quet">Quét cành</Link>
+              <Link href="/nguon">Nguồn dữ liệu</Link>
               <Link href="/collect">Lưu quảng cáo</Link>
               <Link href="/ads">Quảng cáo đã lưu</Link>
               <Link href="/alerts">Cảnh báo</Link>

@@ -1,0 +1,17 @@
+{
+  "ads": [
+    {
+      "libraryId": "111000301",
+      "pageId": "900301",
+      "pageName": "Sample Licensed Shop",
+      "title": "Serum niacinamide",
+      "body": "Serum niacinamide 10% — 189.000đ",
+      "startDate": "2026-08-01",
+      "isActive": true,
+      "platforms": ["facebook", "instagram"],
+      "productHint": "Serum niacinamide",
+      "nicheHint": "my-pham",
+      "landingUrl": "https://example.com/serum"
+    }
+  ]
+}
