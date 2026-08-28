@@ -8,6 +8,9 @@ import type {
   StoredCluster,
   StoredPage,
   StoredPageWatch,
+  StoredOwnShopItem,
+  StoredResearchLink,
+  StoredSummaryCycle,
   StoredSalesProxy,
   StoredSnapshot,
   StoredWatch,
@@ -31,6 +34,9 @@ export class MemoryRadarRepository implements IRadarRepository {
   private readonly boards = new Map<string, StoredBoard>();
   private readonly boardItems: StoredBoardItem[] = [];
   private readonly tags: StoredAdTag[] = [];
+  private readonly researchLinks: Array<{ appId: string; row: StoredResearchLink }> = [];
+  private readonly ownShop: Array<{ appId: string; row: StoredOwnShopItem }> = [];
+  private readonly summaryCycles: Array<{ appId: string; row: StoredSummaryCycle }> = [];
 
   async upsertPage(appId: string, page: StoredPage): Promise<void> {
     this.pages.set(key(appId, page.pageId), page);
@@ -190,5 +196,71 @@ export class MemoryRadarRepository implements IRadarRepository {
   async listAdTags(appId: string): Promise<StoredAdTag[]> {
     void appId;
     return [...this.tags];
+  }
+
+  async upsertResearchLink(appId: string, row: StoredResearchLink): Promise<boolean> {
+    const exists = this.researchLinks.some(
+      (item) =>
+        item.appId === appId &&
+        item.row.clusterSlug === row.clusterSlug &&
+        item.row.platform === row.platform &&
+        item.row.url === row.url,
+    );
+    if (exists) {
+      return false;
+    }
+    this.researchLinks.push({ appId, row });
+    return true;
+  }
+
+  async listResearchLinks(appId: string): Promise<StoredResearchLink[]> {
+    return this.researchLinks.filter((item) => item.appId === appId).map((item) => item.row);
+  }
+
+  async upsertOwnShopItem(appId: string, row: StoredOwnShopItem): Promise<void> {
+    const idx = this.ownShop.findIndex(
+      (item) =>
+        item.appId === appId &&
+        item.row.platform === row.platform &&
+        item.row.shopId === row.shopId &&
+        item.row.itemId === row.itemId &&
+        item.row.date === row.date,
+    );
+    if (idx >= 0) {
+      this.ownShop[idx] = { appId, row };
+      return;
+    }
+    this.ownShop.push({ appId, row });
+  }
+
+  async listOwnShopItems(appId: string): Promise<StoredOwnShopItem[]> {
+    return this.ownShop.filter((item) => item.appId === appId).map((item) => item.row);
+  }
+
+  async saveSummaryCycle(appId: string, row: StoredSummaryCycle): Promise<void> {
+    this.summaryCycles.push({ appId, row });
+    const mine = this.summaryCycles
+      .filter((item) => item.appId === appId)
+      .sort((a, b) => b.row.capturedAtMs - a.row.capturedAtMs);
+    const keep = new Set(mine.slice(0, 12).map((item) => item.row.capturedAtMs));
+    for (let i = this.summaryCycles.length - 1; i >= 0; i -= 1) {
+      const item = this.summaryCycles[i];
+      if (item && item.appId === appId && !keep.has(item.row.capturedAtMs)) {
+        this.summaryCycles.splice(i, 1);
+      }
+    }
+  }
+
+  async getLatestSummaryCycle(appId: string): Promise<StoredSummaryCycle | null> {
+    let latest: StoredSummaryCycle | null = null;
+    for (const item of this.summaryCycles) {
+      if (item.appId !== appId) {
+        continue;
+      }
+      if (!latest || item.row.capturedAtMs > latest.capturedAtMs) {
+        latest = item.row;
+      }
+    }
+    return latest;
   }
 }

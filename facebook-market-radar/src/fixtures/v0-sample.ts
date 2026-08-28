@@ -23,6 +23,13 @@ const CORE_ADS: CollectManualInput[] = [
     nicheSlug: "my-pham",
     shopeeSold: 4200,
     tiktokSold: 1800,
+    lazadaSold: 1500,
+    tikiSold: 420,
+    sendoSold: 90,
+    googleAdsSeen: 8,
+    youtubeAdsSeen: 3,
+    tiktokAdsSeen: 6,
+    youtubeViews: 24000,
     platforms: ["facebook", "instagram"],
   },
   {
@@ -43,6 +50,8 @@ const CORE_ADS: CollectManualInput[] = [
     startDate: "2026-08-10",
     nicheSlug: "my-pham",
     shopeeSold: 890,
+    googleAdsSeen: 2,
+    youtubeViews: 4100,
     platforms: ["facebook", "instagram"],
   },
   {
@@ -75,6 +84,9 @@ const CORE_ADS: CollectManualInput[] = [
     nicheSlug: "me-be",
     shopeeSold: 15000,
     tiktokSold: 3200,
+    lazadaSold: 8800,
+    tikiSold: 2100,
+    googleAdsSeen: 4,
     platforms: ["facebook", "instagram"],
   },
   {

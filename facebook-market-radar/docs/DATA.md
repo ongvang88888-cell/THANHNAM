@@ -9,7 +9,7 @@ Mọi nguồn ads đi qua port. Domain không import SDK Meta / filesystem.
 | `source` | Adapter | Hành vi |
 |----------|---------|---------|
 | `manual` | `ManualAdIndexProvider` | Trả payload user đã validate (URL + form / snapshot JSON) |
-| `licensed` | `LicensedAdIndexProvider` | Đọc feed JSON đã mua (`FMR_LICENSED_FEED_PATH`). Không có file → `[]` |
+| `licensed` | `LicensedAdIndexProvider` | File (`FMR_LICENSED_FEED_PATH`), HTTPS vendor (`FMR_LICENSED_FEED_URL`, cấm host Meta), hoặc JSON body. Không có nguồn → `[]` |
 | `own_ads` | `OwnAdsMarketingApiProvider` | Insights Marketing API → `OwnCampaignInsight` (không trộn vào điểm nóng thị trường) |
 
 ## Schema (Prisma / SQLite local)
@@ -20,7 +20,7 @@ Mọi nguồn ads đi qua port. Domain không import SDK Meta / filesystem.
 - `ad_creatives`
 - `niches`, `product_clusters` — `@@unique([appId, slug])`, `imageUrl` tùy chọn trên cụm và quảng cáo
 - `ad_product_links`
-- `sales_proxy_observations`
+- `sales_proxy_observations` — `source` là chuỗi (`SHOPEE`, `TIKTOK`, `LAZADA`, `TIKI`, `SENDO`, `GOOGLE_ADS`, `YOUTUBE_ADS`, `TIKTOK_ADS`, `YOUTUBE_VIEWS`). Chỉ nguồn sold vào HeatScore.
 - `market_snapshots` — `@@unique([appId, clusterId, weekStart])`
 - `own_insights_daily` — `@@unique([appId, adAccountId, date, campaignId])`
 - `alerts`
@@ -48,8 +48,32 @@ Chỉ parse query string user dán:
 `GET /api/quet` trả plan (catalog + `runningProducts` + `nameVariants` + `copyKeywords`).
 `GET /api/quet/mo-rong?offset=&limit=&niche=&q=` phân trang ~1.000.000 ô tìm chính thức (không dump Facebook).
 `GET /api/quet/tim?q=` và `GET /api/theo-doi?ten=` tìm bài đã lưu theo tên / từ khóa trong body, kèm URL Thư viện.
+
+## YouTube Data API (không scrape)
+
+`POST /api/youtube-views` (cùng `x-fmr-key`) lấy `viewCount` công khai qua `www.googleapis.com/youtube/v3/videos` cho video ID đã parse từ thẻ / research link. Client **không** gửi id. Views ghi `YOUTUBE_VIEWS` và **không** vào HeatScore. Cần `YOUTUBE_API_KEY`. Server không HTTP GET youtube.com.
+
+`GET/POST /api/platform-stats` — catalog + nút lấy thống kê:
+- `youtube_ids` / `youtube_search` → googleapis.com/youtube/v3 only
+- `listing_search` → googleapis.com/customsearch/v1, persist URL nếu `classifyLanding` khớp (bảng `cluster_research_links`)
+- `own_shop` → partner.shopeemobile.com / api.lazada.vn / open-api.tiktokglobalshop.com → `own_shop_daily` (không `sales_proxy_observations`)
+- `all` chạy mọi cổng đã khóa
+
+Rollback schema: drop `cluster_research_links` + `own_shop_daily`. Expand-only; không đụng lịch sử sold/ads.
+`GET /api/nguon` — catalog nguồn (official / user / licensed / own / blocked) + thống kê kho.
+`GET /api/manh` — sản phẩm đạt ngưỡng mạnh trên kho đã lưu (`estimated: true`, `facebookNationalDump: false`).
+`GET /api/tong-hop` — bảng đa kênh live (`estimated: true`, `nationalSalesDump: false`).
+`GET /api/platform-keys` — chỉ cờ đã gắn (không trả giá trị khóa). `POST` lưu overlay + gọi thống kê nếu đủ khóa (`x-fmr-key`).
+`GET /api/summary` — trạng thái chu kỳ 6 giờ (`due`, `capturedAt`, `nextDueAt`).
+`POST /api/summary/refresh` — gọi API chính thức nếu có khóa, rồi ghi snapshot (`x-fmr-cron` hoặc `x-fmr-key`). Không crawl.
+`GET /api/kenh?tab=shopee` — dashboard từng nền tảng (`autoCrawl: false`).
+`GET /api/top?tab=shopee&trang=&niche=&q=` — 999 tên nghiên cứu / kênh, overlay kho nếu khớp mạnh (`nationalDump: false`).
+`POST /api/kenh` — ghi một chỉ số kênh vào cụm đã có (cần `x-fmr-key`).
 `POST /api/collect/sheet` nhập CSV (tối đa 200 dòng), idempotent theo `libraryId`.
-`POST /api/collect` nhận thêm `watchPage` + `tags[]` (góc creative).
+`POST /api/collect` nhận thêm `watchPage` + `tags[]` (góc creative) + sold/ads/views kênh.
+`POST /api/licensed/import` — JSON body `ads|items|data`, hoặc HTTP vendor, hoặc file. Bỏ ads chính trị / không reach VN. Cần `x-fmr-key`.
+
+Bản đồ nguồn đầy đủ: [SOURCES.md](./SOURCES.md). Đa kênh: [CHANNELS.md](./CHANNELS.md). Server không HTTP GET Facebook / Transparency / YouTube / sàn.
 `GET/POST/DELETE /api/theo-doi-trang` — watch page (ghi cần `x-fmr-key`).
 `GET/POST/DELETE /api/boards` và `/api/boards/items` — bộ sưu tập.
 `GET/POST /api/tags` — nhãn góc trên thẻ đã lưu.

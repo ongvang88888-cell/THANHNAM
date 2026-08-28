@@ -30,15 +30,24 @@ export function parseImageUrl(raw: string | undefined): string | null {
   return url.toString();
 }
 
+export function safeImageSrc(raw: string | null | undefined): string | null {
+  try {
+    return parseImageUrl(raw === null ? undefined : raw);
+  } catch {
+    return null;
+  }
+}
+
 export function uniqueImageUrls(urls: Array<string | null | undefined>): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const url of urls) {
-    if (!url || seen.has(url)) {
+    const safe = safeImageSrc(url);
+    if (!safe || seen.has(safe)) {
       continue;
     }
-    seen.add(url);
-    out.push(url);
+    seen.add(safe);
+    out.push(safe);
   }
   return out;
 }

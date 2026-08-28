@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Radar summary table every 6 hours
+
+[Timer]
+OnBootSec=2min
+OnCalendar=*-*-* 00/6:00:00
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

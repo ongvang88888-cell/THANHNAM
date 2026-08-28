@@ -15,6 +15,7 @@ export default async function WatchPage({ searchParams }: Props) {
   const pageWatches = await service.listPageWatches();
   return (
     <>
+      <p className="eyebrow">Ad Pages</p>
       <h1>Theo dõi sản phẩm — soi ads đang chạy</h1>
       <p className="muted">
         Ghi tên sản phẩm hoặc từ khóa trong nội dung ads, đối chiếu dữ liệu đã lưu, rồi mở Thư viện để

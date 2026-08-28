@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { priceConfidenceLabel, type PriceEstimate } from "@/domain/price";
+import { safeImageSrc } from "@/domain/product-image";
 
 export function ProductCell({
   title,
@@ -14,7 +15,7 @@ export function ProductCell({
   adSummary?: string;
   href?: string;
 }) {
-  const thumbs = imageUrls.slice(0, 4);
+  const thumbs = imageUrls.map((src) => safeImageSrc(src)).filter((src): src is string => Boolean(src)).slice(0, 4);
   return (
     <div className="product-cell">
       <div className="product-thumbs" aria-hidden={thumbs.length === 0}>

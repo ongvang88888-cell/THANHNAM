@@ -42,7 +42,8 @@ export function SheetImportForm() {
     <form className="stack" onSubmit={(event) => void onSubmit(event)}>
       <p className="muted">
         Dán CSV theo template <code>docs/v0/ad-library-sheet.template.csv</code>: libraryId, pageId,
-        pageName, productTitle, startDate. Máy chủ không đọc Facebook — chỉ lưu dòng bạn dán.
+        pageName, productTitle, startDate. Cột thêm: lazadaSold, tikiSold, sendoSold, googleAdsSeen,
+        youtubeAdsSeen, tiktokAdsSeen, youtubeViews. Máy chủ không đọc Facebook / sàn — chỉ lưu dòng bạn dán.
       </p>
       <CollectKeyField />
       <label>

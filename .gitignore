@@ -16,3 +16,4 @@ agent-tools/
 *.db
 *.db-journal
 facebook-market-radar/src/generated/
+facebook-market-radar/data/platform-secrets.json
