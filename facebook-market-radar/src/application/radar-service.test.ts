@@ -117,8 +117,40 @@ describe("RadarService", () => {
     expect(md).not.toContain("ROAS đối thủ: ");
   });
 
+  it("builds a scan plan that prefers empty niches and lists running products", async () => {
+    const service = await seededService();
+    const plan = await service.scanPlan(now);
+    expect(plan.totalBranches).toBeGreaterThan(400);
+    expect(plan.runningProducts.some((row) => row.query.includes("Đèn LED"))).toBe(true);
+    expect(plan.nextBatch.every((row) => !row.covered)).toBe(true);
+    const led = plan.branches.find((row) => row.query.toLowerCase().includes("đèn led cảm ứng"));
+    expect(led?.covered).toBe(true);
+  });
+
+  it("imports an Ad Library sheet idempotently", async () => {
+    const service = await seededService();
+    const csv = [
+      "libraryId,pageId,pageName,productTitle,startDate,nicheSlug,listingPriceVnd",
+      "111000099,900099,Sheet Shop,Serum sheet extra,2026-08-01,my-pham,99.000đ",
+    ].join("\n");
+    const first = await service.collectSheet(csv, now, null, undefined);
+    expect(first.imported).toBe(1);
+    const second = await service.collectSheet(csv, now, null, undefined);
+    expect(second.imported).toBe(1);
+    const ads = await service.listAds();
+    expect(ads.filter((ad) => ad.libraryId === "111000099")).toHaveLength(1);
+  });
+
   it("rejects collect when key is required", async () => {
     const service = new RadarService(new MemoryRadarRepository());
+    await expect(
+      service.collectSheet(
+        "libraryId,pageId,pageName,productTitle,startDate\n1,2,Page,SP,2026-08-01",
+        now,
+        "wrong",
+        "secret",
+      ),
+    ).rejects.toBeInstanceOf(UnauthorizedError);
     await expect(
       service.collectManual(
         {

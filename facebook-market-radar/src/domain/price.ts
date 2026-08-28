@@ -103,6 +103,13 @@ export function parseOptionalPriceVnd(value: number | string | undefined): numbe
     }
     return value;
   }
+  const digits = value.trim().replace(/[.,\s]/g, "");
+  if (/^\d{4,8}$/.test(digits)) {
+    const asInt = Number(digits);
+    if (isReasonableVnd(asInt)) {
+      return asInt;
+    }
+  }
   const parsed = parseVndAmounts(value);
   if (parsed.length === 0) {
     throw new Error("Không đọc được giá bán — dùng số VND hoặc dạng 189.000đ / 189k");

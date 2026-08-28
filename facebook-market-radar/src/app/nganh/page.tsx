@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { catalogKeywordCount, NICHE_GROUPS } from "@/domain/niches";
+import { catalogScanQueryCount } from "@/domain/ad-library-scan";
+import { NICHE_GROUPS } from "@/domain/niches";
 import { groupIndustryStats } from "@/domain/industry-stats";
 import { getRadarService } from "@/server/radar";
 
@@ -26,8 +27,8 @@ export default async function IndustryPage({ searchParams }: Props) {
         quảng cáo bạn đã lưu — không quét Facebook tự động.
       </p>
       <div className="banner">
-        “Quét đầy đủ” ở đây là độ phủ danh mục + từ khóa để bạn tự tìm trên Thư viện quảng cáo. Server
-        không tải facebook.com.
+        “Quét đầy đủ” = hàng đợi cành từ khóa trên <Link href="/quet">Quét cành</Link> để bạn tự mở
+        Thư viện. Server không tải facebook.com.
       </div>
       <div className="cards">
         <div className="card">
@@ -49,8 +50,10 @@ export default async function IndustryPage({ searchParams }: Props) {
           <div className="muted">Ngành chưa có mẫu</div>
         </div>
         <div className="card">
-          <div className="n">{catalogKeywordCount()}</div>
-          <div className="muted">Từ khóa gợi ý tìm trên Thư viện</div>
+          <div className="n">{catalogScanQueryCount()}</div>
+          <div className="muted">
+            <Link href="/quet">Cành từ khóa trên Thư viện</Link>
+          </div>
         </div>
       </div>
 

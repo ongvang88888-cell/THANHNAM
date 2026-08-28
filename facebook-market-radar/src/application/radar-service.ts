@@ -1,4 +1,5 @@
 import { detectAlerts, creativeHash, type AlertDraft } from "../domain/alerts";
+import { buildScanPlan, type ScanPlan } from "../domain/ad-library-scan";
 import { assertCollectAuthorized } from "../domain/authz";
 import { draftCluster, shouldMergeClusters, slugifyTitle } from "../domain/clustering";
 import { validateCollectManual, type CollectManualInput } from "../domain/collect-input";
@@ -8,6 +9,7 @@ import { estimateProductPrice } from "../domain/price";
 import { productImagePath, uniqueImageUrls } from "../domain/product-image";
 import { analyzeProductName, type ProductAdAnalysis } from "../domain/product-watch";
 import { scoreHeat } from "../domain/scoring";
+import { parseAdLibrarySheet } from "../domain/sheet-import";
 import { buildClusterSignals, maxSold } from "../domain/signals";
 import { weekStartUtc } from "../domain/week";
 import { buildWeeklyReportMarkdown, type RankingRow } from "../domain/weekly-report";
@@ -312,6 +314,63 @@ export class RadarService {
       throw new Error("slug bắt buộc");
     }
     await this.repo.deleteWatch(this.appId, trimmed);
+  }
+
+  async scanPlan(nowMs: number, nextBatchSize = 20): Promise<ScanPlan> {
+    const rankings = await this.listRankings(nowMs);
+    const extraTexts: string[] = [];
+    for (const cluster of await this.repo.listClusters(this.appId)) {
+      extraTexts.push(cluster.title);
+    }
+    for (const ad of await this.repo.listAds(this.appId)) {
+      if (ad.title) {
+        extraTexts.push(ad.title);
+      }
+      if (ad.body) {
+        extraTexts.push(ad.body);
+      }
+    }
+    for (const watch of await this.repo.listWatches(this.appId)) {
+      extraTexts.push(watch.name);
+    }
+    return buildScanPlan(rankings, extraTexts, undefined, nextBatchSize);
+  }
+
+  async collectSheet(
+    csv: string,
+    nowMs: number,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<{ imported: number; skipped: number; failed: number; errors: string[] }> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    if (csv.trim().length === 0) {
+      throw new Error("CSV trống");
+    }
+    if (csv.length > 400_000) {
+      throw new Error("CSV quá lớn (tối đa ~400KB)");
+    }
+    const parsed = parseAdLibrarySheet(csv);
+    if (parsed.rows.length > 200) {
+      throw new Error("Tối đa 200 dòng mỗi lần nhập");
+    }
+    if (parsed.rows.length === 0) {
+      throw new Error(parsed.errors[0] ?? "Không có dòng hợp lệ");
+    }
+    const errors = [...parsed.errors];
+    let imported = 0;
+    let failed = 0;
+    for (const row of parsed.rows) {
+      try {
+        await this.collectManual(row, nowMs, collectKey, expectedKey);
+        imported += 1;
+      } catch (error) {
+        failed += 1;
+        errors.push(
+          `${row.libraryId ?? "?"}: ${error instanceof Error ? error.message : "Không lưu được"}`,
+        );
+      }
+    }
+    return { imported, skipped: parsed.skipped, failed, errors };
   }
 
   async weeklyReport(nowMs: number): Promise<string> {

@@ -21,6 +21,21 @@ export type ParsedAdLibraryUrl =
 
 const AD_LIBRARY_HOSTS = new Set(["www.facebook.com", "facebook.com", "web.facebook.com"]);
 
+/** Official Ad Library search — user opens Meta; server never fetches this URL. */
+export function buildAdLibrarySearchUrl(query: string, country = "VN"): string {
+  const q = query.trim();
+  const params = new URLSearchParams({
+    active_status: "active",
+    ad_type: "all",
+    country,
+    is_targeted_country: "false",
+    media_type: "all",
+    search_type: "keyword_unordered",
+    q,
+  });
+  return `https://www.facebook.com/ads/library/?${params.toString()}`;
+}
+
 function isAdLibraryPath(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, "") || "/";
   return (

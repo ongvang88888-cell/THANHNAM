@@ -20,6 +20,7 @@ export default async function HomePage({ searchParams }: Props) {
   const ads = await service.listAds();
   const alerts = await service.listAlerts();
   const { industries, coverage } = await service.industryOverview(nowMs);
+  const plan = await service.scanPlan(nowMs);
   const hot = industries.filter((row) => row.isHot).slice(0, 8);
   const visibleNiches = params.group ? nichesInGroup(params.group) : LOCKED_NICHES;
 
@@ -68,6 +69,12 @@ export default async function HomePage({ searchParams }: Props) {
         <div className="card">
           <div className="n">{alerts.length}</div>
           <div className="muted">Cảnh báo</div>
+        </div>
+        <div className="card">
+          <div className="n">{plan.uncoveredCount}</div>
+          <div className="muted">
+            <Link href="/quet">Cành chưa có mẫu</Link>
+          </div>
         </div>
       </div>
 
@@ -179,8 +186,8 @@ export default async function HomePage({ searchParams }: Props) {
       </table>
       {rankings.length === 0 ? (
         <p className="muted">
-          Chưa có dữ liệu. <Link href="/collect">Lưu quảng cáo từ Thư viện</Link> hoặc chạy{" "}
-          <code>pnpm db:seed</code>.
+          Chưa có dữ liệu. <Link href="/quet">Mở hàng đợi quét cành</Link>,{" "}
+          <Link href="/collect">lưu quảng cáo từ Thư viện</Link> hoặc chạy <code>pnpm db:seed</code>.
         </p>
       ) : null}
     </>

@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { ProductCell } from "@/ui/product-cell";
+import { collectJsonHeaders } from "@/ui/collect-headers";
+import { CollectKeyField } from "@/ui/collect-key-field";
 import { adRunSummary, type ProductAdAnalysis } from "@/domain/product-watch";
 
 type WatchRow = {
@@ -128,7 +130,7 @@ export function WatchPanel({
     setMessage(null);
     const response = await fetch("/api/theo-doi", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: collectJsonHeaders(),
       body: JSON.stringify({ name, note: note.trim() || undefined }),
     });
     const json = (await response.json()) as {
@@ -153,7 +155,10 @@ export function WatchPanel({
   async function removeWatch(slug: string) {
     setPending(true);
     setError(null);
-    const response = await fetch(`/api/theo-doi?slug=${encodeURIComponent(slug)}`, { method: "DELETE" });
+    const response = await fetch(`/api/theo-doi?slug=${encodeURIComponent(slug)}`, {
+      method: "DELETE",
+      headers: collectJsonHeaders(),
+    });
     const json = (await response.json()) as { error?: string };
     setPending(false);
     if (!response.ok) {
@@ -184,6 +189,7 @@ export function WatchPanel({
           {pending ? "Đang soi…" : "Phân tích ads đang chạy"}
         </button>
       </form>
+      <CollectKeyField />
       <label>
         Ghi chú (không bắt buộc, khi lưu danh sách)
         <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="VD: hàng đang cân nhắc nhập" />

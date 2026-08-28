@@ -1,13 +1,15 @@
 import Link from "next/link";
-import { catalogKeywordCount, LOCKED_NICHES, NICHE_GROUPS, nichesInGroup } from "@/domain/niches";
+import { catalogScanQueryCount, scanQueriesForNiche } from "@/domain/ad-library-scan";
+import { LOCKED_NICHES, NICHE_GROUPS, nichesInGroup } from "@/domain/niches";
 
 export default function NichesPage() {
   return (
     <>
       <h1>Danh mục ngành hàng</h1>
       <p className="muted">
-        {LOCKED_NICHES.length} ngành, {NICHE_GROUPS.length} nhóm, {catalogKeywordCount()} từ khóa gợi ý
-        để bạn tự tìm trên Thư viện quảng cáo. Đây không phải kết quả quét Facebook.
+        {LOCKED_NICHES.length} ngành, {NICHE_GROUPS.length} nhóm, {catalogScanQueryCount()} cành từ
+        khóa để bạn tự tìm trên Thư viện. Đây không phải kết quả quét Facebook.{" "}
+        <Link href="/quet">Mở hàng đợi quét</Link>.
       </p>
       <div className="banner">
         Dán từng từ khóa vào Thư viện (quốc gia Việt Nam, loại Tất cả quảng cáo), rồi lưu thẻ bạn thấy
@@ -23,7 +25,7 @@ export default function NichesPage() {
               <tr>
                 <th>Ngành hàng</th>
                 <th>Mã</th>
-                <th>Từ khóa tìm trên Thư viện</th>
+                <th>Cành tìm trên Thư viện</th>
               </tr>
             </thead>
             <tbody>
@@ -31,11 +33,20 @@ export default function NichesPage() {
                 <tr key={n.slug}>
                   <td>
                     <Link href={`/?niche=${n.slug}`}>{n.nameVi}</Link>
+                    {" · "}
+                    <Link href={`/quet?niche=${n.slug}`}>quét</Link>
                   </td>
                   <td>
                     <code>{n.slug}</code>
                   </td>
-                  <td>{n.searchKeywords.join(" · ") || "—"}</td>
+                  <td>
+                    {(() => {
+                      const queries = scanQueriesForNiche(n);
+                      return queries.length === 0
+                        ? "—"
+                        : `${queries.slice(0, 5).join(" · ")}${queries.length > 5 ? ` · +${queries.length - 5}` : ""}`;
+                    })()}
+                  </td>
                 </tr>
               ))}
             </tbody>

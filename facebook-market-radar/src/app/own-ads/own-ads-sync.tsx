@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { collectJsonHeaders } from "@/ui/collect-headers";
+import { CollectKeyField } from "@/ui/collect-key-field";
 
 export function OwnAdsSync() {
   const [message, setMessage] = useState<string | null>(null);
@@ -9,7 +11,7 @@ export function OwnAdsSync() {
   async function sync() {
     setError(null);
     setMessage(null);
-    const response = await fetch("/api/own-ads/sync", { method: "POST" });
+    const response = await fetch("/api/own-ads/sync", { method: "POST", headers: collectJsonHeaders() });
     const json = (await response.json()) as { error?: string; imported?: number };
     if (!response.ok) {
       setError(json.error ?? "Đồng bộ thất bại");
@@ -23,6 +25,7 @@ export function OwnAdsSync() {
       <p className="muted">
         Không có <code>META_ACCESS_TOKEN</code> thì đồng bộ dùng dữ liệu mẫu nội bộ — không gọi Graph.
       </p>
+      <CollectKeyField />
       <button type="button" onClick={() => void sync()}>
         Đồng bộ Marketing API / dữ liệu mẫu
       </button>

@@ -17,6 +17,7 @@ describe("price", () => {
   it("accepts a listing price and rejects junk", () => {
     expect(parseOptionalPriceVnd(189_000)).toBe(189_000);
     expect(parseOptionalPriceVnd("249.000đ")).toBe(249_000);
+    expect(parseOptionalPriceVnd("99000")).toBe(99_000);
     expect(() => parseOptionalPriceVnd(12)).toThrow(/VND/);
   });
 

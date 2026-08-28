@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { NICHE_GROUPS, type NicheDef } from "@/domain/niches";
+import { collectJsonHeaders } from "@/ui/collect-headers";
+import { CollectKeyField } from "@/ui/collect-key-field";
 
 export function CollectForm({
   niches,
@@ -53,7 +55,7 @@ export function CollectForm({
     };
     const response = await fetch("/api/collect", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: collectJsonHeaders(),
       body: JSON.stringify(body),
     });
     const json = (await response.json()) as { error?: string; clusterSlug?: string; libraryId?: string };
@@ -67,6 +69,7 @@ export function CollectForm({
 
   return (
     <form className="stack" onSubmit={(e) => void onSubmit(e)}>
+      <CollectKeyField />
       <label>
         Đường dẫn Thư viện quảng cáo
         <input name="sourceUrl" defaultValue={defaultUrl} placeholder="https://www.facebook.com/ads/library/?id=..." />

@@ -27,6 +27,8 @@ Hướng dẫn Nginx + systemd (không chứa mật khẩu): [docs/DEPLOYMENT.md
 
 Đọc [docs/v0/README.md](./docs/v0/README.md) và [docs/PRODUCT.md](./docs/PRODUCT.md).
 
+Hàng đợi quét: `/quet` — mở URL Thư viện (VN, đang chạy) theo hàng trăm cành sản phẩm. Radar không tự kéo Facebook.
+
 ## Scripts
 
 | Script | Mục đích |

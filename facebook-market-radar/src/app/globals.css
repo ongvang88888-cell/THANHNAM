@@ -160,3 +160,21 @@ pre.report {
   table.rankings th:nth-child(n+5),
   table.rankings td:nth-child(n+5) { display: none; }
 }
+.scan-board { margin-top: 8px; }
+.scan-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  align-items: end;
+  margin: 16px 0;
+}
+.scan-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.scan-check input { width: auto; }
+tr.scan-uncovered td { background: #1c2418; }

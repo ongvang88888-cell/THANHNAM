@@ -35,4 +35,12 @@ Chỉ parse query string user dán:
 - `view_all_page_id` → page
 - `q` + `country` → search context (không tự kéo kết quả)
 
+`buildAdLibrarySearchUrl(query)` tạo URL search chính thức (VN, ads đang chạy). Server **không** HTTP GET URL này.
+
+## Hàng đợi quét cành
+
+`src/domain/ad-library-scan.ts` + `SCAN_BRANCHES`: gộp `searchKeywords`, keyword catalog hữu ích, và nhánh tên sản phẩm. Cành “đã phủ” khi title/body ads đã lưu khớp query. Ưu tiên ngành trống.
+
+`GET /api/quet` trả plan. `POST /api/collect/sheet` nhập CSV (tối đa 200 dòng), idempotent theo `libraryId`.
+
 Server không HTTP GET tới Facebook khi user dán URL.
