@@ -67,7 +67,7 @@ export default async function HomePage({ searchParams }: Props) {
           <div className="muted">Quảng cáo đã lưu</div>
         </div>
         <div className="card">
-          <div className="n">{rankings.length}</div>
+          <div className="n">{scoped.length}</div>
           <div className="muted">Sản phẩm đang theo</div>
         </div>
         <div className="card">
