@@ -84,6 +84,8 @@ describe("platform dashboards", () => {
     expect(shop?.metricSum).toBe(800);
     expect(shop?.autoCrawl).toBe(false);
     expect(laz?.lastObservedMs).toBe(40);
+    const ig = coverage.find((row) => row.id === "instagram");
+    expect(ig?.lastObservedMs).toBe(40);
     const dashboard = buildPlatformDashboard({
       rows: [shopee, lazada],
       observations: [{ clusterSlug: "b", source: "YOUTUBE_VIEWS", value: 80_000, observedMs: 40 }],

@@ -316,14 +316,23 @@ function metricSumForTab(rows: readonly ChannelAnalysisRow[], tab: PlatformTabId
 }
 
 function lastObservedForTab(
+  rows: readonly ChannelAnalysisRow[],
   observations: readonly ChannelObservation[],
   tab: PlatformTabId,
 ): number | null {
   const sources = new Set(platformTab(tab).sources);
-  if (sources.size === 0) {
-    return null;
-  }
   let max = 0;
+  if (sources.size === 0) {
+    for (const row of rows) {
+      if (!hasPlatformData(row, tab)) {
+        continue;
+      }
+      if (row.lastSeenMs > max) {
+        max = row.lastSeenMs;
+      }
+    }
+    return max > 0 ? max : null;
+  }
   for (const row of observations) {
     if (!sources.has(row.source)) {
       continue;
@@ -351,7 +360,7 @@ export function buildPlatformCoverage(
       productCount,
       coveragePercent: percent,
       metricSum: metricSumForTab(rows, tab.id),
-      lastObservedMs: lastObservedForTab(observations, tab.id),
+      lastObservedMs: lastObservedForTab(rows, observations, tab.id),
       autoCrawl: false,
       valueLabelVi: tab.valueLabelVi,
     };
