@@ -193,9 +193,12 @@ export function isPlatformTabId(value: string): value is PlatformTabId {
   return (PLATFORM_TAB_IDS as readonly string[]).includes(value);
 }
 
-export function parsePlatformTab(value: string | undefined | null): PlatformTabId {
+export function parsePlatformTab(
+  value: string | undefined | null,
+  fallback: PlatformTabId = "facebook",
+): PlatformTabId {
   const raw = value?.trim().toLowerCase() ?? "";
-  return isPlatformTabId(raw) ? raw : "facebook";
+  return isPlatformTabId(raw) ? raw : fallback;
 }
 
 export function hasInstagramPlacement(row: ChannelAnalysisRow): boolean {
@@ -449,9 +452,22 @@ export function buildPlatformDashboard(input: {
 
 export function platformHref(
   tab: PlatformTabId,
-  opts: { base?: "home" | "kenh" | "top"; niche?: string; extra?: Record<string, string | undefined> } = {},
+  opts: { base?: "home" | "kenh" | "top" | "trend"; niche?: string; extra?: Record<string, string | undefined> } = {},
 ): string {
   const niche = opts.niche?.trim();
+  if (opts.base === "trend") {
+    const params = new URLSearchParams();
+    params.set("kenh", tab);
+    if (niche) {
+      params.set("niche", niche);
+    }
+    for (const [key, value] of Object.entries(opts.extra ?? {})) {
+      if (value?.trim() && key !== "kenh" && key !== "tab") {
+        params.set(key, value.trim());
+      }
+    }
+    return `/xu-huong?${params.toString()}`;
+  }
   if (opts.base === "top") {
     const params = new URLSearchParams();
     if (niche) {

@@ -20,7 +20,7 @@ export function PlatformPanel({
   showTimeline = true,
 }: {
   dashboard: PlatformDashboard;
-  base: "home" | "kenh";
+  base: "home" | "kenh" | "trend";
   niche?: string;
   extra?: Record<string, string | undefined>;
   limit?: number;
@@ -49,7 +49,13 @@ export function PlatformPanel({
         {dashboard.coverage.map((card) => (
           <Link
             key={card.id}
-            href={base === "home" ? `/?kenh=${card.id}${niche ? `&niche=${niche}` : ""}` : `/kenh/${card.id}`}
+            href={
+              base === "home"
+                ? `/?kenh=${card.id}${niche ? `&niche=${niche}` : ""}`
+                : base === "trend"
+                  ? `/xu-huong?kenh=${card.id}`
+                  : `/kenh/${card.id}`
+            }
             className={card.id === tab ? "card on" : "card"}
           >
             <div className="n">{card.productsWithData}</div>

@@ -18,22 +18,24 @@ describe("app nav platforms", () => {
     expect(hrefs).toContain("/top/shopee");
     expect(APP_NAV_GROUPS[0]?.title).toMatch(/nền tảng/i);
     expect(TOP_PLATFORM_PILLS.map((pill) => pill.id)).toEqual([
-      "facebook",
-      "instagram",
-      "google",
-      "youtube",
-      "tiktok",
       "shopee",
       "lazada",
       "tiki",
       "sendo",
+      "google",
+      "youtube",
+      "tiktok",
+      "facebook",
+      "instagram",
     ]);
+    expect(APP_NAV_GROUPS[0]?.items[0]?.href).toBe("/kenh/shopee");
   });
 
   it("highlights the open platform from /kenh and /top paths", () => {
     expect(platformIdFromPath("/kenh/shopee")).toBe("shopee");
     expect(platformIdFromPath("/top/youtube")).toBe("youtube");
-    expect(platformIdFromPath("/xu-huong")).toBe("facebook");
+    expect(platformIdFromPath("/xu-huong")).toBe("shopee");
+    expect(platformIdFromPath("/xu-huong", "google")).toBe("google");
     expect(isActiveNav("/kenh/shopee", "/kenh/shopee")).toBe(true);
     expect(isActiveNav("/xu-huong", "/xu-huong")).toBe(true);
     expect(isActiveNav("/xu-huong", "/")).toBe(false);

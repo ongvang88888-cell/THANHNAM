@@ -2,13 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { APP_NAV_GROUPS, isActiveNav, platformIdFromPath, TOP_PLATFORM_PILLS } from "@/domain/app-nav";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
-  const activePlatform = platformIdFromPath(pathname);
+  const [kenh, setKenh] = useState<string | null>(null);
+
+  useEffect(() => {
+    setKenh(new URLSearchParams(window.location.search).get("kenh"));
+  }, [pathname]);
+
+  const activePlatform = platformIdFromPath(pathname, kenh);
 
   return (
     <div className="spy-app">
@@ -25,7 +31,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <small>Ads &amp; sàn</small>
           </span>
         </Link>
-        <p className="spy-side-kicker">Facebook · Shopee · Google · YouTube</p>
+        <p className="spy-side-kicker">Shopee · Google · YouTube · Facebook</p>
         <nav className="spy-nav" aria-label="Menu Radar">
           {APP_NAV_GROUPS.map((group) => (
             <div key={group.title} className="spy-nav-group">
@@ -45,7 +51,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <p className="spy-side-note">
-          Shopee / Google / YouTube / sàn ở nhóm đầu menu. Số sàn = bạn nhập. Radar không crawl.
+          Dòng đầu menu là Shopee / Google / YouTube — không chỉ Facebook. Số sàn = bạn nhập. Radar không crawl.
         </p>
       </aside>
       <div className="spy-main">

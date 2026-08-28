@@ -51,6 +51,8 @@ describe("platform dashboards", () => {
     expect(platformHref("lazada", { base: "kenh" })).toBe("/kenh/lazada");
     expect(platformHref("google", { base: "home", niche: "my-pham" })).toBe("/?kenh=google&niche=my-pham");
     expect(platformHref("shopee", { base: "top", niche: "me-be" })).toBe("/top/shopee?niche=me-be");
+    expect(platformHref("google", { base: "trend" })).toBe("/xu-huong?kenh=google");
+    expect(parsePlatformTab(undefined, "shopee")).toBe("shopee");
   });
 
   it("ranks each marketplace from warehouse peaks and keeps YouTube views off sold", () => {

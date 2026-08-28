@@ -295,6 +295,7 @@ pre.report {
     padding: 0;
   }
   .spy-top { flex-wrap: wrap; }
+  .spy-top-meta { order: 2; max-width: none; width: 100%; }
   .spy-search { min-width: 0; width: 100%; order: 3; max-width: none; }
 }
 @media (max-width: 720px) {

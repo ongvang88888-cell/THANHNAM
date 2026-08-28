@@ -11,7 +11,23 @@ export type AppNavGroup = {
   items: readonly AppNavItem[];
 };
 
-/** Menu người dùng đang mở trên mobile — nền tảng phải nằm trên cùng, không chỉ Facebook. */
+/** Trending mở Shopee trước — user đang tìm sàn, không phải Facebook. */
+export const TRENDING_DEFAULT_PLATFORM: PlatformTabId = "shopee";
+
+/** Thứ tự trên menu / pill: sàn và Google/YouTube trước Facebook. */
+export const PLATFORM_MENU_ORDER: readonly PlatformTabId[] = [
+  "shopee",
+  "lazada",
+  "tiki",
+  "sendo",
+  "google",
+  "youtube",
+  "tiktok",
+  "facebook",
+  "instagram",
+];
+
+/** Menu người dùng đang mở trên mobile — nền tảng phải là dòng đầu, cùng kiểu Ad Search. */
 export const APP_NAV_GROUPS: readonly AppNavGroup[] = [
   {
     title: "Nền tảng / sàn",
@@ -34,7 +50,7 @@ export const APP_NAV_GROUPS: readonly AppNavGroup[] = [
       { href: "/", label: "Ad Library", vi: "Thư viện ads" },
       { href: "/quet", label: "Ad Search", vi: "Quét cành" },
       { href: "/theo-doi", label: "Ad Pages", vi: "Theo dõi trang" },
-      { href: "/xu-huong", label: "Trending", vi: "Xu hướng" },
+      { href: "/xu-huong", label: "Trending", vi: "Xu hướng mọi nền tảng" },
       { href: "/nganh", label: "Rankings", vi: "Xếp hạng ngành" },
       { href: "/bo-suu-tap", label: "Collection", vi: "Bộ sưu tập" },
       { href: "/collect", label: "Save Ad", vi: "Lưu quảng cáo" },
@@ -47,13 +63,15 @@ export const APP_NAV_GROUPS: readonly AppNavGroup[] = [
   },
 ];
 
-export const TOP_PLATFORM_PILLS: readonly { id: PlatformTabId; href: string; label: string }[] = PLATFORM_TABS.map(
-  (tab) => ({
-    id: tab.id,
-    href: `/kenh/${tab.id}`,
-    label: tab.labelVi,
-  }),
-);
+export const TOP_PLATFORM_PILLS: readonly { id: PlatformTabId; href: string; label: string }[] =
+  PLATFORM_MENU_ORDER.map((id) => {
+    const tab = PLATFORM_TABS.find((item) => item.id === id);
+    return {
+      id,
+      href: `/kenh/${id}`,
+      label: tab?.labelVi ?? id,
+    };
+  });
 
 export function isActiveNav(pathname: string, href: string): boolean {
   if (href === "/") {
@@ -62,14 +80,20 @@ export function isActiveNav(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function platformIdFromPath(pathname: string): PlatformTabId {
-  const kenh = pathname.match(/^\/kenh\/([a-z-]+)/);
-  if (kenh?.[1] && PLATFORM_TABS.some((tab) => tab.id === kenh[1])) {
-    return kenh[1] as PlatformTabId;
+export function platformIdFromPath(pathname: string, kenh?: string | null): PlatformTabId {
+  if (kenh && PLATFORM_TABS.some((tab) => tab.id === kenh)) {
+    return kenh as PlatformTabId;
+  }
+  const kenhPath = pathname.match(/^\/kenh\/([a-z-]+)/);
+  if (kenhPath?.[1] && PLATFORM_TABS.some((tab) => tab.id === kenhPath[1])) {
+    return kenhPath[1] as PlatformTabId;
   }
   const top = pathname.match(/^\/top\/([a-z-]+)/);
   if (top?.[1] && PLATFORM_TABS.some((tab) => tab.id === top[1])) {
     return top[1] as PlatformTabId;
+  }
+  if (pathname === "/xu-huong" || pathname.startsWith("/xu-huong/")) {
+    return TRENDING_DEFAULT_PLATFORM;
   }
   return "facebook";
 }

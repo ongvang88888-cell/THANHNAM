@@ -8,7 +8,7 @@ export function PlatformChips({
   extra,
 }: {
   active: PlatformTabId;
-  base?: "home" | "kenh" | "top";
+  base?: "home" | "kenh" | "top" | "trend";
   niche?: string;
   extra?: Record<string, string | undefined>;
 }) {
