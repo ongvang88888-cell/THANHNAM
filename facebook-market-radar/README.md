@@ -25,7 +25,7 @@ Hướng dẫn Nginx + systemd (không chứa mật khẩu): [docs/DEPLOYMENT.md
 
 ## Việc làm trước khi tin UI
 
-Đọc [docs/v0/README.md](./docs/v0/README.md) và [docs/PRODUCT.md](./docs/PRODUCT.md).
+Đọc [docs/v0/README.md](./docs/v0/README.md), [docs/PRODUCT.md](./docs/PRODUCT.md), và [docs/AD_LIBRARY_KEYWORD_SEARCH.md](./docs/AD_LIBRARY_KEYWORD_SEARCH.md) (từ khóa → list → thống kê: UI vs API).
 
 Hàng đợi quét: `/quet` — mở URL Thư viện (VN, đang chạy) theo cành catalog, ~1.000.000 ô tìm tên sản phẩm mở rộng, biến thể tên, và từ khóa trong bài ads đã lưu. Ô tìm trên `/quet?ten=` khớp tên + nội dung ads. Bảng `/` chỉ ads đã lưu. Soi thêm: `/xu-huong`, `/san-pham/[slug]`, `/bo-suu-tap`, lưới `/?view=grid`. Extension unpacked: `extension/`. Radar không tự kéo Facebook.
 

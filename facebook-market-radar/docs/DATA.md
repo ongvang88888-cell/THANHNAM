@@ -41,6 +41,8 @@ Chỉ parse query string user dán:
 
 `buildAdLibrarySearchUrl(query)` tạo URL search chính thức (VN, ads đang chạy). Server **không** HTTP GET URL này.
 
+Chi tiết chính xác từ khóa / `ads_archive` / thống kê list: [`AD_LIBRARY_KEYWORD_SEARCH.md`](./AD_LIBRARY_KEYWORD_SEARCH.md).
+
 ## Hàng đợi quét cành
 
 `src/domain/ad-library-scan.ts` + `SCAN_BRANCHES`: gộp `searchKeywords`, keyword catalog hữu ích, và nhánh tên sản phẩm. Cành “đã phủ” khi title/body ads đã lưu khớp query. Ưu tiên ngành trống.
