@@ -9,6 +9,7 @@ import type {
   StoredCluster,
   StoredOwnShopItem,
   StoredPage,
+  StoredSummaryCycle,
   StoredPageWatch,
   StoredResearchLink,
   StoredSalesProxy,
@@ -22,6 +23,7 @@ import { isOwnShopPlatform } from "../domain/own-shop";
 import { isResearchLinkSource } from "../domain/platform-stats-plan";
 import type { OwnCampaignInsight } from "../domain/ports";
 import { parseChannelMetricSource } from "../domain/sales-channels";
+import { SUMMARY_CYCLE_KEEP } from "../domain/summary-table";
 
 export class PrismaRadarRepository implements IRadarRepository {
   constructor(private readonly db: PrismaClient) {}
@@ -606,6 +608,51 @@ export class PrismaRadarRepository implements IRadarRepository {
         },
       ];
     });
+  }
+
+  async saveSummaryCycle(appId: string, row: StoredSummaryCycle): Promise<void> {
+    await this.db.summaryCycle.create({
+      data: {
+        appId,
+        capturedAt: new Date(row.capturedAtMs),
+        nextDueAt: new Date(row.nextDueAtMs),
+        rowCount: row.rowCount,
+        filledCells: row.filledCells,
+        emptyCells: row.emptyCells,
+        apiRan: row.apiRan,
+        payload: row.payloadJson,
+      },
+    });
+    const stale = await this.db.summaryCycle.findMany({
+      where: { appId },
+      orderBy: { capturedAt: "desc" },
+      skip: SUMMARY_CYCLE_KEEP,
+      select: { id: true },
+    });
+    if (stale.length > 0) {
+      await this.db.summaryCycle.deleteMany({
+        where: { id: { in: stale.map((item) => item.id) } },
+      });
+    }
+  }
+
+  async getLatestSummaryCycle(appId: string): Promise<StoredSummaryCycle | null> {
+    const row = await this.db.summaryCycle.findFirst({
+      where: { appId },
+      orderBy: { capturedAt: "desc" },
+    });
+    if (!row) {
+      return null;
+    }
+    return {
+      capturedAtMs: row.capturedAt.getTime(),
+      nextDueAtMs: row.nextDueAt.getTime(),
+      rowCount: row.rowCount,
+      filledCells: row.filledCells,
+      emptyCells: row.emptyCells,
+      apiRan: row.apiRan,
+      payloadJson: row.payload,
+    };
   }
 }
 

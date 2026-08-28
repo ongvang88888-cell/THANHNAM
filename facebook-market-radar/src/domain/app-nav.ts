@@ -47,10 +47,9 @@ export const APP_NAV_GROUPS: readonly AppNavGroup[] = [
   {
     title: "Phân tích",
     items: [
-      { href: "/", label: "Tổng quan", vi: "KPI + đa kênh" },
+      { href: "/", label: "Tổng hợp", vi: "Mọi nền tảng · 6 giờ" },
       { href: "/xu-huong", label: "Xu hướng", vi: "Mọi nền tảng" },
       { href: "/nganh", label: "Ngành", vi: "Xếp hạng ước lượng" },
-      { href: "/tong-hop", label: "Tổng hợp", vi: "Bảng đủ cột" },
       { href: "/manh", label: "Ads mạnh", vi: "Ngưỡng trên kho" },
       { href: "/quet", label: "Quét cành", vi: "URL Thư viện" },
     ],
@@ -100,7 +99,7 @@ export function platformIdFromPath(pathname: string, kenh?: string | null): Plat
   if (top?.[1] && PLATFORM_TABS.some((tab) => tab.id === top[1])) {
     return top[1] as PlatformTabId;
   }
-  if (pathname === "/xu-huong" || pathname.startsWith("/xu-huong/") || pathname === "/") {
+  if (pathname === "/xu-huong" || pathname.startsWith("/xu-huong/")) {
     return TRENDING_DEFAULT_PLATFORM;
   }
   return "facebook";

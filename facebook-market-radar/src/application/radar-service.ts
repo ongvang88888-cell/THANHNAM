@@ -7,7 +7,7 @@ import {
   pageMegaScan,
   type MegaScanPage,
 } from "../domain/mega-scan";
-import { assertCollectAuthorized } from "../domain/authz";
+import { assertCollectAuthorized, assertCronAuthorized } from "../domain/authz";
 import { draftCluster, shouldMergeClusters, slugifyTitle } from "../domain/clustering";
 import { validateCollectManual, type CollectManualInput } from "../domain/collect-input";
 import { buildIndustryStats, catalogCoverage, type CatalogCoverage, type IndustryStat } from "../domain/industry-stats";
@@ -73,6 +73,13 @@ import {
   pickListingSearchJobs,
 } from "../domain/platform-stats-plan";
 import { mapYoutubeVideosToClusters, peakViewsByCluster, youtubeWatchUrl } from "../domain/youtube-video";
+import {
+  SUMMARY_INTERVAL_MS,
+  buildSummarySnapshot,
+  isSummaryDue,
+  parseSummarySnapshot,
+  type SummarySnapshot,
+} from "../domain/summary-table";
 import type {
   IRadarRepository,
   StoredAd,
@@ -132,6 +139,32 @@ export type PlatformStatsRefreshResult = {
   marketSoldFromApi: false;
   enabled: PlatformStatsCapabilities;
 };
+
+export type SummaryStatus = {
+  capturedAt: string | null;
+  nextDueAt: string | null;
+  due: boolean;
+  rowCount: number;
+  filledCells: number;
+  emptyCells: number;
+  apiRan: boolean;
+  intervalMs: number;
+  estimated: true;
+  facebookNationalDump: false;
+  nationalSalesDump: false;
+  marketSoldFromApi: false;
+  scrapeMarketplaceHtml: false;
+};
+
+function hasOfficialStatsCapability(enabled: PlatformStatsCapabilities): boolean {
+  return (
+    enabled.youtube ||
+    enabled.googleCse ||
+    enabled.shopeeShop ||
+    enabled.lazadaShop ||
+    enabled.tiktokShop
+  );
+}
 
 export type RadarServiceExtras = {
   youtubeSearch?: IYoutubeSearchProvider;
@@ -816,6 +849,62 @@ export class RadarService {
       );
     }
     return result;
+  }
+
+  async getSummaryStatus(nowMs: number): Promise<SummaryStatus> {
+    const cycle = await this.repo.getLatestSummaryCycle(this.appId);
+    return {
+      capturedAt: cycle ? new Date(cycle.capturedAtMs).toISOString() : null,
+      nextDueAt: cycle ? new Date(cycle.nextDueAtMs).toISOString() : null,
+      due: isSummaryDue(cycle?.nextDueAtMs, nowMs),
+      rowCount: cycle?.rowCount ?? 0,
+      filledCells: cycle?.filledCells ?? 0,
+      emptyCells: cycle?.emptyCells ?? 0,
+      apiRan: cycle?.apiRan ?? false,
+      intervalMs: SUMMARY_INTERVAL_MS,
+      estimated: true,
+      facebookNationalDump: false,
+      nationalSalesDump: false,
+      marketSoldFromApi: false,
+      scrapeMarketplaceHtml: false,
+    };
+  }
+
+  async refreshSummaryCycle(
+    nowMs: number,
+    cronKey: string | null,
+    collectKey: string | null,
+    expectedCron: string | undefined,
+    expectedCollect: string | undefined,
+  ): Promise<SummarySnapshot> {
+    assertCronAuthorized(cronKey, collectKey, expectedCron, expectedCollect);
+    let apiRan = false;
+    if (hasOfficialStatsCapability(this.platformStatsCapabilities())) {
+      try {
+        await this.refreshPlatformStats(
+          "all",
+          nowMs,
+          collectKey ?? cronKey,
+          expectedCollect?.trim() || expectedCron?.trim() || undefined,
+        );
+        apiRan = true;
+      } catch {
+        apiRan = false;
+      }
+    }
+    await this.recompute(nowMs);
+    const rows = await this.listChannelAnalysis(nowMs, "tong");
+    const snapshot = buildSummarySnapshot({ capturedAtMs: nowMs, rows, apiRan });
+    await this.repo.saveSummaryCycle(this.appId, {
+      capturedAtMs: nowMs,
+      nextDueAtMs: Date.parse(snapshot.nextDueAt),
+      rowCount: snapshot.rowCount,
+      filledCells: snapshot.filledCells,
+      emptyCells: snapshot.emptyCells,
+      apiRan,
+      payloadJson: JSON.stringify(snapshot),
+    });
+    return parseSummarySnapshot(snapshot) ?? snapshot;
   }
 
   async listOwnShopItems(): Promise<StoredOwnShopItem[]> {

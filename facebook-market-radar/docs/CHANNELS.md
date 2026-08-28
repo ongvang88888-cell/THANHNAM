@@ -4,9 +4,9 @@ Nghiên cứu mọi đường **có thật** để thống kê sản phẩm vừ
 
 **Kết luận khóa:** không có dump chính thức “top bán chạy + top ads VN” trên bất kỳ kênh nào. Radar cộng **thẻ Facebook đã lưu** với **số user tự đọc rồi nhập**. Mọi điểm tổng hợp là **ước lượng**. Server **không HTTP GET** facebook.com, adstransparency.google.com, youtube.com, shopee.vn, lazada.vn, tiki.vn, sendo.vn, tiktok.com.
 
-UI: menu trái nhóm **Nền tảng / Phân tích / Kho** (Shopee đầu tiên) + pill header + chrome trang chủ chỉ 9 kênh thật (`/kenh/…`) + ma trận KPI trên `/` · `/xu-huong` hiện 999 tên kênh đang chọn (mặc định Shopee) · chip trên `/kenh/[…]`, `/top/[…]` · `/tong-hop` · API: `GET /api/kenh?tab=` + `GET /api/top?tab=` + `GET /api/tong-hop` (`estimated: true`, `autoCrawl: false`, `facebookNationalDump: false`, `nationalSalesDump: false`) · ghi thêm: `POST /api/kenh`.
+UI: **trang chủ `/` chỉ bảng tổng hợp đủ cột** (mọi nền tảng). Menu trái nhóm **Nền tảng / Phân tích / Kho** (Shopee đầu tiên) + pill header trên trang kênh (`/kenh/…`) · `/xu-huong` hiện 999 tên kênh đang chọn (mặc định Shopee) · `/tong-hop` redirect về `/` · API: `GET /api/kenh?tab=` + `GET /api/top?tab=` + `GET /api/tong-hop` + `GET/POST /api/summary` (`estimated: true`, `autoCrawl: false`, `facebookNationalDump: false`, `nationalSalesDump: false`) · ghi thêm: `POST /api/kenh`.
 
-**Tự động liên tục** = tính lại từ kho mỗi lần mở trang và mỗi 30 giây (tab đang mở). **Không** có crawler Shopee / Lazada / Google / YouTube / Facebook.
+**Cập nhật 6 giờ / lần** = `POST /api/summary/refresh` (systemd timer hoặc tab trang chủ khi đến hạn): gọi API chính thức nếu có khóa, rồi ghi snapshot kho vào `summary_cycles`. Bảng trên `/` luôn đọc **kho live** (nhập mới hiện ngay). **Không** có crawler Shopee / Lazada / Google / YouTube / Facebook. Ô trống = chưa nhập / chưa khóa — không bịa đã bán.
 
 KPI `/kenh` tách **có số** (observation đã nhập) và **có đích** (URL trên thẻ, copy, hoặc research link từ YouTube search / Google CSE). Ô 0% = chưa nhập số, không phải nền tảng biến mất. Nút **Lấy thống kê API** trên `/kenh/*` gọi `POST /api/platform-stats`: YouTube Data API (views + search), Google Custom Search (URL listing), Open Platform shop của bạn. Views / CSE / shop mình **không** thành “đã bán đối thủ”. HeatScore vẫn chỉ sold sàn user nhập.
 
@@ -24,7 +24,7 @@ KPI `/kenh` tách **có số** (observation đã nhập) và **có đích** (URL
 
 Cấm: Apify / SerpAPI / crawl sàn / scrape Transparency / scrape YouTube để xếp hạng.
 
-## 2. Chỉ số trên bảng `/tong-hop`
+## 2. Chỉ số trên bảng tổng hợp (`/`)
 
 | Cột | Nguồn | Vào HeatScore? |
 |-----|--------|----------------|
@@ -46,7 +46,7 @@ Sắp xếp `?xep=ads|sold|tong`.
 
 1. `/quet` → mở Thư viện Meta → `/collect` lưu thẻ **kèm landing** nếu thấy.
 2. Radar đọc `landingUrl` + URL trong title/body đã lưu → cột “có đích” trên `/kenh/{nền}`.
-3. Mở **đích đã lưu** hoặc URL chính thức trên hàng đợi `/kenh` / `/tong-hop`.
+3. Mở **đích đã lưu** hoặc URL chính thức trên hàng đợi `/kenh` / trang chủ.
 4. Đọc số trên trang → form hàng đợi, `/collect`, hoặc `POST /api/kenh` (cùng `x-fmr-key`).
 5. Sheet CSV: cột `lazadaSold`, `tikiSold`, `sendoSold`, `googleAdsSeen`, `youtubeAdsSeen`, `tiktokAdsSeen`, `youtubeViews`.
 6. Feed licensed HTTPS (không phải host sàn / Transparency / YouTube).

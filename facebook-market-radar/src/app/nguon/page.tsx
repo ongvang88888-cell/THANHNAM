@@ -63,7 +63,7 @@ export default async function SourcesPage() {
       <div className="banner">
         Server không HTTP GET facebook.com, không gọi <code>/ads_archive</code> cho commercial VN, không
         scrape Shopee/TikTok/YouTube/Google Transparency/BigSpy. Facebook: <code>docs/SOURCES.md</code>.
-        Đa kênh: <Link href="/tong-hop">bảng tổng hợp</Link> · <code>docs/CHANNELS.md</code>.
+        Đa kênh: <Link href="/">bảng tổng hợp</Link> · <code>docs/CHANNELS.md</code>.
       </div>
       <div className="cards">
         <div className="card">
@@ -165,7 +165,7 @@ export default async function SourcesPage() {
       <p className="muted">
         Không có API dump “sản phẩm bán chạy nhất VN” trên Google, YouTube hay sàn. Radar chỉ sinh URL
         chính thức và nhận số bạn nhập. Bảng từng kênh: <Link href="/kenh/shopee">/kenh/shopee</Link> ·{" "}
-        <Link href="/tong-hop">/tong-hop</Link>.
+        <Link href="/">trang chủ</Link>.
       </p>
       {(["ad_transparency", "ecommerce", "search_demand", "own_account", "blocked"] as const).map((family) => (
         <section key={family}>

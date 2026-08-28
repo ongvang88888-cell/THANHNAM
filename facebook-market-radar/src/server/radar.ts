@@ -50,3 +50,7 @@ export function collectKeyFromRequest(header: string | null): string | null {
 export function expectedCollectKey(): string | undefined {
   return process.env.FMR_COLLECT_KEY;
 }
+
+export function expectedCronKey(): string | undefined {
+  return process.env.FMR_CRON_KEY;
+}

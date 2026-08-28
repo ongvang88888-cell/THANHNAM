@@ -22,13 +22,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <button type="button" className="spy-backdrop" aria-label="Đóng menu" onClick={() => setOpen(false)} />
       ) : null}
       <aside className={`spy-side${open ? " open" : ""}`}>
-        <Link href="/kenh/shopee" className="spy-logo" onClick={() => setOpen(false)}>
+        <Link href="/" className="spy-logo" onClick={() => setOpen(false)}>
           <span className="spy-mark" aria-hidden="true">
             ⌕
           </span>
           <span>
             <b>Radar</b>
-            <small>Ads &amp; sàn</small>
+            <small>Bảng tổng hợp</small>
           </span>
         </Link>
         <p className="spy-side-kicker">Shopee · Google · YouTube · Facebook</p>
@@ -51,7 +51,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <p className="spy-side-note">
-          Dòng đầu menu là Shopee / Google / YouTube — không chỉ Facebook. Số sàn = bạn nhập. Radar không crawl.
+          Trang chủ là một bảng mọi nền tảng. Số sàn = bạn nhập hoặc API chính thức. Radar không crawl.
         </p>
       </aside>
       <div className="spy-main">
@@ -60,20 +60,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             Menu
           </button>
           <form className="spy-search" action="/" method="get">
-            <input name="ten" placeholder="Tìm ads đã lưu — tên, hook, ngành…" aria-label="Tìm ads đã lưu" />
+            <input name="ten" placeholder="Lọc bảng tổng hợp — tên, ngành…" aria-label="Lọc bảng tổng hợp" />
             <button type="submit">Search</button>
           </form>
-          <div className="spy-top-meta" aria-label="Nền tảng">
-            {TOP_PLATFORM_PILLS.map((pill) => (
-              <Link
-                key={pill.id}
-                href={pill.href}
-                className={pill.id === activePlatform ? "net-pill on" : "net-pill"}
-              >
-                {pill.label}
-              </Link>
-            ))}
-          </div>
+          {pathname === "/" ? (
+            <div className="spy-top-meta muted" aria-label="Trang chủ">
+              Mọi nền tảng
+            </div>
+          ) : (
+            <div className="spy-top-meta" aria-label="Nền tảng">
+              {TOP_PLATFORM_PILLS.map((pill) => (
+                <Link
+                  key={pill.id}
+                  href={pill.href}
+                  className={pill.id === activePlatform ? "net-pill on" : "net-pill"}
+                >
+                  {pill.label}
+                </Link>
+              ))}
+            </div>
+          )}
         </header>
         <div className="spy-page">{children}</div>
       </div>

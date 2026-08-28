@@ -27,7 +27,7 @@ Hướng dẫn Nginx + systemd (không chứa mật khẩu): [docs/DEPLOYMENT.md
 
 Đọc [docs/v0/README.md](./docs/v0/README.md) và [docs/PRODUCT.md](./docs/PRODUCT.md).
 
-Hàng đợi quét: `/quet` — mở URL Thư viện (VN, đang chạy) theo cành catalog, ~1.000.000 ô tìm tên sản phẩm mở rộng, biến thể tên, và từ khóa trong bài ads đã lưu. Ô tìm trên `/quet?ten=` khớp tên + nội dung ads. Bảng `/` chỉ ads đã lưu. Nguồn nào đồng bộ được vào kho: `/nguon` và [docs/SOURCES.md](./docs/SOURCES.md). Đa kênh (Google / YouTube / sàn, số user nhập + API chính thức): chip trên `/`, `/kenh/shopee` (nút Lấy thống kê API), `/tong-hop` và [docs/CHANNELS.md](./docs/CHANNELS.md). Catalog 999 tên nghiên cứu mỗi kênh (không phải dump bán chạy): `/top/shopee`. Soi thêm: `/manh` (sản phẩm ads mạnh trên kho đã lưu), `/xu-huong`, `/san-pham/[slug]`, `/bo-suu-tap`, lưới `/?view=grid`. Extension unpacked: `extension/`. Radar không tự kéo Facebook / Google / sàn.
+Hàng đợi quét: `/quet` — mở URL Thư viện (VN, đang chạy) theo cành catalog, ~1.000.000 ô tìm tên sản phẩm mở rộng, biến thể tên, và từ khóa trong bài ads đã lưu. Ô tìm trên `/quet?ten=` khớp tên + nội dung ads. **Trang chủ `/` chỉ bảng tổng hợp mọi nền tảng** (ghi snapshot 6 giờ/lần). Nguồn nào đồng bộ được vào kho: `/nguon` và [docs/SOURCES.md](./docs/SOURCES.md). Đa kênh: `/kenh/shopee` (nút Lấy thống kê API) và [docs/CHANNELS.md](./docs/CHANNELS.md). Catalog 999 tên nghiên cứu mỗi kênh (không phải dump bán chạy): `/top/shopee`. Soi thêm: `/manh`, `/xu-huong`, `/san-pham/[slug]`, `/bo-suu-tap`, `/ads`. Extension unpacked: `extension/`. Radar không tự kéo Facebook / Google / sàn.
 
 ## Scripts
 

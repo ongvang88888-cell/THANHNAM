@@ -48,7 +48,7 @@ export function PlatformPanel({
           Mở trang chính thức
         </a>{" "}
         · <Link href={`/top/${tab}`}>999 tên nghiên cứu</Link> · <Link href="/collect">Nhập số</Link> ·{" "}
-        <Link href="/tong-hop">Bảng đủ cột</Link>
+        <Link href="/">Bảng tổng hợp</Link>
       </p>
       {showCoverage ? <div className="cards platform-coverage">
         {dashboard.coverage.map((card) => (

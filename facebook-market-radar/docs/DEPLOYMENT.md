@@ -43,6 +43,8 @@ PORT=3100
 
 Ghi quảng cáo (`POST /api/collect`, `POST /api/theo-doi`) cần header `x-fmr-key` trùng `FMR_COLLECT_KEY`.
 
+Bảng tổng hợp: `POST /api/summary/refresh` mỗi 6 giờ. Timer mẫu trong `deploy/fmr-summary-refresh.timer` (localhost only). Header `x-fmr-cron` = `FMR_CRON_KEY` hoặc cùng collect key. Không seed kho khi cập nhật.
+
 ## systemd (mẫu)
 
 `ExecStart` gọi Next trực tiếp, bind localhost:
@@ -94,7 +96,7 @@ curl -I http://127.0.0.1:3100/
 curl -I http://127.0.0.1/
 ```
 
-Trình duyệt: trang chủ xếp hạng, `/theo-doi`, `/collect`. Điểm nóng và giá luôn là **ước lượng**.
+Trình duyệt: trang chủ = bảng tổng hợp mọi nền tảng, `/theo-doi`, `/collect`. Điểm nóng và giá luôn là **ước lượng**. Ô trống không phải dump đã bán.
 
 ## Bảo mật
 

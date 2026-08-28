@@ -84,7 +84,7 @@ export default async function PlatformDashboardPage({ params, searchParams }: Pr
       />
       <PlatformPanel dashboard={dashboard} base="kenh" niche={niche} showCoverage={false} />
       <p className="muted">
-        <Link href="/">Tổng quan</Link> · <Link href="/tong-hop">Bảng đủ cột</Link> ·{" "}
+        <Link href="/">Bảng tổng hợp</Link> ·{" "}
         <Link href="/nguon">Mọi nguồn hợp pháp</Link>
       </p>
     </>

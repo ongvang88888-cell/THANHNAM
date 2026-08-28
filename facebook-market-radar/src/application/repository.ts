@@ -115,6 +115,16 @@ export type StoredOwnShopItem = {
   date: string;
 };
 
+export type StoredSummaryCycle = {
+  capturedAtMs: number;
+  nextDueAtMs: number;
+  rowCount: number;
+  filledCells: number;
+  emptyCells: number;
+  apiRan: boolean;
+  payloadJson: string;
+};
+
 export interface IRadarRepository {
   upsertPage(appId: string, page: StoredPage): Promise<void>;
   getPage(appId: string, pageId: string): Promise<StoredPage | null>;
@@ -149,4 +159,6 @@ export interface IRadarRepository {
   listResearchLinks(appId: string): Promise<StoredResearchLink[]>;
   upsertOwnShopItem(appId: string, row: StoredOwnShopItem): Promise<void>;
   listOwnShopItems(appId: string): Promise<StoredOwnShopItem[]>;
+  saveSummaryCycle(appId: string, row: StoredSummaryCycle): Promise<void>;
+  getLatestSummaryCycle(appId: string): Promise<StoredSummaryCycle | null>;
 }

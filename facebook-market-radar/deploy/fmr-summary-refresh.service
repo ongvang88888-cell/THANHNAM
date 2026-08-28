@@ -1,0 +1,10 @@
+[Unit]
+Description=Facebook Market Radar 6h summary table cycle
+After=network.target facebook-market-radar.service
+
+[Service]
+Type=oneshot
+User=fmr
+EnvironmentFile=/opt/facebook-market-radar/.env
+# Localhost only. Empty FMR_CRON_KEY / FMR_COLLECT_KEY = open local MVP (same as collect).
+ExecStart=/usr/bin/curl -sS -X POST http://127.0.0.1:3100/api/summary/refresh -H Content-Type:application/json -H x-fmr-cron:${FMR_CRON_KEY} -H x-fmr-key:${FMR_COLLECT_KEY} --data {}

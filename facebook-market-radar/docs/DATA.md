@@ -62,7 +62,9 @@ Chỉ parse query string user dán:
 Rollback schema: drop `cluster_research_links` + `own_shop_daily`. Expand-only; không đụng lịch sử sold/ads.
 `GET /api/nguon` — catalog nguồn (official / user / licensed / own / blocked) + thống kê kho.
 `GET /api/manh` — sản phẩm đạt ngưỡng mạnh trên kho đã lưu (`estimated: true`, `facebookNationalDump: false`).
-`GET /api/tong-hop` — bảng đa kênh (`estimated: true`, `nationalSalesDump: false`).
+`GET /api/tong-hop` — bảng đa kênh live (`estimated: true`, `nationalSalesDump: false`).
+`GET /api/summary` — trạng thái chu kỳ 6 giờ (`due`, `capturedAt`, `nextDueAt`).
+`POST /api/summary/refresh` — gọi API chính thức nếu có khóa, rồi ghi snapshot (`x-fmr-cron` hoặc `x-fmr-key`). Không crawl.
 `GET /api/kenh?tab=shopee` — dashboard từng nền tảng (`autoCrawl: false`).
 `GET /api/top?tab=shopee&trang=&niche=&q=` — 999 tên nghiên cứu / kênh, overlay kho nếu khớp mạnh (`nationalDump: false`).
 `POST /api/kenh` — ghi một chỉ số kênh vào cụm đã có (cần `x-fmr-key`).

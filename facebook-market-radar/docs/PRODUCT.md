@@ -35,14 +35,14 @@ Danh mục khóa: **26 ngành / 13 nhóm**. “Quét đầy đủ” = hàng đ�
 
 Trên dữ liệu user đã lưu (+ feed licensed nếu có), Radar có các bề mặt kiểu EachSpy / Kalodata / Foreplay — **không** index hàng triệu ads:
 
-0. **Ad Library chrome** — theme sáng, KPI strip + ma trận 9 nền tảng trên trang chủ. Sidebar nhóm **Nền tảng / Phân tích / Kho**. Pill header và chrome chỉ Shopee → Instagram (href `/kenh/…`) — **không** có nút X / Pinterest / Visual Search / E-commerce·Game·Tool giả. Logo **Radar**.
+0. **Trang chủ = bảng tổng hợp** — một bảng đủ cột mọi nền tảng (FB ads + đã bán sàn + ads Google/YT/TT + views YT). Không lưới ads / catalog 999 / ma trận trên `/`. Sidebar nhóm **Nền tảng / Phân tích / Kho**. Pill header chỉ hiện ngoài trang chủ (`/kenh/…`). Logo **Radar** về `/`.
 1. **Hồ sơ sản phẩm** `/san-pham/[slug]` — mọi thẻ, trang, landing/shop đã dán, góc creative, URL tìm Thư viện.
 2. **Trending / Fresh** `/xu-huong` — mặc định Shopee: 999 tên nghiên cứu mọi nền tảng + kho đã lưu; lưới Facebook phía dưới chỉ thẻ đã lưu (điểm nóng / Fresh ≤ 7 ngày).
 2b. **Ads mạnh nhất** `/manh` — playbook hợp pháp + bảng sản phẩm đạt ngưỡng mạnh trên kho đã lưu (điểm nóng ≥ 40 hoặc độ bền ≥ 50 và ≥ 2 ads đang chạy). Không có dump Facebook toàn quốc.
-2c. **Tổng hợp đa kênh** `/tong-hop` + **ma trận nền tảng** trên trang chủ và `/kenh/[nền-tảng]` — ads Facebook đã lưu + đã bán sàn + ads Google/YouTube/TikTok user đếm + views YouTube. Tính lại liên tục từ kho; không crawl. Không có dump bán chạy toàn quốc. Chi tiết [CHANNELS.md](./CHANNELS.md).
+2c. **Tổng hợp đa kênh** trên `/` (và `/tong-hop` redirect) — ads Facebook đã lưu + đã bán sàn + ads Google/YouTube/TikTok user đếm + views YouTube. Ghi snapshot + gọi API chính thức mỗi 6 giờ. Không crawl. Không có dump bán chạy toàn quốc. Chi tiết [CHANNELS.md](./CHANNELS.md).
 2d. **999 tên nghiên cứu / kênh** `/top/[nền-tảng]` — catalog sâu (không phải GMV live). Cùng 999 tên, xếp lại theo ngành ưu tiên từng sàn / ads. Overlay số kho khi khớp mạnh tiêu đề. Phân trang 50. API `GET /api/top`.
-3. **Lưới creative** `/?view=grid` — hover hiện hook từ copy đã lưu.
-4. **Bộ lọc** trên `/` — ngày chạy, số trang, landing, Shopee/TikTok/Lazada/Tiki/Sendo/YouTube/web, góc, media, giá, shop key, làn.
+3. **Lưới creative / ads đã lưu** — `/ads` và `/xu-huong`, không còn tab trên trang chủ.
+4. **Bộ lọc bảng tổng hợp** trên `/` — `?ten=` `?niche=` `?xep=tong|ads|sold`.
 5. **Watch Page** `/theo-doi` — cảnh báo khi user lưu thẻ mới từ trang đó (không crawl 24/7).
 6. **Shop / landing** — phân loại URL user dán; lọc `?shop=`.
 7. **Bộ sưu tập** `/bo-suu-tap` + nhãn góc trên thẻ (swipe file).

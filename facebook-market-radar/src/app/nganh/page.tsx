@@ -41,7 +41,7 @@ export default async function IndustryPage({ searchParams }: Props) {
           <div className="muted">
             <Link href="/manh">Sản phẩm ads mạnh nhất</Link>
             {" · "}
-            <Link href="/tong-hop">Tổng hợp kênh</Link>
+            <Link href="/">Tổng hợp kênh</Link>
           </div>
         </div>
         <div className="card">

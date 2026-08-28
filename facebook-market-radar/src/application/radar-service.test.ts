@@ -514,4 +514,49 @@ describe("RadarService", () => {
       UnauthorizedError,
     );
   });
+
+  it("writes a 6h summary cycle from the warehouse without inventing sold or wiping ads", async () => {
+    const repo = new MemoryRadarRepository();
+    const service = new RadarService(repo);
+    await service.collectManual(
+      {
+        libraryId: "111000031",
+        pageId: "900031",
+        pageName: "Shop LED",
+        productTitle: "Đèn LED cảm ứng tủ bếp",
+        startDate: "2026-05-20",
+        nicheSlug: "gadget",
+        shopeeSold: 6300,
+      },
+      now,
+      null,
+      undefined,
+    );
+    const adsBefore = await repo.listAds("fmr_vn");
+    const proxiesBefore = await repo.listSalesProxies("fmr_vn");
+    const heatBefore = (await service.listRankings(now)).find((row) => row.clusterTitle.includes("Đèn LED"));
+    await expect(service.refreshSummaryCycle(now, "nope", null, "cron", undefined)).rejects.toBeInstanceOf(
+      UnauthorizedError,
+    );
+    const snapshot = await service.refreshSummaryCycle(now, "cron", null, "cron", undefined);
+    expect(snapshot.apiRan).toBe(false);
+    expect(snapshot.rowCount).toBeGreaterThan(0);
+    expect(snapshot.facebookNationalDump).toBe(false);
+    expect(snapshot.marketSoldFromApi).toBe(false);
+    expect(snapshot.rows.some((row) => row.sold.shopee === 6300)).toBe(true);
+    expect(snapshot.rows.every((row) => row.sold.tiki === null)).toBe(true);
+    expect(snapshot.rows.every((row) => row.youtubeViews === null)).toBe(true);
+    expect(Date.parse(snapshot.nextDueAt) - Date.parse(snapshot.capturedAt)).toBe(6 * 60 * 60 * 1000);
+    const adsAfter = await repo.listAds("fmr_vn");
+    const proxiesAfter = await repo.listSalesProxies("fmr_vn");
+    expect(adsAfter).toHaveLength(adsBefore.length);
+    expect(proxiesAfter).toHaveLength(proxiesBefore.length);
+    const heatAfter = (await service.listRankings(now)).find((row) => row.clusterTitle.includes("Đèn LED"));
+    expect(heatAfter?.scores.heat).toBe(heatBefore?.scores.heat);
+    expect(heatAfter?.scores.salesProxy).toBe(heatBefore?.scores.salesProxy);
+    const status = await service.getSummaryStatus(now + 6 * 60 * 60 * 1000 - 1);
+    expect(status.due).toBe(false);
+    const later = await service.getSummaryStatus(now + 6 * 60 * 60 * 1000);
+    expect(later.due).toBe(true);
+  });
 });

@@ -26,7 +26,7 @@ export default async function CollectPage({ searchParams }: Props) {
         trên cùng origin máy chủ (kể cả VPS). Extension unpacked trong thư mục{" "}
         <code>extension/</code> cũng chỉ mở <code>/collect?url=</code> — không đọc facebook.com.
         Chỉ số sàn / Google / YouTube: nhập dưới form, xem chip trên <Link href="/">trang chủ</Link> /{" "}
-        <Link href="/kenh/shopee">Sàn / kênh</Link> / <Link href="/tong-hop">Tổng hợp kênh</Link>.
+        <Link href="/kenh/shopee">Sàn / kênh</Link> / <Link href="/">Tổng hợp kênh</Link>.
       </p>
       <p>
         <CollectBookmarklet />

@@ -247,7 +247,7 @@ export const DATA_SOURCES: readonly DataSource[] = [
     status: "wired",
     vnCommercial: "yes",
     radarPort: "manual",
-    ingestPath: "listChannelAnalysis + /kenh",
+    ingestPath: "listChannelAnalysis + / + /kenh",
     provides: ["landingKinds", "landingByKind", "youtubeVideoIds"],
     missing: ["đã bán", "lượt xem nếu chưa nhập / chưa gọi Data API"],
     notesVi:

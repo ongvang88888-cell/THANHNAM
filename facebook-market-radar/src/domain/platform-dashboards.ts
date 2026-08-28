@@ -541,7 +541,7 @@ export const LEGAL_FILL_PATHS = [
     id: "official_read",
     titleVi: "Mở trang chính thức rồi nhập số",
     detailVi: "Hàng đợi từng sản phẩm: mở listing / Transparency, đọc số, ghi vào kho.",
-    href: "/tong-hop",
+    href: "/",
   },
   {
     id: "sheet",

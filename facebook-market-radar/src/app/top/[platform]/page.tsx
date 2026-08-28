@@ -42,7 +42,7 @@ export default async function PlatformBestsellerPage({ params, searchParams }: P
       <BestsellerPanel page={page} />
       <p className="muted">
         <Link href={`/kenh/${tab}`}>Thống kê kho {label}</Link> · <Link href="/">Trang chủ</Link> ·{" "}
-        <Link href="/tong-hop">Bảng đủ cột</Link> · <Link href="/quet">Quét cành Ads</Link>
+        <Link href="/">Bảng tổng hợp</Link> · <Link href="/quet">Quét cành Ads</Link>
       </p>
     </>
   );

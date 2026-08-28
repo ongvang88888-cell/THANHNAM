@@ -286,3 +286,19 @@ model AdTag {
   @@index([appId, tag])
   @@map("ad_tags")
 }
+
+model SummaryCycle {
+  id          String   @id @default(cuid())
+  appId       String
+  capturedAt  DateTime
+  nextDueAt   DateTime
+  rowCount    Int
+  filledCells Int
+  emptyCells  Int
+  apiRan      Boolean
+  payload     String
+  createdAt   DateTime @default(now())
+
+  @@index([appId, capturedAt])
+  @@map("summary_cycles")
+}

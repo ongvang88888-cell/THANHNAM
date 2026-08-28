@@ -8,7 +8,7 @@ Bản đồ máy: `GET /api/nguon` và UI `/nguon`.
 
 **Tìm sản phẩm ads mạnh nhất:** không có bảng Meta toàn quốc. Playbook + xếp kho đã lưu: UI `/manh`, `GET /api/manh`.
 
-**Đa kênh (Google / YouTube / sàn):** không có dump bán chạy toàn quốc. Bảng ước lượng trên kho đã lưu: chip trên `/`, `/kenh/*`, `/tong-hop`, [CHANNELS.md](./CHANNELS.md). Không crawl — chỉ tính lại số đã nhập.
+**Đa kênh (Google / YouTube / sàn):** không có dump bán chạy toàn quốc. Bảng ước lượng trên kho đã lưu: trang chủ `/` (một bảng), `/kenh/*`, [CHANNELS.md](./CHANNELS.md). Ghi snapshot 6 giờ/lần. Không crawl — chỉ số đã nhập + API chính thức.
 
 ## 1. Việc Radar cần vs việc Meta cho
 

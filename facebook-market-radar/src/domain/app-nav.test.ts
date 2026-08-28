@@ -29,6 +29,9 @@ describe("app nav platforms", () => {
       "instagram",
     ]);
     expect(APP_NAV_GROUPS[0]?.items[0]?.href).toBe("/kenh/shopee");
+    expect(APP_NAV_GROUPS[1]?.items[0]?.href).toBe("/");
+    expect(APP_NAV_GROUPS[1]?.items[0]?.label).toBe("Tổng hợp");
+    expect(APP_NAV_GROUPS[1]?.items.some((item) => item.href === "/tong-hop")).toBe(false);
     expect(TOP_PLATFORM_PILLS.every((pill) => pill.href.startsWith("/kenh/"))).toBe(true);
     expect(TOP_PLATFORM_PILLS.map((pill) => pill.id)).not.toContain("pinterest");
   });
@@ -36,9 +39,10 @@ describe("app nav platforms", () => {
   it("highlights the open platform from /kenh and /top paths", () => {
     expect(platformIdFromPath("/kenh/shopee")).toBe("shopee");
     expect(platformIdFromPath("/top/youtube")).toBe("youtube");
-    expect(platformIdFromPath("/")).toBe("shopee");
+    expect(platformIdFromPath("/")).toBe("facebook");
     expect(platformIdFromPath("/xu-huong")).toBe("shopee");
     expect(platformIdFromPath("/xu-huong", "google")).toBe("google");
+    expect(isActiveNav("/", "/")).toBe(true);
     expect(isActiveNav("/kenh/shopee", "/kenh/shopee")).toBe(true);
     expect(isActiveNav("/xu-huong", "/xu-huong")).toBe(true);
     expect(isActiveNav("/xu-huong", "/")).toBe(false);

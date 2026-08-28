@@ -98,7 +98,7 @@ export default async function StrongAdsPage({ searchParams }: Props) {
         {" · "}
         <Link href="/?lane=trending">Lọc trending trên trang chủ</Link>
         {" · "}
-        <Link href="/tong-hop">Tổng hợp kênh</Link>
+        <Link href="/">Tổng hợp kênh</Link>
         {" · "}
         <Link href="/xu-huong">Xu hướng / Fresh</Link>
         {" · "}

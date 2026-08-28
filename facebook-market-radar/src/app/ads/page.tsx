@@ -33,7 +33,7 @@ export default async function AdsPage() {
         title="Ads đã lưu"
         lede="Từng thẻ bạn Collect — không phải kho ads toàn Facebook. See Ad mở Thư viện chính thức."
         actions={[
-          { href: "/", label: "Tổng quan" },
+          { href: "/", label: "Tổng hợp" },
           { href: "/collect", label: "Lưu ads", primary: true },
         ]}
       />
@@ -41,7 +41,7 @@ export default async function AdsPage() {
         items={[
           { value: String(ads.length), label: "Thẻ đã lưu", href: "/ads" },
           { value: String(active), label: "Đang chạy (ước lượng)" },
-          { value: String(research.length), label: "Sản phẩm", href: "/?view=table" },
+          { value: String(research.length), label: "Sản phẩm", href: "/" },
           { value: String(boards.length), label: "Bộ sưu tập", href: "/bo-suu-tap" },
         ]}
       />
