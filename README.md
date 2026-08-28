@@ -82,6 +82,20 @@ architecture/       # Architecture Package deep dives
 3. [`docs/NEW_APP.md`](./docs/NEW_APP.md)
 4. [`.cursor/rules/`](./.cursor/rules/)
 
+## Sibling product (not App #2)
+
+[Facebook Market Radar (VN)](./facebook-market-radar/) is a separate Next.js + SQLite app for **estimated** Facebook ad-market rankings. It does not share Education Core, payments, or AdMob.
+
+```bash
+cd facebook-market-radar
+cp .env.example .env
+pnpm --filter facebook-market-radar db:generate
+pnpm --filter facebook-market-radar db:push
+pnpm --filter facebook-market-radar db:seed
+pnpm --filter facebook-market-radar test
+pnpm --filter facebook-market-radar dev   # http://127.0.0.1:3100
+```
+
 ## License / secrets
 
 No secrets in source. Use environment / secret manager only.

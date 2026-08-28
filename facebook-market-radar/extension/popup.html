@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <title>Lưu vào Radar</title>
+    <style>
+      body { font: 14px/1.4 system-ui, sans-serif; margin: 12px; width: 280px; }
+      label { display: block; margin: 8px 0 4px; color: #444; }
+      input { width: 100%; box-sizing: border-box; padding: 6px; }
+      button { margin-top: 10px; width: 100%; padding: 8px; font-weight: 700; }
+      p { color: #555; font-size: 12px; }
+      .err { color: #b42318; }
+    </style>
+  </head>
+  <body>
+    <strong>Radar FB</strong>
+    <p>Chỉ mở form trên máy chủ Radar với URL tab hiện tại. Không tải facebook.com.</p>
+    <label for="origin">Origin Radar (vd. http://127.0.0.1:3100)</label>
+    <input id="origin" placeholder="http://127.0.0.1:3100" />
+    <button id="save" type="button">Mở form lưu thẻ</button>
+    <p id="status"></p>
+    <script src="popup.js"></script>
+  </body>
+</html>

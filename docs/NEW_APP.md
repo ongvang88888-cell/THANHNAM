@@ -1,5 +1,10 @@
 # NEW_APP.md — Creating App #2 Without Rewriting Core
 
+## Not App #2: Facebook Market Radar
+
+[facebook-market-radar/](../facebook-market-radar/) is a **sibling product**, not an Education Commerce `X-App-Id` tenant. It must not reuse or fork Payment, Entitlement, AdMob rewarded ads, or Access Engine. See [FACEBOOK_MARKET_RADAR.md](./FACEBOOK_MARKET_RADAR.md).
+
+
 ## Checklist
 
 1. Read Shared Core, Cursor rules, Architecture

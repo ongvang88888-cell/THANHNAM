@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Radar FB — lưu thẻ Thư viện",
+  "description": "Mở form Radar với URL Ad Library đang xem. Không đọc facebook.com, không scrape.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Lưu vào Radar",
+    "default_popup": "popup.html"
+  },
+  "permissions": ["activeTab", "storage"]
+}
