@@ -13,7 +13,7 @@ Sản phẩm **độc lập**. Không phải App #2 của edu-commerce-platform.
 
 **Cường độ quảng cáo + độ bền + đa dạng creative + proxy bán hàng ngoài Facebook = điểm “đáng để soi”.**
 
-Điểm nóng luôn hiển thị chú thích “ước lượng”. Proxy bán chỉ từ Shopee/TikTok/user nhập — không phải đơn Facebook.
+Điểm nóng luôn hiển thị chú thích “ước lượng”. Proxy bán chỉ từ **đã bán sàn** (Shopee / TikTok / Lazada / Tiki / Sendo) user nhập — không phải đơn Facebook. Lượt xem YouTube và ads Google/YouTube/TikTok đếm tay **không** vào HeatScore.
 
 ## Giá bán cạnh tên sản phẩm
 
@@ -38,8 +38,9 @@ Trên dữ liệu user đã lưu (+ feed licensed nếu có), Radar có các b�
 1. **Hồ sơ sản phẩm** `/san-pham/[slug]` — mọi thẻ, trang, landing/shop đã dán, góc creative, URL tìm Thư viện.
 2. **Trending / Fresh** `/xu-huong` — mạnh (điểm nóng / độ bền) vs mới thấy ≤ 7 ngày hoặc tốc độ mới cao.
 2b. **Ads mạnh nhất** `/manh` — playbook hợp pháp + bảng sản phẩm đạt ngưỡng mạnh trên kho đã lưu (điểm nóng ≥ 40 hoặc độ bền ≥ 50 và ≥ 2 ads đang chạy). Không có dump Facebook toàn quốc.
+2c. **Tổng hợp đa kênh** `/tong-hop` — bảng ads Facebook đã lưu + đã bán sàn + ads Google/YouTube/TikTok user đếm + views YouTube. Không có dump bán chạy toàn quốc. Chi tiết [CHANNELS.md](./CHANNELS.md).
 3. **Lưới creative** `/?view=grid` — hover hiện hook từ copy đã lưu.
-4. **Bộ lọc** trên `/` — ngày chạy, số trang, landing, Shopee/TikTok/web, góc, media, giá, shop key, làn.
+4. **Bộ lọc** trên `/` — ngày chạy, số trang, landing, Shopee/TikTok/Lazada/Tiki/Sendo/YouTube/web, góc, media, giá, shop key, làn.
 5. **Watch Page** `/theo-doi` — cảnh báo khi user lưu thẻ mới từ trang đó (không crawl 24/7).
 6. **Shop / landing** — phân loại URL user dán; lọc `?shop=`.
 7. **Bộ sưu tập** `/bo-suu-tap` + nhãn góc trên thẻ (swipe file).
@@ -58,8 +59,9 @@ Không copy: scrape/index triệu ads; giả spend/ROAS; harvest pixel; `/ads_ar
 5. Marketing API: insights của ad account user (token không log).
 6. Licensed feed: file / JSON dán / HTTPS vendor đã mua (`IAdIndexProvider` source=`licensed`). Cấm URL Facebook.
 7. Catalog nguồn: `/nguon` + `docs/SOURCES.md` — cái gì đồng bộ được, cái gì Meta không trả, cái gì cấm.
+8. Chỉ số kênh ngoài Facebook: form `/collect`, `POST /api/kenh`, bảng `/tong-hop` + `docs/CHANNELS.md`. User tự đọc listing / Transparency — không crawl.
 
-Không scrape `facebook.com/ads/library`. Không gọi `/ads_archive` để lấy ads bán hàng VN (API chỉ trả chính trị toàn cầu + commercial đã reach EU/UK).
+Không scrape `facebook.com/ads/library`, Google Ads Transparency, YouTube, hay sàn TMĐT. Không gọi `/ads_archive` để lấy ads bán hàng VN (API chỉ trả chính trị toàn cầu + commercial đã reach EU/UK).
 
 ## Ngoài phạm vi Vòng 1
 

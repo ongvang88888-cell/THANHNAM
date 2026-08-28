@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { DATA_SOURCES, SOURCE_FAMILY_VI } from "@/domain/data-sources";
+import { serializeSalesChannels } from "@/domain/sales-channels";
 import { getRadarService } from "@/server/radar";
 
 export const runtime = "nodejs";
@@ -15,5 +16,6 @@ export async function GET() {
     },
     families: SOURCE_FAMILY_VI,
     sources: DATA_SOURCES,
+    salesChannels: serializeSalesChannels(),
   });
 }

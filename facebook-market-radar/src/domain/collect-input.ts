@@ -2,6 +2,7 @@ import { parseAdLibraryUrl } from "./ad-library-url";
 import { PUBLISHER_PLATFORMS, type NormalizedAd, type PublisherPlatform } from "./ports";
 import { parseOptionalPriceVnd } from "./price";
 import { parseImageUrl } from "./product-image";
+import type { ChannelMetricSource } from "./sales-channels";
 import { parseAdSnapshot } from "./snapshot";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -23,8 +24,20 @@ export type CollectManualInput = {
   nicheSlug?: string;
   shopeeSold?: number;
   tiktokSold?: number;
+  lazadaSold?: number;
+  tikiSold?: number;
+  sendoSold?: number;
+  googleAdsSeen?: number;
+  youtubeAdsSeen?: number;
+  tiktokAdsSeen?: number;
+  youtubeViews?: number;
   imageUrl?: string;
   listingPriceVnd?: number | string;
+};
+
+export type CollectChannelObservation = {
+  source: ChannelMetricSource;
+  value: number;
 };
 
 export type CollectManualResult =
@@ -35,6 +48,7 @@ export type CollectManualResult =
       nicheSlug: string | null;
       shopeeSold: number | null;
       tiktokSold: number | null;
+      observations: CollectChannelObservation[];
       sourceUrl: string | null;
       imageUrl: string | null;
       listingPriceVnd: number | null;
@@ -46,9 +60,39 @@ function optionalSold(value: number | undefined): number | null {
     return null;
   }
   if (!Number.isInteger(value) || value < 0 || value > 50_000_000) {
-    throw new Error("sold phải là số nguyên 0–50000000");
+    throw new Error("chỉ số kênh phải là số nguyên 0–50000000");
   }
   return value;
+}
+
+function pushObservation(
+  out: CollectChannelObservation[],
+  source: ChannelMetricSource,
+  raw: number | undefined,
+): number | null {
+  const value = optionalSold(raw);
+  if (value !== null) {
+    out.push({ source, value });
+  }
+  return value;
+}
+
+function collectObservations(input: CollectManualInput): {
+  shopeeSold: number | null;
+  tiktokSold: number | null;
+  observations: CollectChannelObservation[];
+} {
+  const observations: CollectChannelObservation[] = [];
+  const shopeeSold = pushObservation(observations, "SHOPEE", input.shopeeSold);
+  const tiktokSold = pushObservation(observations, "TIKTOK", input.tiktokSold);
+  pushObservation(observations, "LAZADA", input.lazadaSold);
+  pushObservation(observations, "TIKI", input.tikiSold);
+  pushObservation(observations, "SENDO", input.sendoSold);
+  pushObservation(observations, "GOOGLE_ADS", input.googleAdsSeen);
+  pushObservation(observations, "YOUTUBE_ADS", input.youtubeAdsSeen);
+  pushObservation(observations, "TIKTOK_ADS", input.tiktokAdsSeen);
+  pushObservation(observations, "YOUTUBE_VIEWS", input.youtubeViews);
+  return { shopeeSold, tiktokSold, observations };
 }
 
 function optionalListingPrice(value: number | string | undefined, snapshot?: unknown): number | null {
@@ -93,13 +137,15 @@ export function validateCollectManual(input: CollectManualInput): CollectManualR
       if (productTitle.length < 2) {
         return { ok: false, error: "productTitle bắt buộc khi lưu snapshot" };
       }
+      const metrics = collectObservations(input);
       return {
         ok: true,
         ad: parsed.ad,
         productTitle,
         nicheSlug: input.nicheSlug ?? parsed.ad.nicheHint,
-        shopeeSold: optionalSold(input.shopeeSold),
-        tiktokSold: optionalSold(input.tiktokSold),
+        shopeeSold: metrics.shopeeSold,
+        tiktokSold: metrics.tiktokSold,
+        observations: metrics.observations,
         sourceUrl: input.sourceUrl?.trim() || parsed.ad.snapshotUrl,
         imageUrl: parseImageUrl(input.imageUrl) ?? parsed.ad.imageUrl,
         listingPriceVnd: optionalListingPrice(input.listingPriceVnd, input.snapshot),
@@ -163,13 +209,15 @@ export function validateCollectManual(input: CollectManualInput): CollectManualR
       imageUrl: parseImageUrl(input.imageUrl),
     };
 
+    const metrics = collectObservations(input);
     return {
       ok: true,
       ad,
       productTitle,
       nicheSlug: input.nicheSlug?.trim() || null,
-      shopeeSold: optionalSold(input.shopeeSold),
-      tiktokSold: optionalSold(input.tiktokSold),
+      shopeeSold: metrics.shopeeSold,
+      tiktokSold: metrics.tiktokSold,
+      observations: metrics.observations,
       sourceUrl: sourceUrl || null,
       imageUrl: ad.imageUrl,
       listingPriceVnd: optionalListingPrice(input.listingPriceVnd, input.snapshot),

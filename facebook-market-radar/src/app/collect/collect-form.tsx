@@ -37,8 +37,10 @@ export function CollectForm({
         return;
       }
     }
-    const shopee = String(form.get("shopeeSold") ?? "").trim();
-    const tiktok = String(form.get("tiktokSold") ?? "").trim();
+    const optionalInt = (name: string): number | undefined => {
+      const raw = String(form.get(name) ?? "").trim();
+      return raw ? Number(raw) : undefined;
+    };
     const listingPrice = String(form.get("listingPriceVnd") ?? "").trim();
     const body = {
       sourceUrl: String(form.get("sourceUrl") ?? "").trim() || undefined,
@@ -53,8 +55,15 @@ export function CollectForm({
       imageUrl: String(form.get("imageUrl") ?? "").trim() || undefined,
       body: String(form.get("body") ?? "").trim() || undefined,
       listingPriceVnd: listingPrice || undefined,
-      shopeeSold: shopee ? Number(shopee) : undefined,
-      tiktokSold: tiktok ? Number(tiktok) : undefined,
+      shopeeSold: optionalInt("shopeeSold"),
+      tiktokSold: optionalInt("tiktokSold"),
+      lazadaSold: optionalInt("lazadaSold"),
+      tikiSold: optionalInt("tikiSold"),
+      sendoSold: optionalInt("sendoSold"),
+      googleAdsSeen: optionalInt("googleAdsSeen"),
+      youtubeAdsSeen: optionalInt("youtubeAdsSeen"),
+      tiktokAdsSeen: optionalInt("tiktokAdsSeen"),
+      youtubeViews: optionalInt("youtubeViews"),
       isActive: form.get("isActive") !== "false",
       watchPage: form.get("watchPage") === "on",
       tags: form.getAll("tags").map((item) => String(item)),
@@ -152,14 +161,49 @@ export function CollectForm({
         Giá bán (Shopee / TikTok / landing, VND — ước lượng)
         <input name="listingPriceVnd" placeholder="189000 hoặc 189.000đ / 189k" />
       </label>
-      <label>
-        Shopee đã bán (proxy, tự nhập)
-        <input name="shopeeSold" inputMode="numeric" />
-      </label>
-      <label>
-        TikTok đã bán (proxy, tự nhập)
-        <input name="tiktokSold" inputMode="numeric" />
-      </label>
+      <fieldset className="angle-set">
+        <legend>Chỉ số kênh (tự đọc rồi nhập — Radar không crawl)</legend>
+        <p className="muted">
+          “Đã bán” sàn mới vào điểm nóng. Ads Google/YouTube/TikTok là số bạn đếm trên trang minh bạch.
+          Lượt xem YouTube không phải đơn hàng.
+        </p>
+        <label>
+          Shopee đã bán
+          <input name="shopeeSold" inputMode="numeric" />
+        </label>
+        <label>
+          TikTok Shop đã bán
+          <input name="tiktokSold" inputMode="numeric" />
+        </label>
+        <label>
+          Lazada đã bán
+          <input name="lazadaSold" inputMode="numeric" />
+        </label>
+        <label>
+          Tiki đã bán
+          <input name="tikiSold" inputMode="numeric" />
+        </label>
+        <label>
+          Sendo đã bán
+          <input name="sendoSold" inputMode="numeric" />
+        </label>
+        <label>
+          Ads Google đã đếm (Transparency)
+          <input name="googleAdsSeen" inputMode="numeric" />
+        </label>
+        <label>
+          Ads YouTube đã đếm
+          <input name="youtubeAdsSeen" inputMode="numeric" />
+        </label>
+        <label>
+          Ads TikTok đã đếm (Creative Center)
+          <input name="tiktokAdsSeen" inputMode="numeric" />
+        </label>
+        <label>
+          Lượt xem YouTube (không vào điểm nóng)
+          <input name="youtubeViews" inputMode="numeric" />
+        </label>
+      </fieldset>
       <label>
         Snapshot JSON (copy tay)
         <textarea

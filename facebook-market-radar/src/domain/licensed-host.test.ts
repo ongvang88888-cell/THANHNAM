@@ -13,4 +13,12 @@ describe("licensed feed URL", () => {
     expect(assertLicensedFeedUrl("http://example.com/feed").ok).toBe(false);
     expect(isBlockedLicensedHost("scontent.xx.fbcdn.net")).toBe(true);
   });
+
+  it("rejects marketplace and ad-library hosts used as fake licensed feeds", () => {
+    expect(assertLicensedFeedUrl("https://shopee.vn/search?keyword=serum").ok).toBe(false);
+    expect(assertLicensedFeedUrl("https://adstransparency.google.com/?region=VN").ok).toBe(false);
+    expect(assertLicensedFeedUrl("https://www.youtube.com/results?search_query=serum").ok).toBe(false);
+    expect(assertLicensedFeedUrl("https://www.lazada.vn/catalog/?q=serum").ok).toBe(false);
+    expect(isBlockedLicensedHost("www.tiktok.com")).toBe(true);
+  });
 });

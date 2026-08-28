@@ -20,7 +20,7 @@ Mọi nguồn ads đi qua port. Domain không import SDK Meta / filesystem.
 - `ad_creatives`
 - `niches`, `product_clusters` — `@@unique([appId, slug])`, `imageUrl` tùy chọn trên cụm và quảng cáo
 - `ad_product_links`
-- `sales_proxy_observations`
+- `sales_proxy_observations` — `source` là chuỗi (`SHOPEE`, `TIKTOK`, `LAZADA`, `TIKI`, `SENDO`, `GOOGLE_ADS`, `YOUTUBE_ADS`, `TIKTOK_ADS`, `YOUTUBE_VIEWS`). Chỉ nguồn sold vào HeatScore.
 - `market_snapshots` — `@@unique([appId, clusterId, weekStart])`
 - `own_insights_daily` — `@@unique([appId, adAccountId, date, campaignId])`
 - `alerts`
@@ -50,11 +50,13 @@ Chỉ parse query string user dán:
 `GET /api/quet/tim?q=` và `GET /api/theo-doi?ten=` tìm bài đã lưu theo tên / từ khóa trong body, kèm URL Thư viện.
 `GET /api/nguon` — catalog nguồn (official / user / licensed / own / blocked) + thống kê kho.
 `GET /api/manh` — sản phẩm đạt ngưỡng mạnh trên kho đã lưu (`estimated: true`, `facebookNationalDump: false`).
+`GET /api/tong-hop` — bảng đa kênh (`estimated: true`, `nationalSalesDump: false`).
+`POST /api/kenh` — ghi một chỉ số kênh vào cụm đã có (cần `x-fmr-key`).
 `POST /api/collect/sheet` nhập CSV (tối đa 200 dòng), idempotent theo `libraryId`.
-`POST /api/collect` nhận thêm `watchPage` + `tags[]` (góc creative).
+`POST /api/collect` nhận thêm `watchPage` + `tags[]` (góc creative) + sold/ads/views kênh.
 `POST /api/licensed/import` — JSON body `ads|items|data`, hoặc HTTP vendor, hoặc file. Bỏ ads chính trị / không reach VN. Cần `x-fmr-key`.
 
-Bản đồ nguồn đầy đủ: [SOURCES.md](./SOURCES.md). Server không HTTP GET Facebook.
+Bản đồ nguồn đầy đủ: [SOURCES.md](./SOURCES.md). Đa kênh: [CHANNELS.md](./CHANNELS.md). Server không HTTP GET Facebook / Transparency / YouTube / sàn.
 `GET/POST/DELETE /api/theo-doi-trang` — watch page (ghi cần `x-fmr-key`).
 `GET/POST/DELETE /api/boards` và `/api/boards/items` — bộ sưu tập.
 `GET/POST /api/tags` — nhãn góc trên thẻ đã lưu.

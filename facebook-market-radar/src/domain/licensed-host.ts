@@ -8,6 +8,18 @@ const BLOCKED_SUFFIXES = [
   "meta.com",
   "whatsapp.com",
   "threads.net",
+  "shopee.vn",
+  "shopee.com",
+  "shope.ee",
+  "lazada.vn",
+  "lazada.com",
+  "tiki.vn",
+  "sendo.vn",
+  "youtube.com",
+  "youtu.be",
+  "tiktok.com",
+  "adstransparency.google.com",
+  "trends.google.com",
 ] as const;
 
 export type LicensedUrlCheck =
@@ -37,7 +49,11 @@ export function assertLicensedFeedUrl(raw: string | undefined): LicensedUrlCheck
     return { ok: false, error: "Không nhúng mật khẩu trong URL feed" };
   }
   if (hostBlocked(url.hostname)) {
-    return { ok: false, error: "Cấm HTTP GET Facebook / Instagram / Meta — dùng file JSON hoặc API vendor đã mua" };
+    return {
+      ok: false,
+      error:
+        "Cấm HTTP GET Facebook / Instagram / Google Ads Transparency / YouTube / sàn TMĐT — dùng file JSON hoặc API vendor đã mua",
+    };
   }
   return { ok: true, href: url.toString() };
 }

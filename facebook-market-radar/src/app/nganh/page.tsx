@@ -39,6 +39,8 @@ export default async function IndustryPage({ searchParams }: Props) {
           <div className="n">{coverage.strongProductCount}</div>
           <div className="muted">
             <Link href="/manh">Sản phẩm ads mạnh nhất</Link>
+            {" · "}
+            <Link href="/tong-hop">Tổng hợp kênh</Link>
           </div>
         </div>
         <div className="card">

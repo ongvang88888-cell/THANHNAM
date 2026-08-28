@@ -18,6 +18,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
             <nav>
               <Link href="/">Xếp hạng sản phẩm</Link>
               <Link href="/manh">Ads mạnh nhất</Link>
+              <Link href="/tong-hop">Tổng hợp kênh</Link>
               <Link href="/xu-huong">Xu hướng</Link>
               <Link href="/nganh">Ngành chạy mạnh</Link>
               <Link href="/theo-doi">Theo dõi</Link>

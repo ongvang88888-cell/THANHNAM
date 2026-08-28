@@ -58,8 +58,9 @@ export default async function HomePage({ searchParams }: Props) {
     <>
       <h1>Xếp hạng sản phẩm đang chạy quảng cáo</h1>
       <p className="muted">
-        Điểm nóng là ước lượng từ cường độ quảng cáo, độ bền, tốc độ mới và proxy Shopee/TikTok — không
-        phải doanh số Facebook.
+        Điểm nóng là ước lượng từ cường độ quảng cáo, độ bền, tốc độ mới và proxy đã bán trên sàn
+        (Shopee / TikTok / Lazada / Tiki / Sendo) — không phải doanh số Facebook. Lượt xem YouTube không
+        vào điểm nóng. Bảng đa kênh: <Link href="/tong-hop">Tổng hợp kênh</Link>.
       </p>
       <div className="banner">
         Bảng dưới chỉ ads <strong>bạn đã lưu</strong> ({allRankings.length} sản phẩm) — không phải tổng sản phẩm
@@ -76,6 +77,7 @@ export default async function HomePage({ searchParams }: Props) {
           Lưới creative
         </Link>
         <Link href="/manh">Ads mạnh nhất</Link>
+        <Link href="/tong-hop">Tổng hợp kênh</Link>
         <Link href="/xu-huong">Xu hướng / hook</Link>
         <Link href="/bo-suu-tap">Bộ sưu tập</Link>
       </div>
@@ -131,7 +133,8 @@ export default async function HomePage({ searchParams }: Props) {
       <h2>Sản phẩm ads mạnh nhất trên kho đã lưu</h2>
       <p className="muted">
         Ngưỡng mạnh = điểm nóng ≥ 40 hoặc độ bền ≥ 50 và ≥ 2 ads đang chạy.{" "}
-        <Link href="/manh">Xem playbook + bảng đủ</Link> — không phải ranking Facebook toàn quốc.
+        <Link href="/manh">Xem playbook + bảng đủ</Link> · <Link href="/tong-hop">Tổng hợp Google / YouTube / sàn</Link>{" "}
+        — không phải ranking toàn quốc.
       </p>
       {topStrong.length === 0 ? (
         <p className="muted">

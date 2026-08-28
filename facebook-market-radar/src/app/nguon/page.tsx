@@ -6,6 +6,7 @@ import {
   type DataSource,
   type SourceFamily,
 } from "@/domain/data-sources";
+import { CHANNEL_FAMILY_VI, SALES_CHANNELS } from "@/domain/sales-channels";
 import { getRadarService } from "@/server/radar";
 
 export const dynamic = "force-dynamic";
@@ -60,7 +61,8 @@ export default async function SourcesPage() {
       </p>
       <div className="banner">
         Server không HTTP GET facebook.com, không gọi <code>/ads_archive</code> cho commercial VN, không
-        scrape Shopee/TikTok/BigSpy. Bảng nghiên cứu đầy đủ nằm trong <code>docs/SOURCES.md</code>.
+        scrape Shopee/TikTok/YouTube/Google Transparency/BigSpy. Facebook: <code>docs/SOURCES.md</code>.
+        Đa kênh: <Link href="/tong-hop">bảng tổng hợp</Link> · <code>docs/CHANNELS.md</code>.
       </div>
       <div className="cards">
         <div className="card">
@@ -86,7 +88,8 @@ export default async function SourcesPage() {
       </div>
       <p>
         Đồng bộ ngay: <Link href="/collect">Lưu thẻ / sheet / JSON</Link> ·{" "}
-        <Link href="/quet">Mở URL Thư viện</Link> · <Link href="/own-ads">Ads của tôi</Link>.
+        <Link href="/quet">Mở URL Thư viện</Link> · <Link href="/tong-hop">Tổng hợp kênh</Link> ·{" "}
+        <Link href="/own-ads">Ads của tôi</Link>.
       </p>
       {groups.map((group) => (
         <section key={group.family}>
@@ -115,6 +118,39 @@ export default async function SourcesPage() {
                   </td>
                   <td>{row.radarPort}</td>
                   <td>{row.provides.join(", ") || "—"}</td>
+                  <td>{row.missing.join(", ") || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ))}
+      <h2>Kênh bán hàng / ads ngoài Facebook</h2>
+      <p className="muted">
+        Không có API dump “sản phẩm bán chạy nhất VN” trên Google, YouTube hay sàn. Radar chỉ sinh URL
+        chính thức và nhận số bạn nhập. Bảng chỉ số: <Link href="/tong-hop">/tong-hop</Link>.
+      </p>
+      {(["ad_transparency", "ecommerce", "search_demand", "own_account", "blocked"] as const).map((family) => (
+        <section key={family}>
+          <h3>{CHANNEL_FAMILY_VI[family]}</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Kênh</th>
+                <th>Ingest</th>
+                <th>Có</th>
+                <th>Không có</th>
+              </tr>
+            </thead>
+            <tbody>
+              {SALES_CHANNELS.filter((row) => row.family === family).map((row) => (
+                <tr key={row.id}>
+                  <td>
+                    <strong>{row.nameVi}</strong>
+                    <div className="muted">{row.notesVi}</div>
+                  </td>
+                  <td>{row.ingest}</td>
+                  <td>{row.metrics.join(", ") || "—"}</td>
                   <td>{row.missing.join(", ") || "—"}</td>
                 </tr>
               ))}

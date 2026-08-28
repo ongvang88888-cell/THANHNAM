@@ -8,6 +8,8 @@ Bản đồ máy: `GET /api/nguon` và UI `/nguon`.
 
 **Tìm sản phẩm ads mạnh nhất:** không có bảng Meta toàn quốc. Playbook + xếp kho đã lưu: UI `/manh`, `GET /api/manh`.
 
+**Đa kênh (Google / YouTube / sàn):** không có dump bán chạy toàn quốc. Bảng ước lượng trên kho đã lưu: UI `/tong-hop`, [CHANNELS.md](./CHANNELS.md).
+
 ## 1. Việc Radar cần vs việc Meta cho
 
 | Cần cho kho ngành hàng VN | Meta có? |
@@ -79,7 +81,8 @@ Pages API ≠ ads. CrowdTangle đã tắt.
 | Bookmarklet / `extension/` | chỉ mở `/collect?url=` |
 | Google Sheets | xuất CSV → sheet import |
 | `/quet` + `/quet/mo-rong` | URL search, không phải hàng ads |
-| Giá / shopeeSold / tiktokSold | user nhập — proxy ngoài FB |
+| Giá / sold sàn / ads-seen / YouTube views | user nhập — proxy ngoài FB; views không vào HeatScore |
+| `POST /api/kenh` | ghi thêm chỉ số vào cụm đã lưu |
 
 Idempotent theo `@@unique([appId, libraryId])`.
 
@@ -108,7 +111,7 @@ Mua API vendor **không** biến dữ liệu thành official Meta, **không** ch
 
 - HTTP GET / headless `facebook.com/ads/library`
 - Gọi `/ads_archive` với hy vọng ra serum VN
-- Crawl Shopee / TikTok để “doanh số Facebook”
+- Crawl Shopee / TikTok / Lazada / YouTube / Google Ads Transparency để “doanh số” hoặc xếp hạng
 - Pixel sniffing, ước spend giả như số thật
 - Seed 1 triệu dòng ranking giả
 - Dump CASD vào app thương mại
@@ -132,4 +135,4 @@ Không có cột “tổng ads Facebook ngành mỹ phẩm VN”. Số trên UI 
 3. Không mua scraper.  
 4. Own Ads chỉ để so với **ads của mình**.
 
-Tài liệu sản phẩm: [PRODUCT.md](./PRODUCT.md) · cổng kỹ thuật: [DATA.md](./DATA.md).
+Tài liệu sản phẩm: [PRODUCT.md](./PRODUCT.md) · cổng kỹ thuật: [DATA.md](./DATA.md) · đa kênh: [CHANNELS.md](./CHANNELS.md).

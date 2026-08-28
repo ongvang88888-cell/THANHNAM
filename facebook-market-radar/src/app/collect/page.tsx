@@ -24,6 +24,7 @@ export default async function CollectPage({ searchParams }: Props) {
         Kéo liên kết này lên thanh bookmark. Khi đang ở Thư viện quảng cáo, bấm bookmark để mở form
         trên cùng origin máy chủ (kể cả VPS). Extension unpacked trong thư mục{" "}
         <code>extension/</code> cũng chỉ mở <code>/collect?url=</code> — không đọc facebook.com.
+        Chỉ số sàn / Google / YouTube: nhập dưới form hoặc trên <Link href="/tong-hop">Tổng hợp kênh</Link>.
       </p>
       <p>
         <CollectBookmarklet />
