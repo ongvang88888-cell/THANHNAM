@@ -29,13 +29,13 @@ Không pretends đây là giá live hay giá đối thủ chính xác.
 
 User ghi một tên **hoặc từ khóa trong nội dung ads** → Radar khớp cụm + title/body đã lưu → đếm **bài đang chạy / số trang / bài đã lưu**. Đồng thời sinh URL Thư viện (VN, đang chạy) và biến thể tên để bắt thêm thẻ. Chỉ trên dữ liệu đã lưu + search chính thức — không phải tổng ads Facebook.
 
-Danh mục khóa: **26 ngành / 13 nhóm**. “Quét đầy đủ” = hàng đợi **cành từ khóa** (`/quet`) + biến thể tên sản phẩm đang chạy + cụm rút từ bài ads đã lưu. User tự mở Thư viện — không scrape Facebook.
+Danh mục khóa: **26 ngành / 13 nhóm**. “Quét đầy đủ” = hàng đợi **cành từ khóa** (`/quet`) + ~1.000.000 ô tìm tên sản phẩm mở rộng (tổ hợp lexicon VN, phân trang) + biến thể tên + cụm rút từ bài ads đã lưu. User tự mở Thư viện — không scrape Facebook. Bảng xếp hạng không bao giờ là tổng ads Facebook.
 
 ## Thu thập hợp lệ
 
 1. User dán URL Ad Library hoặc JSON snapshot họ copy.
 2. Bookmarklet chỉ mở form với URL trang user đang xem — server **không** fetch Facebook.
-3. `/quet` sinh URL search chính thức (`active_status=active`, `country=VN`) cho hàng trăm cành sản phẩm. User mở Meta, rồi lưu thẻ. Radar đánh dấu cành đã khớp dữ liệu đã lưu.
+3. `/quet` sinh URL search chính thức (`active_status=active`, `country=VN`) cho hàng trăm cành ưu tiên và ~1.000.000 ô tìm mở rộng (không phải ads đã kéo). User mở Meta, rồi lưu thẻ. Radar đánh dấu cành đã khớp dữ liệu đã lưu.
 4. Nhập CSV sheet (`docs/v0/ad-library-sheet.template.csv`) qua `/api/collect/sheet` — cùng cổng collect, khóa `x-fmr-key`.
 5. Marketing API: insights của ad account user (token không log).
 6. Licensed feed: file/JSON đã mua, qua `IAdIndexProvider` source=`licensed`.

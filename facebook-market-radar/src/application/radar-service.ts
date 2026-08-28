@@ -1,5 +1,11 @@
 import { detectAlerts, creativeHash, type AlertDraft } from "../domain/alerts";
 import { buildScanLookup, buildScanPlan, type ScanLookup, type ScanPlan } from "../domain/ad-library-scan";
+import {
+  megaScanCount,
+  megaScanCountsByNiche,
+  pageMegaScan,
+  type MegaScanPage,
+} from "../domain/mega-scan";
 import { assertCollectAuthorized } from "../domain/authz";
 import { draftCluster, shouldMergeClusters, slugifyTitle } from "../domain/clustering";
 import { validateCollectManual, type CollectManualInput } from "../domain/collect-input";
@@ -348,6 +354,22 @@ export class RadarService {
         isActive: ad.isActive,
       })),
     );
+  }
+
+  megaScanOverview(): {
+    total: number;
+    byNiche: Array<{ nicheSlug: string; nicheName: string; count: number }>;
+  } {
+    return { total: megaScanCount(), byNiche: megaScanCountsByNiche() };
+  }
+
+  pageMegaScan(input: {
+    offset?: number;
+    limit?: number;
+    nicheSlug?: string;
+    q?: string;
+  }): MegaScanPage {
+    return pageMegaScan(input);
   }
 
   async lookupScan(query: string): Promise<ScanLookup> {

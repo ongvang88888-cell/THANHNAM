@@ -1,6 +1,6 @@
 # Facebook Market Radar — sibling product
 
-Standalone VN ad-market radar lives in [`facebook-market-radar/`](../facebook-market-radar/). It is **not** App #2 of this education platform. UI tiếng Việt; 26 ngành hàng; `/quet` hàng đợi cành + tìm bài đang chạy theo tên / từ khóa trong nội dung ads (URL Thư viện chính thức); ảnh + giá ước lượng cạnh tên; thống kê ngành từ dữ liệu user lưu — không scrape Facebook / Shopee / TikTok.
+Standalone VN ad-market radar lives in [`facebook-market-radar/`](../facebook-market-radar/). It is **not** App #2 of this education platform. UI tiếng Việt; 26 ngành hàng; `/quet` hàng đợi cành + ~1.000.000 ô tìm tên sản phẩm mở rộng + tìm bài đang chạy theo tên / từ khóa trong nội dung ads (URL Thư viện chính thức); ảnh + giá ước lượng cạnh tên; thống kê ngành từ dữ liệu user lưu — không scrape Facebook / Shopee / TikTok. Bảng xếp hạng ≠ tổng ads Facebook.
 
 - Product lock: [`facebook-market-radar/docs/PRODUCT.md`](../facebook-market-radar/docs/PRODUCT.md)
 - Vòng 0 validation: [`facebook-market-radar/docs/v0/README.md`](../facebook-market-radar/docs/v0/README.md)

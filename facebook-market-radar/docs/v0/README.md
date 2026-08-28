@@ -6,7 +6,7 @@ Mục tiêu: mỗi tuần tự tay xem [Thư viện quảng cáo Meta](https://w
 
 Xem [niches.csv](./niches.csv). Radar khóa 13 nhóm: Làm đẹp, Sức khỏe, Gia đình, Nhà cửa, Điện máy, Thời trang, Ẩm thực, Xe cộ, Thể thao, Giáo dục, Giải trí, Nông nghiệp, Khác.
 
-“Quét đầy đủ” = mở `/quet` (hàng trăm cành tên sản phẩm), lần lượt search trên Thư viện, rồi lưu thẻ bạn thấy. **Không** scrape facebook.com.
+“Quét đầy đủ” = mở `/quet` (cành ưu tiên + ~1.000.000 ô tìm tên sản phẩm mở rộng), lần lượt search trên Thư viện, rồi lưu thẻ bạn thấy. **Không** scrape facebook.com. Số dòng trên bảng xếp hạng không phải tổng sản phẩm chạy ads.
 
 ## Việc làm mỗi tuần
 

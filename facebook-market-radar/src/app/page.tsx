@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { textsMatchScanQuery } from "@/domain/ad-library-scan";
+import { MEGA_SCAN_CAP } from "@/domain/mega-scan";
 import { LOCKED_NICHES, NICHE_GROUPS, nicheGroup, nichesInGroup } from "@/domain/niches";
 import { adRunSummary } from "@/domain/product-watch";
 import { ProductCell } from "@/ui/product-cell";
@@ -6,17 +8,21 @@ import { getRadarService } from "@/server/radar";
 
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams: Promise<{ niche?: string; group?: string; asOf?: string }> };
+type Props = { searchParams: Promise<{ niche?: string; group?: string; asOf?: string; ten?: string }> };
 
 export default async function HomePage({ searchParams }: Props) {
   const params = await searchParams;
   const asOf = params.asOf ? Date.parse(params.asOf) : Date.now();
   const nowMs = Number.isFinite(asOf) ? asOf : Date.now();
+  const ten = params.ten?.trim() ?? "";
   const service = getRadarService();
   const allRankings = await service.listRankings(nowMs, params.niche);
-  const rankings = params.group
+  const scoped = params.group
     ? allRankings.filter((row) => nicheGroup(row.nicheSlug) === params.group)
     : allRankings;
+  const rankings = ten.length >= 2
+    ? scoped.filter((row) => textsMatchScanQuery(ten, [row.clusterTitle, row.nicheName]))
+    : scoped;
   const ads = await service.listAds();
   const alerts = await service.listAlerts();
   const { industries, coverage } = await service.industryOverview(nowMs);
@@ -32,16 +38,28 @@ export default async function HomePage({ searchParams }: Props) {
         phải doanh số Facebook.
       </p>
       <div className="banner">
-        Không có tỷ suất / chi phí / đơn hàng của đối thủ. Số “proxy bán” chỉ xuất hiện khi bạn tự nhập
-        số đã bán công khai ngoài Facebook. Giá cạnh tên là ước lượng (bạn nhập / nội dung ads / khoảng
-        ngành) — không crawl sàn.
+        Bảng dưới chỉ ads <strong>bạn đã lưu</strong> ({allRankings.length} sản phẩm) — không phải tổng sản phẩm
+        chạy ads trên Facebook. Để mở rộng, dùng ~{MEGA_SCAN_CAP.toLocaleString("vi-VN")} ô tìm Thư viện trên{" "}
+        <Link href="/quet">Quét cành</Link>. Điểm nóng vẫn ước lượng. Không có ROAS / chi phí đối thủ. Không
+        crawl Facebook / Shopee / TikTok.
       </div>
-      <form className="watch-search" action="/quet" method="get">
+      <form className="watch-search" action="/" method="get">
         <label>
-          Tìm bài đang chạy theo tên hoặc từ khóa trong nội dung ads
-          <input name="ten" placeholder="Serum Niacinamide, kem chống nắng, Đèn LED…" />
+          Lọc sản phẩm đã lưu, hoặc mở hàng đợi Thư viện
+          <input
+            name="ten"
+            defaultValue={ten}
+            placeholder="Serum Niacinamide, kem chống nắng, Đèn LED…"
+          />
         </label>
-        <button type="submit">Tìm bài đang chạy</button>
+        <div className="watch-actions">
+          {params.niche ? <input type="hidden" name="niche" value={params.niche} /> : null}
+          {params.group ? <input type="hidden" name="group" value={params.group} /> : null}
+          <button type="submit">Lọc bảng đã lưu</button>
+          <button type="submit" className="secondary" formAction="/quet">
+            Tìm trên Thư viện
+          </button>
+        </div>
       </form>
       <div className="cards">
         <div className="card">
@@ -76,7 +94,19 @@ export default async function HomePage({ searchParams }: Props) {
             <Link href="/quet">Cành chưa có mẫu</Link>
           </div>
         </div>
+        <div className="card">
+          <div className="n">~{MEGA_SCAN_CAP.toLocaleString("vi-VN")}</div>
+          <div className="muted">
+            <Link href={ten ? `/quet?ten=${encodeURIComponent(ten)}` : "/quet"}>Ô tìm mở rộng</Link>
+          </div>
+        </div>
       </div>
+      {ten.length >= 2 ? (
+        <p className="muted">
+          Lọc “{ten}”: {rankings.length}/{scoped.length} sản phẩm đã lưu. Muốn thêm bài đang chạy trên Facebook,
+          mở <Link href={`/quet?ten=${encodeURIComponent(ten)}`}>hàng đợi Thư viện</Link> — Radar không tự kéo ads.
+        </p>
+      ) : null}
 
       <h2>Ngành đang chạy mạnh</h2>
       <p className="muted">
@@ -186,7 +216,10 @@ export default async function HomePage({ searchParams }: Props) {
       </table>
       {rankings.length === 0 ? (
         <p className="muted">
-          Chưa có dữ liệu. <Link href="/quet">Mở hàng đợi quét cành</Link>,{" "}
+          {ten.length >= 2
+            ? "Không khớp sản phẩm đã lưu với tên / từ khóa này."
+            : "Chưa có dữ liệu."}{" "}
+          <Link href={ten ? `/quet?ten=${encodeURIComponent(ten)}` : "/quet"}>Mở hàng đợi ~1.000.000 ô tìm</Link>,{" "}
           <Link href="/collect">lưu quảng cáo từ Thư viện</Link> hoặc chạy <code>pnpm db:seed</code>.
         </p>
       ) : null}

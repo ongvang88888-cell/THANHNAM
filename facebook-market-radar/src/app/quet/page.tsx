@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { catalogScanQueryCount } from "@/domain/ad-library-scan";
+import { MEGA_SCAN_CAP } from "@/domain/mega-scan";
 import { getRadarService } from "@/server/radar";
+import { MegaScanPanel } from "./mega-scan-panel";
 import { ScanBoard } from "./scan-board";
 import { ScanLookupPanel } from "./scan-lookup";
 
@@ -21,8 +23,9 @@ export default async function ScanPage({ searchParams }: Props) {
     <>
       <h1>Hàng đợi quét nhiều cành</h1>
       <p className="muted">
-        {plan.totalBranches} cành catalog, cộng biến thể tên và từ khóa rút từ nội dung ads đã lưu. Tự
-        mở Thư viện (VN, đang chạy). Radar chỉ biết ads <strong>đã lưu</strong>. Điểm nóng vẫn ước lượng.
+        {plan.totalBranches} cành catalog ưu tiên, cộng hàng đợi mở rộng ~{MEGA_SCAN_CAP.toLocaleString("vi-VN")}{" "}
+        ô tìm tên sản phẩm. Tự mở Thư viện (VN, đang chạy). Bảng xếp hạng chỉ ads <strong>đã lưu</strong> — không
+        phải Facebook chỉ có từng ấy sản phẩm. Điểm nóng vẫn ước lượng.
       </p>
       <div className="banner">
         Máy chủ không HTTP-GET facebook.com và không gọi /ads_archive cho ads bán hàng VN. Mỗi cành là
@@ -58,8 +61,13 @@ export default async function ScanPage({ searchParams }: Props) {
           <div className="n">{catalogScanQueryCount()}</div>
           <div className="muted">Từ khóa catalog (không scrape)</div>
         </div>
+        <div className="card">
+          <div className="n">~{MEGA_SCAN_CAP.toLocaleString("vi-VN")}</div>
+          <div className="muted">Ô tìm mở rộng (không kéo ads)</div>
+        </div>
       </div>
       <ScanLookupPanel initialQuery={ten} initialLookup={lookup} />
+      <MegaScanPanel initialQuery={ten} initialNiche={params.niche ?? ""} />
       <ScanBoard plan={plan} initialGroup={params.group} initialNiche={params.niche} />
     </>
   );
