@@ -21,7 +21,7 @@ export default async function ProductDossierPage({ params }: Props) {
   return (
     <>
       <p className="muted">
-        <Link href="/">← Xếp hạng</Link> · <Link href={`/so-sanh?a=${row.clusterSlug}`}>So sánh</Link>
+        <Link href="/">← Ad Library</Link> · <Link href={`/so-sanh?a=${row.clusterSlug}`}>So sánh</Link>
       </p>
       <h1>{row.clusterTitle}</h1>
       <div className="banner">

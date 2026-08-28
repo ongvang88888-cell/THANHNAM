@@ -12,6 +12,7 @@ export default async function CollectPage({ searchParams }: Props) {
 
   return (
     <>
+      <p className="eyebrow">Save Ad</p>
       <h1>Lưu quảng cáo từ Thư viện</h1>
       <div className="banner">
         Máy chủ không tải facebook.com hay sàn TMĐT. Chỉ đọc đường dẫn bạn dán, JSON bạn sao chép, và

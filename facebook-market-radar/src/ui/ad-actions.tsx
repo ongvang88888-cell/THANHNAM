@@ -67,7 +67,7 @@ export function AdActions({
               </option>
             ))}
           </select>
-          <button type="submit">Ghim</button>
+          <button type="submit">Collect</button>
         </form>
       ) : null}
       <form onSubmit={(event) => void saveTags(event)}>
@@ -77,7 +77,9 @@ export function AdActions({
             {CREATIVE_ANGLE_VI[angle]}
           </label>
         ))}
-        <button type="submit">Lưu góc</button>
+        <button type="submit" className="secondary">
+          Tags
+        </button>
       </form>
       {error ? <p className="err">{error}</p> : null}
       {ok ? <p className="ok">{ok}</p> : null}
