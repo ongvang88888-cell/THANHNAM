@@ -9,6 +9,7 @@ import {
 import { OFFICIAL_PLATFORM_APIS } from "@/domain/official-platform-apis";
 import { CHANNEL_FAMILY_VI, SALES_CHANNELS } from "@/domain/sales-channels";
 import { getRadarService } from "@/server/radar";
+import { PlatformKeysForm } from "@/ui/platform-keys-form";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,12 @@ export default async function SourcesPage() {
         scrape Shopee/TikTok/YouTube/Google Transparency/BigSpy. Facebook: <code>docs/SOURCES.md</code>.
         Đa kênh: <Link href="/">bảng tổng hợp</Link> · <code>docs/CHANNELS.md</code>.
       </div>
+      <h2>Gắn khóa API từ điện thoại</h2>
+      <p className="muted">
+        Session đăng nhập Shopee / YouTube / Google trên máy bạn không dùng được từ máy chủ. Dán khóa
+        trang chính thức — không gửi khóa qua chat. Shop mình không vào cột đã bán đối thủ.
+      </p>
+      <PlatformKeysForm />
       <div className="cards">
         <div className="card">
           <div className="n">{warehouse.adCount}</div>

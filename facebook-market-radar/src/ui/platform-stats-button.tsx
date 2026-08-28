@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { collectJsonHeaders } from "@/ui/collect-headers";
-import { CollectKeyField } from "@/ui/collect-key-field";
+import { PlatformKeysForm } from "@/ui/platform-keys-form";
 
 type Caps = {
   youtube: boolean;
@@ -82,7 +82,6 @@ export function PlatformStatsButton() {
 
   return (
     <div className="youtube-views-box">
-      <CollectKeyField />
       <p className="muted">
         Gọi API chính thức: googleapis (YouTube + Custom Search) và Open Platform shop của bạn. Không mở
         shopee.vn / tiki.vn / youtube.com HTML. Không có API “đã bán đối thủ”.
@@ -99,12 +98,13 @@ export function PlatformStatsButton() {
       </button>
       {!any ? (
         <p className="muted">
-          Thêm <code>YOUTUBE_API_KEY</code>, <code>GOOGLE_CSE_KEY</code>+<code>GOOGLE_CSE_CX</code>, hoặc
-          partner shop vào <code>.env</code> rồi restart.
+          Chưa có khóa trên máy chủ. Dán khóa API chính thức ở form dưới — không dùng session đăng nhập
+          app, không sửa <code>.env</code> rồi restart nếu bạn gắn tại đây.
         </p>
       ) : null}
       {error ? <p className="err">{error}</p> : null}
       {message ? <p className="ok">{message}</p> : null}
+      <PlatformKeysForm boxed={false} onSaved={setCaps} />
     </div>
   );
 }

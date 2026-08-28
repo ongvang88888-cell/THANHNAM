@@ -433,6 +433,11 @@ pre.report {
   gap: 8px;
   margin: 12px 0;
 }
+.platform-keys-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
 .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .filters a {
   padding: 4px 10px;

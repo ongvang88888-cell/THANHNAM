@@ -6,9 +6,11 @@ import { TiktokShopApiProvider } from "../adapters/tiktok-shop-api";
 import { YoutubeDataApiProvider } from "../adapters/youtube-data-api";
 import { RadarService, DEFAULT_APP_ID } from "../application/radar-service";
 import { getPrisma } from "./prisma";
+import { resolvedPlatformSecrets } from "./platform-secrets-store";
 
 export function getRadarService(): RadarService {
-  const youtube = new YoutubeDataApiProvider(process.env.YOUTUBE_API_KEY);
+  const secrets = resolvedPlatformSecrets();
+  const youtube = new YoutubeDataApiProvider(secrets.YOUTUBE_API_KEY);
   return new RadarService(
     new PrismaRadarRepository(getPrisma()),
     process.env.FMR_APP_ID ?? DEFAULT_APP_ID,
@@ -16,27 +18,27 @@ export function getRadarService(): RadarService {
     {
       youtubeSearch: youtube,
       listingSearch: new GoogleCseListingProvider(
-        process.env.GOOGLE_CSE_KEY ?? process.env.GOOGLE_API_KEY,
-        process.env.GOOGLE_CSE_CX,
+        secrets.GOOGLE_CSE_KEY ?? secrets.GOOGLE_API_KEY,
+        secrets.GOOGLE_CSE_CX,
       ),
       ownShops: [
         new ShopeeOpenApiProvider({
-          partnerId: process.env.SHOPEE_PARTNER_ID,
-          partnerKey: process.env.SHOPEE_PARTNER_KEY,
-          shopId: process.env.SHOPEE_SHOP_ID,
-          accessToken: process.env.SHOPEE_ACCESS_TOKEN,
+          partnerId: secrets.SHOPEE_PARTNER_ID,
+          partnerKey: secrets.SHOPEE_PARTNER_KEY,
+          shopId: secrets.SHOPEE_SHOP_ID,
+          accessToken: secrets.SHOPEE_ACCESS_TOKEN,
         }),
         new LazadaOpenApiProvider({
-          appKey: process.env.LAZADA_APP_KEY,
-          appSecret: process.env.LAZADA_APP_SECRET,
-          accessToken: process.env.LAZADA_ACCESS_TOKEN,
-          sellerId: process.env.LAZADA_SELLER_ID,
+          appKey: secrets.LAZADA_APP_KEY,
+          appSecret: secrets.LAZADA_APP_SECRET,
+          accessToken: secrets.LAZADA_ACCESS_TOKEN,
+          sellerId: secrets.LAZADA_SELLER_ID,
         }),
         new TiktokShopApiProvider({
-          appKey: process.env.TIKTOK_SHOP_APP_KEY,
-          appSecret: process.env.TIKTOK_SHOP_APP_SECRET,
-          accessToken: process.env.TIKTOK_SHOP_ACCESS_TOKEN,
-          shopId: process.env.TIKTOK_SHOP_ID,
+          appKey: secrets.TIKTOK_SHOP_APP_KEY,
+          appSecret: secrets.TIKTOK_SHOP_APP_SECRET,
+          accessToken: secrets.TIKTOK_SHOP_ACCESS_TOKEN,
+          shopId: secrets.TIKTOK_SHOP_ID,
         }),
       ],
     },

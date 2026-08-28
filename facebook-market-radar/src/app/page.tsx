@@ -54,7 +54,7 @@ export default async function HomePage({ searchParams }: Props) {
         lede="Facebook ads đã lưu + đã bán Shopee / Lazada / Tiki / Sendo / TikTok + ads Google / YouTube / TikTok đã đếm + lượt xem YouTube. Số lấy từ kho và API chính thức (nếu có khóa). Ô — là chưa nhập — không bịa dump đã bán toàn quốc."
         actions={[
           { href: "/collect", label: "Nhập số", primary: true },
-          { href: "/kenh/shopee", label: "Từng kênh" },
+          { href: "/nguon", label: "Gắn khóa API" },
         ]}
       />
       <div className="actions">

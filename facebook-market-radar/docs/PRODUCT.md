@@ -61,7 +61,7 @@ Không copy: scrape/index triệu ads; giả spend/ROAS; harvest pixel; `/ads_ar
 5. Marketing API: insights của ad account user (token không log).
 6. Licensed feed: file / JSON dán / HTTPS vendor đã mua (`IAdIndexProvider` source=`licensed`). Cấm URL Facebook.
 7. Catalog nguồn: `/nguon` + `docs/SOURCES.md` — cái gì đồng bộ được, cái gì Meta không trả, cái gì cấm.
-8. Chỉ số kênh ngoài Facebook: form `/collect`, hàng đợi `/kenh/*`, `POST /api/kenh`, sheet, feed licensed, YouTube Data API (`/api/youtube-views` + search), Google CSE (URL listing), Open Platform shop của bạn (`/api/platform-stats`). User tự đọc listing / Transparency khi chưa có khóa. “Có đích” ≠ “có số”. Views / shop mình / CSE **không** thành đã bán đối thủ. HeatScore chỉ sold sàn user nhập.
+8. Chỉ số kênh ngoài Facebook: form `/collect`, hàng đợi `/kenh/*`, `POST /api/kenh`, sheet, feed licensed, YouTube Data API (`/api/youtube-views` + search), Google CSE (URL listing), Open Platform shop của bạn (`/api/platform-stats`). Khóa dán tại `/nguon` (`POST /api/platform-keys`) — không lấy session đăng nhập app. User tự đọc listing / Transparency khi chưa có khóa. “Có đích” ≠ “có số”. Views / shop mình / CSE **không** thành đã bán đối thủ. HeatScore chỉ sold sàn user nhập.
 
 Không scrape `facebook.com/ads/library`, Google Ads Transparency, YouTube, hay sàn TMĐT. Không gọi `/ads_archive` để lấy ads bán hàng VN (API chỉ trả chính trị toàn cầu + commercial đã reach EU/UK).
 

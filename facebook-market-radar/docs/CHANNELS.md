@@ -8,6 +8,8 @@ UI: **trang chủ `/` chỉ bảng tổng hợp đủ cột** (mọi nền tản
 
 **Cập nhật 6 giờ / lần** = `POST /api/summary/refresh` (systemd timer hoặc tab trang chủ khi đến hạn): gọi API chính thức nếu có khóa, rồi ghi snapshot kho vào `summary_cycles`. Bảng trên `/` luôn đọc **kho live** (nhập mới hiện ngay). **Không** có crawler Shopee / Lazada / Google / YouTube / Facebook. Ô trống = chưa nhập / chưa khóa — không bịa đã bán.
 
+**Gắn khóa từ điện thoại:** `/nguon` + form trên `/kenh/*` → `POST /api/platform-keys` (cùng `x-fmr-key`). Lưu `data/platform-secrets.json` (chmod 600, không commit). Đăng nhập app trên máy user **không** phải khóa API; Radar không lấy cookie trình duyệt. Shop Open Platform chỉ `/own-ads`, không cột đã bán đối thủ.
+
 KPI `/kenh` tách **có số** (observation đã nhập) và **có đích** (URL trên thẻ, copy, hoặc research link từ YouTube search / Google CSE). Ô 0% = chưa nhập số, không phải nền tảng biến mất. Nút **Lấy thống kê API** trên `/kenh/*` gọi `POST /api/platform-stats`: YouTube Data API (views + search), Google Custom Search (URL listing), Open Platform shop của bạn. Views / CSE / shop mình **không** thành “đã bán đối thủ”. HeatScore vẫn chỉ sold sàn user nhập.
 
 ## 1. Kênh và việc được phép
