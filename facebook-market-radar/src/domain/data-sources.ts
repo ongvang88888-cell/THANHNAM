@@ -240,6 +240,34 @@ export const DATA_SOURCES: readonly DataSource[] = [
       "Proxy ngoài Facebook. Không crawl sàn / YouTube / Transparency. Chỉ sold sàn vào HeatScore; views và ads-seen không phải đơn.",
   },
   {
+    id: "warehouse_landing_mine",
+    family: "user_capture",
+    nameVi: "Đích + URL trong thẻ đã lưu",
+    nameEn: "Saved landing and copy URLs",
+    status: "wired",
+    vnCommercial: "yes",
+    radarPort: "manual",
+    ingestPath: "listChannelAnalysis + /kenh",
+    provides: ["landingKinds", "landingByKind", "youtubeVideoIds"],
+    missing: ["đã bán", "lượt xem nếu chưa nhập / chưa gọi Data API"],
+    notesVi:
+      "Đọc landingUrl và http(s) trong title/body đã lưu. Tách “có đích Tiki” khỏi “đã nhập đã bán”. Không HTTP GET sàn.",
+  },
+  {
+    id: "youtube_data_api",
+    family: "user_capture",
+    nameVi: "YouTube Data API v3 (video đã lưu)",
+    nameEn: "YouTube Data API views",
+    status: "wired",
+    vnCommercial: "yes",
+    radarPort: "manual",
+    ingestPath: "POST /api/youtube-views",
+    provides: ["viewCount công khai của video ID trên thẻ"],
+    missing: ["doanh số", "ads spend", "Analytics kênh người khác", "video chưa có trên kho"],
+    notesVi:
+      "Chỉ gọi googleapis.com/youtube/v3/videos. ID lấy từ kho — client không gửi id lạ. Views không vào HeatScore. Cần YOUTUBE_API_KEY. Không scrape youtube.com.",
+  },
+  {
     id: "licensed_json_file",
     family: "licensed_vendor",
     nameVi: "File JSON đã mua (đĩa / S3 nội bộ)",
@@ -383,7 +411,7 @@ export const DATA_SOURCES: readonly DataSource[] = [
     ingestPath: "cấm",
     provides: [],
     missing: ["doanh số Facebook (dù crawl cũng không có)"],
-    notesVi: "Proxy sold chỉ do user nhập. Không scrape sàn.",
+    notesVi: "Proxy sold chỉ do user nhập. Không scrape Shopee / Lazada / Tiki / Sendo / TikTok / YouTube HTML.",
   },
   {
     id: "competitor_pixel_roas",
@@ -426,7 +454,9 @@ export function autoSyncSourceIds(): string[] {
       row.status === "wired" &&
       (row.radarPort === "manual" || row.radarPort === "licensed") &&
       row.vnCommercial !== "no" &&
-      row.id !== "scan_queue_urls",
+      row.id !== "scan_queue_urls" &&
+      row.id !== "youtube_data_api" &&
+      row.id !== "warehouse_landing_mine",
   ).map((row) => row.id);
 }
 

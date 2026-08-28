@@ -5,7 +5,8 @@ import {
   isSoldMetricSource,
   parseChannelMetricSource,
 } from "./sales-channels";
-import { classifyLanding, type LandingKind } from "./landing";
+import { indexLandingsByKind, type IndexedLanding, type LandingKind } from "./landing";
+import { collectYoutubeVideoIds } from "./youtube-video";
 import { clamp, round1 } from "./scoring";
 import type { RankingRow } from "./weekly-report";
 
@@ -37,6 +38,8 @@ export type ChannelAnalysisRow = {
   tiktokAdsSeen: number | null;
   youtubeViews: number | null;
   landingKinds: LandingKind[];
+  landingByKind: Partial<Record<IndexedLanding, string>>;
+  youtubeVideoIds: string[];
   platforms: string[];
   lastSeenMs: number;
   lastObservedMs: number | null;
@@ -132,7 +135,9 @@ export function buildChannelAnalysisRow(
   );
   const soldPush = round1(logScale(soldTotal, 10_000));
   const composite = round1(0.55 * adPush + 0.45 * soldPush);
-  const kinds = [...new Set(landingUrls.map((url) => classifyLanding(url)).filter((kind) => kind !== "none"))];
+  const landingByKind = indexLandingsByKind(landingUrls);
+  const kinds = (Object.keys(landingByKind) as IndexedLanding[]).filter((kind) => landingByKind[kind]);
+  const youtubeVideoIds = collectYoutubeVideoIds(landingUrls);
   const platforms = [
     ...new Set((extras.platforms ?? []).map((item) => item.trim().toLowerCase()).filter(Boolean)),
   ];
@@ -156,6 +161,8 @@ export function buildChannelAnalysisRow(
     tiktokAdsSeen: peakForSource(mine, "TIKTOK_ADS"),
     youtubeViews: peakForSource(mine, "YOUTUBE_VIEWS"),
     landingKinds: kinds,
+    landingByKind,
+    youtubeVideoIds,
     platforms,
     lastSeenMs: extras.lastSeenMs ?? 0,
     lastObservedMs: lastObservedMs > 0 ? lastObservedMs : null,

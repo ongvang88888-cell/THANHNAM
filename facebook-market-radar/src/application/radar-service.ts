@@ -58,7 +58,9 @@ import { buildClusterSignals } from "../domain/signals";
 import { weekStartUtc } from "../domain/week";
 import { buildWeeklyReportMarkdown, type RankingRow } from "../domain/weekly-report";
 import { summarizeOwnInsights } from "../domain/own-insights";
-import type { IOwnAdsInsightsProvider, NormalizedAd } from "../domain/ports";
+import type { IOwnAdsInsightsProvider, IYoutubeViewsProvider, NormalizedAd } from "../domain/ports";
+import { urlsFromSavedCopy } from "../domain/landing";
+import { mapYoutubeVideosToClusters, peakViewsByCluster } from "../domain/youtube-video";
 import type {
   IRadarRepository,
   StoredAd,
@@ -82,10 +84,19 @@ export type CollectExtras = {
 
 export const DEFAULT_APP_ID = "fmr_vn";
 
+export type YoutubeViewsRefreshResult = {
+  updated: number;
+  skipped: number;
+  videoCount: number;
+  viewsEnterHeat: false;
+  enabled: boolean;
+};
+
 export class RadarService {
   constructor(
     private readonly repo: IRadarRepository,
     private readonly appId: string = DEFAULT_APP_ID,
+    private readonly youtubeViews?: IYoutubeViewsProvider,
   ) {}
 
   async collectManual(
@@ -390,7 +401,7 @@ export class RadarService {
     const lastSeenByCluster = new Map<string, number>();
     for (const ad of ads) {
       const urls = landingByCluster.get(ad.clusterSlug) ?? [];
-      urls.push(ad.landingUrl);
+      urls.push(...urlsFromSavedCopy(ad.landingUrl, ad.body, ad.title));
       landingByCluster.set(ad.clusterSlug, urls);
       const platforms = platformsByCluster.get(ad.clusterSlug) ?? [];
       platforms.push(...ad.platforms);
@@ -481,6 +492,50 @@ export class RadarService {
     });
     await this.recompute(nowMs);
     return { clusterSlug: slug, source, value: input.value };
+  }
+
+  async refreshYoutubeViewsFromWarehouse(
+    nowMs: number,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<YoutubeViewsRefreshResult> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    if (!this.youtubeViews?.enabled) {
+      throw new Error(
+        "Chưa cấu hình YOUTUBE_API_KEY — chỉ lấy view của video ID đã có trên thẻ đã lưu, không scrape youtube.com",
+      );
+    }
+    const ads = await this.repo.listAds(this.appId);
+    const mapping = mapYoutubeVideosToClusters(ads);
+    const videoIds = [...mapping.keys()];
+    if (videoIds.length === 0) {
+      return { updated: 0, skipped: 0, videoCount: 0, viewsEnterHeat: false, enabled: true };
+    }
+    const counts = await this.youtubeViews.fetchViewCounts(videoIds);
+    const peaks = peakViewsByCluster(mapping, counts);
+    const existing = normalizeChannelObservations(await this.repo.listSalesProxies(this.appId));
+    let updated = 0;
+    let skipped = 0;
+    for (const row of peaks) {
+      const current = existing
+        .filter((item) => item.clusterSlug === row.clusterSlug && item.source === "YOUTUBE_VIEWS")
+        .reduce((max, item) => Math.max(max, item.value), -1);
+      if (current === row.viewCount) {
+        skipped += 1;
+        continue;
+      }
+      await this.repo.addSalesProxy(this.appId, {
+        clusterSlug: row.clusterSlug,
+        source: "YOUTUBE_VIEWS",
+        soldCount: row.viewCount,
+        observedMs: nowMs,
+      });
+      updated += 1;
+    }
+    if (updated > 0) {
+      await this.recompute(nowMs);
+    }
+    return { updated, skipped, videoCount: videoIds.length, viewsEnterHeat: false, enabled: true };
   }
 
   async listPageWatches(): Promise<StoredPageWatch[]> {

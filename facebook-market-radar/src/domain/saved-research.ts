@@ -2,7 +2,7 @@ import { textsMatchScanQuery } from "./ad-library-scan";
 import { buildAdLibraryPageUrl, buildAdLibrarySearchUrl } from "./ad-library-url";
 import { detectCreativeAngles, hookLine, mediaType, type CreativeAngle } from "./creative-angles";
 import { isStrongProduct } from "./industry-stats";
-import { classifyLanding, isLandingKind, shopKey, type LandingKind } from "./landing";
+import { classifyLanding, isLandingKind, shopKey, urlsFromSavedCopy, type LandingKind } from "./landing";
 import { nicheGroup } from "./niches";
 import { adAgeDays } from "./scoring";
 import { extractCopyPhrases } from "./scan-phrases";
@@ -88,11 +88,13 @@ export function enrichResearchRow(
   let firstSeenMs = nowMs;
   let lastSeenMs = 0;
   for (const ad of clusterAds) {
-    const kind = classifyLanding(ad.landingUrl);
-    kinds.add(kind);
-    const shop = shopKey(ad.landingUrl);
-    if (shop) {
-      shops.add(shop);
+    const urls = urlsFromSavedCopy(ad.landingUrl, ad.body, ad.title);
+    for (const href of urls) {
+      kinds.add(classifyLanding(href));
+      const shop = shopKey(href);
+      if (shop) {
+        shops.add(shop);
+      }
     }
     for (const angle of [...detectCreativeAngles([ad.title, ad.body, row.clusterTitle]), ...(ad.userAngles ?? [])]) {
       angles.add(angle);

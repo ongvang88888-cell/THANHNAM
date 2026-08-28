@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { buildChannelAnalysisRow } from "./channel-analysis";
 import type { PriceEstimate } from "./price";
 import {
+  buildCollectQueue,
   buildPlatformCoverage,
   buildPlatformDashboard,
   formatObservedVi,
+  hasLandingPresence,
   hasPlatformData,
   parsePlatformTab,
   platformHref,
@@ -104,5 +106,42 @@ describe("platform dashboards", () => {
     expect(dashboard.withDataCount).toBe(1);
     expect(dashboard.timeline[0]?.source).toBe("YOUTUBE_VIEWS");
     expect(formatObservedVi(40, 40 + 3_600_000)).toBe("1 giờ trước");
+  });
+
+  it("counts saved Tiki landings separately from entered sold and builds a fill queue", () => {
+    const withLanding = buildChannelAnalysisRow(
+      ranking({ clusterSlug: "c", clusterTitle: "Serum Tiki", scores: { intensity: 10, longevity: 10, velocity: 5, salesProxy: 0, heat: 20, estimated: true } }),
+      [],
+      ["https://tiki.vn/serum-p1"],
+    );
+    const blank = buildChannelAnalysisRow(ranking({ clusterSlug: "d", clusterTitle: "Blank" }), [], []);
+    expect(hasPlatformData(withLanding, "tiki")).toBe(false);
+    expect(hasLandingPresence(withLanding, "tiki")).toBe(true);
+    expect(hasLandingPresence(blank, "tiki")).toBe(false);
+    expect(rankForPlatform([blank, withLanding], "tiki")[0]?.clusterSlug).toBe("c");
+    const coverage = buildPlatformCoverage([withLanding, blank], []);
+    const tiki = coverage.find((row) => row.id === "tiki");
+    expect(tiki?.productsWithData).toBe(0);
+    expect(tiki?.productsWithLanding).toBe(1);
+    expect(tiki?.landingCoveragePercent).toBe(50);
+    const queue = buildCollectQueue([withLanding, blank], "tiki");
+    expect(queue[0]?.clusterSlug).toBe("c");
+    expect(queue[0]?.reason).toBe("has_landing");
+    expect(queue[0]?.source).toBe("TIKI");
+    expect(queue[0]?.savedLandingUrl).toContain("tiki.vn");
+    const dashboard = buildPlatformDashboard({
+      rows: [withLanding, blank],
+      observations: [],
+      tab: "tiki",
+      nowMs: 1,
+      titleBySlug: new Map([
+        ["c", "Serum Tiki"],
+        ["d", "Blank"],
+      ]),
+    });
+    expect(dashboard.withDataCount).toBe(0);
+    expect(dashboard.landingCount).toBe(1);
+    expect(dashboard.missingCount).toBe(2);
+    expect(dashboard.queue).toHaveLength(2);
   });
 });

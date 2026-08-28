@@ -55,6 +55,8 @@ describe("channel analysis", () => {
     expect(row.estimated).toBe(true);
     expect(row.facebookNationalDump).toBe(false);
     expect(row.landingKinds).toEqual(["shopee"]);
+    expect(row.landingByKind.shopee).toContain("shopee.vn");
+    expect(row.youtubeVideoIds).toEqual([]);
     expect(row.platforms).toEqual(["facebook", "instagram"]);
     expect(row.lastObservedMs).toBe(2);
     expect(row.observationCount).toBe(4);

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { PLATFORM_MENU_ORDER } from "@/domain/app-nav";
 import type { PlatformCoverage, PlatformTabId } from "@/domain/platform-dashboards";
-import { formatMetric } from "@/ui/platform-metric";
 
 export function PlatformMatrix({
   coverage,
@@ -19,7 +18,7 @@ export function PlatformMatrix({
       <div className="section-head">
         <h2>Nền tảng / sàn</h2>
         <p className="muted">
-          Số = kho đã lưu hoặc bạn nhập. Ô 999 tên = catalog nghiên cứu, không phải GMV toàn quốc.
+          Số = đã nhập. Đích = URL trên thẻ đã lưu. Ô 999 tên = catalog nghiên cứu, không phải GMV toàn quốc.
         </p>
       </div>
       <div className="platform-matrix-grid">
@@ -32,8 +31,7 @@ export function PlatformMatrix({
             <span className="pm-name">{card.labelVi}</span>
             <span className="pm-n">{card.productsWithData}</span>
             <span className="pm-meta">
-              {card.coveragePercent}% kho · {card.valueLabelVi}{" "}
-              {formatMetric(card.metricSum) === "—" ? "0" : formatMetric(card.metricSum)}
+              {card.productsWithData} số · {card.productsWithLanding} đích · {card.coveragePercent}% phủ
             </span>
           </Link>
         ))}

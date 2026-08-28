@@ -1,7 +1,9 @@
 import Link from "next/link";
 import {
   formatObservedVi,
+  hasLandingPresence,
   hasPlatformData,
+  landingUrlForTab,
   officialLinkForTab,
   type PlatformDashboard,
   type PlatformTabId,
@@ -40,7 +42,8 @@ export function PlatformPanel({
       <WarehouseAutoRefresh />
       <p className="muted">
         Tính lại lúc {new Date(dashboard.recomputedMs).toLocaleString("vi-VN")} · {dashboard.withDataCount}/
-        {dashboard.ranked.length} sản phẩm có số {dashboard.tab.labelVi} ·{" "}
+        {dashboard.ranked.length} có số · {dashboard.landingCount}/{dashboard.ranked.length} có đích{" "}
+        {dashboard.tab.labelVi} ·{" "}
         <a href={dashboard.sampleResearchUrl} target="_blank" rel="noreferrer">
           Mở trang chính thức
         </a>{" "}
@@ -62,7 +65,7 @@ export function PlatformPanel({
           >
             <div className="n">{card.productsWithData}</div>
             <div className="muted">
-              {card.labelVi} · {card.coveragePercent}% sản phẩm
+              {card.labelVi} · {card.coveragePercent}% có số · {card.landingCoveragePercent}% có đích
             </div>
             <div className="muted">
               {card.valueLabelVi}: {formatMetric(card.metricSum) === "—" ? "0" : formatMetric(card.metricSum)}
@@ -156,7 +159,10 @@ function PlatformRankTable({
               <td>{row.nicheName}</td>
               <td>
                 {primaryMetricLabel(tab, row)}
-                {!hasPlatformData(row, tab) ? (
+                {!hasPlatformData(row, tab) && hasLandingPresence(row, tab) ? (
+                  <div className="muted">Có đích — chưa nhập số</div>
+                ) : null}
+                {!hasPlatformData(row, tab) && !hasLandingPresence(row, tab) ? (
                   <div className="muted">Chưa nhập số kênh này</div>
                 ) : null}
               </td>
@@ -168,6 +174,13 @@ function PlatformRankTable({
               </td>
               <td>{formatObservedVi(row.lastObservedMs ?? row.lastSeenMs, nowMs)}</td>
               <td>
+                {landingUrlForTab(row, tab) ? (
+                  <div>
+                    <a href={landingUrlForTab(row, tab) ?? undefined} target="_blank" rel="noreferrer">
+                      Đích đã lưu
+                    </a>
+                  </div>
+                ) : null}
                 <a href={officialLinkForTab(tab, row.clusterTitle)} target="_blank" rel="noreferrer">
                   Nghiên cứu
                 </a>

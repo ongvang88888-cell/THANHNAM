@@ -36,6 +36,10 @@ describe("data source catalog", () => {
     expect(auto).not.toContain("scrape_shopee_tiktok");
     expect(auto).not.toContain("competitor_pixel_roas");
     expect(auto).not.toContain("meta_content_library_casd");
+    expect(auto).not.toContain("youtube_data_api");
+    expect(auto).not.toContain("warehouse_landing_mine");
+    expect(sourceById("youtube_data_api")?.status).toBe("wired");
+    expect(sourceById("warehouse_landing_mine")?.ingestPath).toContain("/kenh");
   });
 
   it("marks Meta commercial-VN gaps and scrape paths as blocked", () => {

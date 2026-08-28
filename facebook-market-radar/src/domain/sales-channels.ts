@@ -124,7 +124,7 @@ export const SALES_CHANNELS: readonly SalesChannel[] = [
     metrics: ["lượt xem video user nhập"],
     missing: ["doanh số", "ads spend", "Analytics đối thủ"],
     notesVi:
-      "YouTube Data API chỉ số video công khai nếu có ID — không phải đơn hàng. Analytics / ads = kênh của bạn. Radar không gọi YouTube.",
+      "YouTube Data API chỉ statistics của video ID đã có trên thẻ đã lưu — không phải đơn hàng, không scrape youtube.com. Analytics / ads đối thủ không có.",
   },
   {
     id: "tiktok_creative_center",

@@ -61,7 +61,7 @@ Không copy: scrape/index triệu ads; giả spend/ROAS; harvest pixel; `/ads_ar
 5. Marketing API: insights của ad account user (token không log).
 6. Licensed feed: file / JSON dán / HTTPS vendor đã mua (`IAdIndexProvider` source=`licensed`). Cấm URL Facebook.
 7. Catalog nguồn: `/nguon` + `docs/SOURCES.md` — cái gì đồng bộ được, cái gì Meta không trả, cái gì cấm.
-8. Chỉ số kênh ngoài Facebook: form `/collect`, `POST /api/kenh`, chip trên `/`, `/kenh/*`, `/tong-hop` + `docs/CHANNELS.md`. User tự đọc listing / Transparency — không crawl. Radar chỉ tính lại số đã có.
+8. Chỉ số kênh ngoài Facebook: form `/collect`, hàng đợi `/kenh/*`, `POST /api/kenh`, sheet, feed licensed, YouTube Data API cho video ID đã lưu (`POST /api/youtube-views`). User tự đọc listing / Transparency — không crawl. “Có đích” ≠ “có số”. Views YouTube không vào HeatScore.
 
 Không scrape `facebook.com/ads/library`, Google Ads Transparency, YouTube, hay sàn TMĐT. Không gọi `/ads_archive` để lấy ads bán hàng VN (API chỉ trả chính trị toàn cầu + commercial đã reach EU/UK).
 

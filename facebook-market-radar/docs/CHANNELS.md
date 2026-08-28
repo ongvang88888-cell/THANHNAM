@@ -8,13 +8,15 @@ UI: menu trái nhóm **Nền tảng / Phân tích / Kho** (Shopee đầu tiên) 
 
 **Tự động liên tục** = tính lại từ kho mỗi lần mở trang và mỗi 30 giây (tab đang mở). **Không** có crawler Shopee / Lazada / Google / YouTube / Facebook.
 
+KPI `/kenh` tách **có số** (observation đã nhập) và **có đích** (URL Shopee/Tiki/YouTube… đã dán trên thẻ hoặc nằm trong copy đã lưu). Ô 0% = chưa nhập số, không phải nền tảng biến mất. Hàng đợi nhập số ưu tiên cụm đã có đích. YouTube: `POST /api/youtube-views` gọi Data API cho video ID đã có trên kho — views **không** vào HeatScore.
+
 ## 1. Kênh và việc được phép
 
 | Kênh | Việc hợp pháp | Radar làm | Không có |
 |------|----------------|-----------|----------|
 | Meta Ad Library (web) | Xem creative, ngày bắt đầu, còn chạy, page | Sinh URL; user lưu thẻ | Spend, ROAS, đơn Facebook, dump toàn quốc |
 | Google Ads Transparency | Xem creative Search/Display/YouTube, region=VN | Sinh URL; user **đếm tay** ads | Spend, chuyển đổi, API dump commercial VN |
-| YouTube public | Tìm video; Data API views nếu có ID | User nhập lượt xem | Doanh số, ads spend đối thủ, Analytics kênh người khác |
+| YouTube public | Tìm video; Data API views nếu có ID trên thẻ đã lưu | User nhập, hoặc `POST /api/youtube-views` (googleapis.com) | Doanh số, ads spend đối thủ, Analytics kênh người khác, scrape youtube.com |
 | TikTok Creative Center | Top Ads đã chọn, region=VN | Sinh URL; user đếm tay | Mọi ads đang chạy, spend chính xác, đơn Shop |
 | Shopee / Lazada / Tiki / Sendo | Đọc “đã bán” trên listing | User nhập số | API đối thủ, GMV, bảng bán chạy toàn sàn |
 | Google Trends / Shopping | Nhu cầu tìm / listing giá | Chỉ URL | Doanh số tuyệt đối |
@@ -40,12 +42,16 @@ Công thức (kho đã lưu, không phải toàn quốc):
 
 Sắp xếp `?xep=ads|sold|tong`.
 
-## 3. Cách thu thập
+## 3. Cách thu thập (tối đa, vẫn hợp pháp)
 
-1. `/quet` → mở Thư viện Meta → `/collect` lưu thẻ.
-2. Mở URL chính thức trên `/tong-hop` (Google Transparency, YouTube, Shopee…).
-3. Đọc số trên trang → nhập form collect hoặc `POST /api/kenh` (cùng `x-fmr-key`).
-4. Sheet CSV: thêm cột `lazadaSold`, `tikiSold`, `sendoSold`, `googleAdsSeen`, `youtubeAdsSeen`, `tiktokAdsSeen`, `youtubeViews`.
+1. `/quet` → mở Thư viện Meta → `/collect` lưu thẻ **kèm landing** nếu thấy.
+2. Radar đọc `landingUrl` + URL trong title/body đã lưu → cột “có đích” trên `/kenh/{nền}`.
+3. Mở **đích đã lưu** hoặc URL chính thức trên hàng đợi `/kenh` / `/tong-hop`.
+4. Đọc số trên trang → form hàng đợi, `/collect`, hoặc `POST /api/kenh` (cùng `x-fmr-key`).
+5. Sheet CSV: cột `lazadaSold`, `tikiSold`, `sendoSold`, `googleAdsSeen`, `youtubeAdsSeen`, `tiktokAdsSeen`, `youtubeViews`.
+6. Feed licensed HTTPS (không phải host sàn / Transparency / YouTube).
+7. YouTube Data API: `YOUTUBE_API_KEY` + nút trên `/kenh/youtube` — chỉ video ID đã có trên kho.
+8. Ads / shop **của bạn** trên `/own-ads` — không trộn HeatScore thị trường.
 
 Licensed feed **không** được trỏ vào host sàn / Transparency / YouTube (`licensed-host.ts`).
 

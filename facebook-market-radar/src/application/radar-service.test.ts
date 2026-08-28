@@ -346,6 +346,71 @@ describe("RadarService", () => {
     expect(top.rows.every((row) => row.officialUrl.startsWith("https://"))).toBe(true);
   });
 
+  it("mines a Tiki URL from saved copy without inventing sold", async () => {
+    const service = await seededService();
+    await service.collectManual(
+      {
+        libraryId: "111000040",
+        pageId: "900040",
+        pageName: "Tiki Copy",
+        productTitle: "Serum niacinamide Tiki",
+        startDate: "2026-08-01",
+        nicheSlug: "my-pham",
+        body: "Mua ngay https://tiki.vn/serum-p99.html",
+      },
+      now,
+      null,
+      undefined,
+    );
+    const tiki = await service.listPlatformDashboard(now, "tiki");
+    expect(tiki.withDataCount).toBe(0);
+    expect(tiki.landingCount).toBeGreaterThan(0);
+    expect(tiki.queue.some((row) => row.reason === "has_landing" && row.savedLandingUrl?.includes("tiki.vn"))).toBe(
+      true,
+    );
+    const heat = (await service.listRankings(now)).find((row) => row.clusterTitle.includes("Serum niacinamide Tiki"));
+    expect(heat?.scores.salesProxy).toBe(0);
+  });
+
+  it("refreshes YouTube views from saved video ids without touching HeatScore", async () => {
+    const youtube = {
+      enabled: true,
+      fetchViewCounts: async (ids: readonly string[]) => {
+        expect(ids).toContain("dQw4w9wgXcQ");
+        return [{ videoId: "dQw4w9wgXcQ", viewCount: 4100 }];
+      },
+    };
+    const service = new RadarService(new MemoryRadarRepository(), "fmr_vn", youtube);
+    await service.collectManual(
+      {
+        libraryId: "yt-1",
+        pageId: "900401",
+        pageName: "YT Shop",
+        productTitle: "Review serum YouTube",
+        startDate: "2026-08-01",
+        nicheSlug: "my-pham",
+        landingUrl: "https://www.youtube.com/watch?v=dQw4w9wgXcQ",
+      },
+      now,
+      null,
+      undefined,
+    );
+    const first = await service.refreshYoutubeViewsFromWarehouse(now, null, undefined);
+    expect(first.updated).toBe(1);
+    expect(first.viewsEnterHeat).toBe(false);
+    expect(first.videoCount).toBe(1);
+    const again = await service.refreshYoutubeViewsFromWarehouse(now, null, undefined);
+    expect(again.updated).toBe(0);
+    expect(again.skipped).toBe(1);
+    const dash = await service.listPlatformDashboard(now, "youtube");
+    expect(dash.withDataCount).toBe(1);
+    expect(dash.youtubeVideoCount).toBe(1);
+    const heat = (await service.listRankings(now)).find((row) => row.clusterTitle.includes("Review serum"));
+    expect(heat?.scores.salesProxy).toBe(0);
+    const disabled = new RadarService(new MemoryRadarRepository());
+    await expect(disabled.refreshYoutubeViewsFromWarehouse(now, null, undefined)).rejects.toThrow(/YOUTUBE_API_KEY/);
+  });
+
   it("records a channel observation with collect-key authz", async () => {
     const service = await seededService();
     const rankings = await service.listRankings(now);

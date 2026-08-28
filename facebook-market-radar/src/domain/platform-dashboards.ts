@@ -12,6 +12,7 @@ import {
 } from "./sales-channels";
 import { buildAdLibrarySearchUrl } from "./ad-library-url";
 import type { ChannelAnalysisRow, ChannelObservation } from "./channel-analysis";
+import type { IndexedLanding } from "./landing";
 
 export const PLATFORM_TAB_IDS = [
   "facebook",
@@ -96,7 +97,7 @@ export const PLATFORM_TABS: readonly PlatformTab[] = [
     usesInstagramPlacement: false,
     valueLabelVi: "Ads đã đếm / lượt xem",
     honestyVi:
-      "Lượt xem không phải đơn hàng và không vào điểm nóng. Analytics / spend đối thủ không có. Radar không gọi YouTube.",
+      "Lượt xem không phải đơn hàng và không vào điểm nóng. Data API chỉ lấy statistics của video ID đã có trên thẻ đã lưu — không scrape youtube.com.",
     researchUrl: buildYoutubeSearchUrl,
     autoCrawl: false,
   },
@@ -205,6 +206,66 @@ export function hasInstagramPlacement(row: ChannelAnalysisRow): boolean {
   return row.platforms.some((item) => item.toLowerCase() === "instagram");
 }
 
+export function landingKindForTab(tab: PlatformTabId): IndexedLanding | null {
+  switch (tab) {
+    case "shopee":
+    case "lazada":
+    case "tiki":
+    case "sendo":
+    case "youtube":
+    case "tiktok":
+      return tab;
+    case "facebook":
+    case "instagram":
+    case "google":
+      return null;
+  }
+}
+
+export function metricSourceForTab(tab: PlatformTabId): ChannelMetricSource | null {
+  switch (tab) {
+    case "shopee":
+      return "SHOPEE";
+    case "lazada":
+      return "LAZADA";
+    case "tiki":
+      return "TIKI";
+    case "sendo":
+      return "SENDO";
+    case "tiktok":
+      return "TIKTOK";
+    case "google":
+      return "GOOGLE_ADS";
+    case "youtube":
+      return "YOUTUBE_VIEWS";
+    case "facebook":
+    case "instagram":
+      return null;
+  }
+}
+
+export function landingUrlForTab(row: ChannelAnalysisRow, tab: PlatformTabId): string | null {
+  const kind = landingKindForTab(tab);
+  if (!kind) {
+    return null;
+  }
+  return row.landingByKind[kind] ?? null;
+}
+
+/** Saved destination on the ad card — not an entered sold/views number. */
+export function hasLandingPresence(row: ChannelAnalysisRow, tab: PlatformTabId): boolean {
+  if (tab === "instagram") {
+    return hasInstagramPlacement(row);
+  }
+  if (tab === "facebook" || tab === "google") {
+    return false;
+  }
+  if (tab === "youtube" && row.youtubeVideoIds.length > 0) {
+    return true;
+  }
+  return landingUrlForTab(row, tab) !== null;
+}
+
 export function hasPlatformData(row: ChannelAnalysisRow, tab: PlatformTabId): boolean {
   switch (tab) {
     case "facebook":
@@ -256,8 +317,8 @@ export function rankForPlatform(
   tab: PlatformTabId,
 ): ChannelAnalysisRow[] {
   return [...rows].sort((a, b) => {
-    const dataA = hasPlatformData(a, tab) ? 1 : 0;
-    const dataB = hasPlatformData(b, tab) ? 1 : 0;
+    const dataA = hasPlatformData(a, tab) ? 2 : hasLandingPresence(a, tab) ? 1 : 0;
+    const dataB = hasPlatformData(b, tab) ? 2 : hasLandingPresence(b, tab) ? 1 : 0;
     if (dataB !== dataA) {
       return dataB - dataA;
     }
@@ -273,8 +334,10 @@ export type PlatformCoverage = {
   labelVi: string;
   family: PlatformFamily;
   productsWithData: number;
+  productsWithLanding: number;
   productCount: number;
   coveragePercent: number;
+  landingCoveragePercent: number;
   metricSum: number;
   lastObservedMs: number | null;
   autoCrawl: false;
@@ -354,14 +417,18 @@ export function buildPlatformCoverage(
   const productCount = rows.length;
   return PLATFORM_TABS.map((tab) => {
     const withData = rows.filter((row) => hasPlatformData(row, tab.id)).length;
+    const withLanding = rows.filter((row) => hasLandingPresence(row, tab.id)).length;
     const percent = productCount === 0 ? 0 : Math.round((withData / productCount) * 100);
+    const landingPercent = productCount === 0 ? 0 : Math.round((withLanding / productCount) * 100);
     return {
       id: tab.id,
       labelVi: tab.labelVi,
       family: tabFamily(tab.id),
       productsWithData: withData,
+      productsWithLanding: withLanding,
       productCount,
       coveragePercent: percent,
+      landingCoveragePercent: landingPercent,
       metricSum: metricSumForTab(rows, tab.id),
       lastObservedMs: lastObservedForTab(rows, observations, tab.id),
       autoCrawl: false,
@@ -415,6 +482,93 @@ export function formatObservedVi(ms: number | null | undefined, nowMs: number): 
   return `${days} ngày trước`;
 }
 
+export type CollectQueueReason = "has_landing" | "missing_metric";
+
+export type CollectQueueItem = {
+  clusterSlug: string;
+  clusterTitle: string;
+  nicheName: string;
+  fbActiveAds: number;
+  fbHeat: number;
+  savedLandingUrl: string | null;
+  researchUrl: string;
+  source: ChannelMetricSource | null;
+  reason: CollectQueueReason;
+};
+
+export function buildCollectQueue(
+  rows: readonly ChannelAnalysisRow[],
+  tab: PlatformTabId,
+  limit = 24,
+): CollectQueueItem[] {
+  const source = metricSourceForTab(tab);
+  const missing = rows.filter((row) => !hasPlatformData(row, tab));
+  missing.sort((a, b) => {
+    const landA = hasLandingPresence(a, tab) ? 1 : 0;
+    const landB = hasLandingPresence(b, tab) ? 1 : 0;
+    if (landB !== landA) {
+      return landB - landA;
+    }
+    return b.fbHeat - a.fbHeat || b.fbActiveAds - a.fbActiveAds || a.clusterTitle.localeCompare(b.clusterTitle, "vi");
+  });
+  return missing.slice(0, limit).map((row) => ({
+    clusterSlug: row.clusterSlug,
+    clusterTitle: row.clusterTitle,
+    nicheName: row.nicheName,
+    fbActiveAds: row.fbActiveAds,
+    fbHeat: row.fbHeat,
+    savedLandingUrl: landingUrlForTab(row, tab),
+    researchUrl: officialLinkForTab(tab, row.clusterTitle),
+    source,
+    reason: hasLandingPresence(row, tab) ? "has_landing" : "missing_metric",
+  }));
+}
+
+export const LEGAL_FILL_PATHS = [
+  {
+    id: "saved_landing",
+    titleVi: "Đích đã dán trên thẻ Facebook",
+    detailVi: "Radar đọc URL Shopee / Lazada / Tiki / Sendo / YouTube / TikTok đã lưu — không mở sàn.",
+    href: "/kenh/shopee",
+  },
+  {
+    id: "copy_url",
+    titleVi: "URL trong nội dung ads đã lưu",
+    detailVi: "Nếu copy có link tiki.vn hay youtube.com, Radar nhận đích. Không bịa đã bán.",
+    href: "/collect",
+  },
+  {
+    id: "official_read",
+    titleVi: "Mở trang chính thức rồi nhập số",
+    detailVi: "Hàng đợi từng sản phẩm: mở listing / Transparency, đọc số, ghi vào kho.",
+    href: "/tong-hop",
+  },
+  {
+    id: "sheet",
+    titleVi: "Sheet CSV nhiều dòng",
+    detailVi: "Cột tikiSold, sendoSold, googleAdsSeen, youtubeViews… Tối đa 200 dòng/lần.",
+    href: "/collect",
+  },
+  {
+    id: "licensed",
+    titleVi: "Feed JSON đã mua",
+    detailVi: "File hoặc HTTPS vendor. Cấm trỏ vào Shopee / YouTube / Transparency.",
+    href: "/collect",
+  },
+  {
+    id: "youtube_api",
+    titleVi: "YouTube Data API — video đã có ID",
+    detailVi: "Lượt xem công khai của video trên thẻ đã lưu. Không vào điểm nóng. Không scrape youtube.com.",
+    href: "/kenh/youtube",
+  },
+  {
+    id: "own_ads",
+    titleVi: "Ads / shop của bạn",
+    detailVi: "Marketing API hoặc Seller Center. Không trộn vào HeatScore thị trường.",
+    href: "/own-ads",
+  },
+] as const;
+
 export type PlatformDashboard = {
   tab: PlatformTab;
   recomputedMs: number;
@@ -423,6 +577,11 @@ export type PlatformDashboard = {
   coverage: PlatformCoverage[];
   ranked: ChannelAnalysisRow[];
   withDataCount: number;
+  landingCount: number;
+  missingCount: number;
+  youtubeVideoCount: number;
+  queue: CollectQueueItem[];
+  metricSource: ChannelMetricSource | null;
   timeline: ChannelTimelineRow[];
   sampleResearchUrl: string;
 };
@@ -437,6 +596,8 @@ export function buildPlatformDashboard(input: {
 }): PlatformDashboard {
   const tab = platformTab(input.tab);
   const ranked = rankForPlatform(input.rows, input.tab);
+  const withDataCount = ranked.filter((row) => hasPlatformData(row, input.tab)).length;
+  const landingCount = ranked.filter((row) => hasLandingPresence(row, input.tab)).length;
   return {
     tab,
     recomputedMs: input.nowMs,
@@ -444,7 +605,12 @@ export function buildPlatformDashboard(input: {
     nationalDump: false,
     coverage: buildPlatformCoverage(input.rows, input.observations),
     ranked,
-    withDataCount: ranked.filter((row) => hasPlatformData(row, input.tab)).length,
+    withDataCount,
+    landingCount,
+    missingCount: ranked.length - withDataCount,
+    youtubeVideoCount: ranked.reduce((sum, row) => sum + row.youtubeVideoIds.length, 0),
+    queue: buildCollectQueue(ranked, input.tab),
+    metricSource: metricSourceForTab(input.tab),
     timeline: buildChannelTimeline(input.observations, input.titleBySlug, input.timelineLimit ?? 24),
     sampleResearchUrl: tab.researchUrl("serum"),
   };

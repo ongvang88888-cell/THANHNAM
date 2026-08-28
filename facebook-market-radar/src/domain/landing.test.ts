@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { classifyLanding, parseLandingUrl, safeLandingHref, shopKey } from "./landing";
+import {
+  classifyLanding,
+  extractHttpUrlsFromText,
+  indexLandingsByKind,
+  parseLandingUrl,
+  safeLandingHref,
+  shopKey,
+  urlsFromSavedCopy,
+} from "./landing";
 
 describe("landing", () => {
   it("classifies shop hosts and empty", () => {
@@ -31,5 +39,21 @@ describe("landing", () => {
     expect(shopKey("https://www.tiktok.com/@nhago/video/1")).toBe("tiktok:@nhago");
     expect(shopKey("https://www.example.com/landing")).toBe("web:example.com");
     expect(shopKey(null)).toBeNull();
+  });
+
+  it("mines http(s) urls from saved copy without treating them as sold", () => {
+    expect(extractHttpUrlsFromText("Mua https://tiki.vn/serum-p1.html ngay.")).toEqual([
+      "https://tiki.vn/serum-p1.html",
+    ]);
+    expect(extractHttpUrlsFromText("javascript:alert(1) https://sendo.vn/a")).toEqual(["https://sendo.vn/a"]);
+    const urls = urlsFromSavedCopy(
+      "https://shopee.vn/shop/p",
+      "Xem thêm https://www.youtube.com/watch?v=abcdefghijk",
+    );
+    expect(urls[0]).toContain("shopee.vn");
+    expect(urls.some((href) => href.includes("youtube.com"))).toBe(true);
+    const indexed = indexLandingsByKind(urls);
+    expect(indexed.shopee).toBeDefined();
+    expect(indexed.youtube).toBeDefined();
   });
 });

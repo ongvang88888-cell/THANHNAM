@@ -59,6 +59,12 @@ export interface IOwnAdsInsightsProvider {
   }): Promise<OwnCampaignInsight[]>;
 }
 
+/** Official YouTube Data API views for video IDs already on saved ads. Not youtube.com HTML. */
+export interface IYoutubeViewsProvider {
+  readonly enabled: boolean;
+  fetchViewCounts(videoIds: readonly string[]): Promise<Array<{ videoId: string; viewCount: number }>>;
+}
+
 export type ClusterSignals = {
   activeAdCount: number;
   distinctPageCount: number;

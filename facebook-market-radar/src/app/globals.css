@@ -393,6 +393,46 @@ pre.report {
   white-space: pre-wrap;
   border-radius: 10px;
 }
+.niche-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+  margin: 12px 0;
+}
+.niche-filter label { display: grid; gap: 4px; font-size: 0.8rem; color: var(--muted); }
+.niche-filter select { min-width: min(100%, 260px); }
+.fill-paths { margin: 16px 0 20px; }
+.fill-path-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+}
+.fill-path-list li { display: grid; gap: 2px; }
+.fill-path-list a { font-size: 0.82rem; }
+.collect-queue { margin: 16px 0 24px; }
+.collect-queue-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 10px; }
+.collect-queue-item {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+.queue-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.queue-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.queue-form input { min-width: 120px; flex: 1; }
+.youtube-views-box {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
 .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .filters a {
   padding: 4px 10px;
