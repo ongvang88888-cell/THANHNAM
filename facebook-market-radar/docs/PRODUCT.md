@@ -33,18 +33,19 @@ Danh mục khóa: **26 ngành / 13 nhóm**. “Quét đầy đủ” = hàng đ�
 
 ## Soi thẻ đã lưu (học UX, không copy kho ads)
 
-Trên dữ liệu user đã lưu (+ feed licensed nếu có), Radar có các bề mặt kiểu EachSpy / Kalodata / Foreplay — **không** index hàng triệu ads:
+Trên dữ liệu user đã lưu (+ feed licensed nếu có), Radar học UX các spy-tool (BigSpy / EachSpy / Kalodata / Foreplay) — **không** index hàng triệu ads, **không** copy trademark/logo:
 
-1. **Hồ sơ sản phẩm** `/san-pham/[slug]` — mọi thẻ, trang, landing/shop đã dán, góc creative, URL tìm Thư viện.
-2. **Trending / Fresh** `/xu-huong` — mạnh (điểm nóng / độ bền) vs mới thấy ≤ 7 ngày hoặc tốc độ mới cao.
-3. **Lưới creative** `/?view=grid` — hover hiện hook từ copy đã lưu.
-4. **Bộ lọc** trên `/` — ngày chạy, số trang, landing, Shopee/TikTok/web, góc, media, giá, shop key, làn.
-5. **Watch Page** `/theo-doi` — cảnh báo khi user lưu thẻ mới từ trang đó (không crawl 24/7).
-6. **Shop / landing** — phân loại URL user dán; lọc `?shop=`.
-7. **Bộ sưu tập** `/bo-suu-tap` + nhãn góc trên thẻ (swipe file).
-8. **Hook digest** trên `/xu-huong` — cụm 2–3 từ từ title/body đã lưu.
-9. **Extension unpacked** `extension/` + bookmarklet — chỉ mở `/collect?url=`.
-10. **Feed licensed** — nút nhập trên `/collect` qua port sẵn có.
+1. **Ad Library chrome** `/` — sidebar navy, search, industry/network pills, selected chips, card grid. Logo vẫn **Radar**. Mặc định `view=ads` (từng thẻ đã lưu). Không hiện like / share / impression / similarity giả. Sort: Heat ước lượng, running days, latest, last seen.
+2. **Hồ sơ sản phẩm** `/san-pham/[slug]` — mọi thẻ, trang, landing/shop đã dán, góc creative, URL tìm Thư viện.
+3. **Trending / Fresh** `/xu-huong` — mạnh (điểm nóng / độ bền) vs mới thấy ≤ 7 ngày hoặc tốc độ mới cao.
+4. **Lưới creative** `/?view=grid` — hover hiện hook từ copy đã lưu. `/?view=table` = xếp hạng ước lượng.
+5. **Bộ lọc** trên `/` — ngày chạy, số trang, landing, Shopee/TikTok/web, góc, media, giá, shop key, làn, sort.
+6. **Watch Page** `/theo-doi` — cảnh báo khi user lưu thẻ mới từ trang đó (không crawl 24/7).
+7. **Shop / landing** — phân loại URL user dán; lọc `?shop=`.
+8. **Bộ sưu tập** `/bo-suu-tap` + nhãn góc trên thẻ (swipe file).
+9. **Hook digest** trên `/xu-huong` — cụm 2–3 từ từ title/body đã lưu.
+10. **Extension unpacked** `extension/` + bookmarklet — chỉ mở `/collect?url=`.
+11. **Feed licensed** — nút nhập trên `/collect` qua port sẵn có.
 
 Không copy: scrape/index triệu ads; giả spend/ROAS; harvest pixel; `/ads_archive` cho ads bán hàng VN.
 

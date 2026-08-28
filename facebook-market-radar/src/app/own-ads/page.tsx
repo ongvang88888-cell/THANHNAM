@@ -14,6 +14,7 @@ export default async function OwnAdsPage() {
   const { rows, totals } = await getRadarService().ownInsightsSummary();
   return (
     <>
+      <p className="eyebrow">My Ads</p>
       <h1>Tài khoản của tôi</h1>
       <div className="banner">
         Số liệu này đến từ Marketing API (hoặc dữ liệu mẫu nội bộ). Không trộn vào điểm nóng thị trường.

@@ -10,6 +10,7 @@ export default async function TrendPage() {
   const { trending, fresh, hooks } = await getRadarService().listTrendLanes(Date.now());
   return (
     <>
+      <p className="eyebrow">Trending</p>
       <h1>Xu hướng trên thẻ đã lưu</h1>
       <div className="banner">
         Trending = điểm nóng / độ bền mạnh trên dữ liệu bạn lưu. Fresh = mới thấy ≤ 7 ngày hoặc tốc độ mới cao
@@ -17,7 +18,7 @@ export default async function TrendPage() {
       </div>
       <p className="muted">
         <Link href="/?lane=trending">Lọc bảng trending</Link> · <Link href="/?lane=fresh">Lọc fresh</Link> ·{" "}
-        <Link href="/?view=grid">Lưới creative</Link>
+        <Link href="/?view=grid">Creatives</Link> · <Link href="/?view=ads">Ads</Link>
       </p>
       <h2>Trending ({trending.length})</h2>
       {trending.length === 0 ? <p className="muted">Chưa đủ thẻ mạnh.</p> : <ResearchGrid rows={trending} />}

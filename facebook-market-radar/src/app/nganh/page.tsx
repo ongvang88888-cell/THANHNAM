@@ -21,6 +21,7 @@ export default async function IndustryPage({ searchParams }: Props) {
 
   return (
     <>
+      <p className="eyebrow">Rankings</p>
       <h1>Ngành đang chạy mạnh</h1>
       <p className="muted">
         Thống kê đủ {coverage.totalNiches} ngành hàng trong danh mục. Điểm nóng luôn là ước lượng từ

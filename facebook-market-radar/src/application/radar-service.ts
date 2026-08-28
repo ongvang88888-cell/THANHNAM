@@ -44,6 +44,7 @@ import type {
   StoredBoard,
   StoredBoardItem,
   StoredCluster,
+  StoredPage,
   StoredPageWatch,
   StoredSnapshot,
   StoredWatch,
@@ -294,6 +295,10 @@ export class RadarService {
 
   async listAds(): Promise<StoredAd[]> {
     return this.repo.listAds(this.appId);
+  }
+
+  async listPages(): Promise<StoredPage[]> {
+    return this.repo.listPages(this.appId);
   }
 
   async listClusters(): Promise<StoredCluster[]> {
