@@ -34,14 +34,11 @@ export default async function PlatformDashboardPage({ params, searchParams }: Pr
         eyebrow="Thống kê kho"
         title={dashboard.tab.labelVi}
         lede="Chi tiết từng nền tảng trên kho đã lưu. Radar tính lại mỗi lần mở trang — không tự kéo Shopee, Google hay YouTube."
-      >
-        <Link className="btn secondary" href={`/top/${tab}`}>
-          999 tên
-        </Link>
-        <Link className="btn" href="/collect">
-          Nhập số
-        </Link>
-      </PageHead>
+        actions={[
+          { href: `/top/${tab}`, label: "999 tên" },
+          { href: "/collect", label: "Nhập số", primary: true },
+        ]}
+      />
       <StatStrip
         items={[
           {

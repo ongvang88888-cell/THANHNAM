@@ -108,14 +108,11 @@ export default async function HomePage({ searchParams }: Props) {
         eyebrow="Đa nền tảng · kho đã lưu"
         title="Thống kê ads & sàn"
         lede="Shopee, Lazada, Google, YouTube, TikTok, Facebook trên cùng một bảng. Số sàn / ads ngoài Facebook = bạn nhập. Điểm nóng Facebook luôn ước lượng."
-      >
-        <Link className="btn secondary" href={ten ? `/quet?ten=${encodeURIComponent(ten)}` : "/quet"}>
-          Quét
-        </Link>
-        <Link className="btn" href="/collect">
-          Nhập số
-        </Link>
-      </PageHead>
+        actions={[
+          { href: ten ? `/quet?ten=${encodeURIComponent(ten)}` : "/quet", label: "Quét" },
+          { href: "/collect", label: "Nhập số", primary: true },
+        ]}
+      />
       <WarehouseAutoRefresh />
       <div className="banner">
         {scoped.length} sản phẩm · {ads.length} thẻ đã lưu — không phải tổng ads / GMV Việt Nam. ~{" "}

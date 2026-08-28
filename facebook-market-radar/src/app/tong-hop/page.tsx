@@ -62,14 +62,11 @@ export default async function ChannelAnalysisPage({ searchParams }: Props) {
         eyebrow="Đa kênh"
         title="Bảng tổng hợp"
         lede="Cộng ads Facebook đã lưu với số bạn đọc trên Google, YouTube, TikTok và sàn. Không có dump “bán chạy + chạy ads nhiều nhất Việt Nam”."
-      >
-        <Link className="btn secondary" href="/kenh/shopee">
-          Từng kênh
-        </Link>
-        <Link className="btn" href="/collect">
-          Nhập số
-        </Link>
-      </PageHead>
+        actions={[
+          { href: "/kenh/shopee", label: "Từng kênh" },
+          { href: "/collect", label: "Nhập số", primary: true },
+        ]}
+      />
 
       <h2>Kênh nghiên cứu hợp pháp</h2>
       {families.map((group) => (

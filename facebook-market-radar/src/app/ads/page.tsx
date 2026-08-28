@@ -32,14 +32,11 @@ export default async function AdsPage() {
         eyebrow="Kho thẻ"
         title="Ads đã lưu"
         lede="Từng thẻ bạn Collect — không phải kho ads toàn Facebook. See Ad mở Thư viện chính thức."
-      >
-        <Link className="btn secondary" href="/">
-          Tổng quan
-        </Link>
-        <Link className="btn" href="/collect">
-          Lưu ads
-        </Link>
-      </PageHead>
+        actions={[
+          { href: "/", label: "Tổng quan" },
+          { href: "/collect", label: "Lưu ads", primary: true },
+        ]}
+      />
       <StatStrip
         items={[
           { value: String(ads.length), label: "Thẻ đã lưu", href: "/ads" },

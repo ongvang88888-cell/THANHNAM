@@ -30,14 +30,11 @@ export default async function TrendPage({ searchParams }: Props) {
         eyebrow="Mọi nền tảng"
         title="Xu hướng Shopee · Google · YouTube · Facebook"
         lede="Mỗi ô là một nền tảng — 999 tên nghiên cứu, không phải GMV toàn quốc. Lưới Facebook phía dưới chỉ thẻ đã lưu."
-      >
-        <Link className="btn secondary" href={`/kenh/${kenh}`}>
-          Thống kê kho
-        </Link>
-        <Link className="btn" href="/collect">
-          Nhập số
-        </Link>
-      </PageHead>
+        actions={[
+          { href: `/kenh/${kenh}`, label: "Thống kê kho" },
+          { href: "/collect", label: "Nhập số", primary: true },
+        ]}
+      />
       <PlatformWall active={kenh} />
       <p className="muted">
         Đang xem <strong>{platformTab(kenh).labelVi}</strong> ·{" "}

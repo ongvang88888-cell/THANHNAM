@@ -34,14 +34,11 @@ export default async function PlatformBestsellerPage({ params, searchParams }: P
         eyebrow="Catalog nghiên cứu"
         title={`999 tên trên ${label}`}
         lede="Cùng 999 tên trên mọi kênh, chỉ đổi thứ tự ưu tiên. Không phải GMV live. Bấm link trang chính thức, tự đọc số rồi nhập vào kho."
-      >
-        <Link className="btn secondary" href={`/kenh/${tab}`}>
-          Thống kê kho
-        </Link>
-        <Link className="btn" href="/collect">
-          Nhập số
-        </Link>
-      </PageHead>
+        actions={[
+          { href: `/kenh/${tab}`, label: "Thống kê kho" },
+          { href: "/collect", label: "Nhập số", primary: true },
+        ]}
+      />
       <BestsellerPanel page={page} />
       <p className="muted">
         <Link href={`/kenh/${tab}`}>Thống kê kho {label}</Link> · <Link href="/">Trang chủ</Link> ·{" "}

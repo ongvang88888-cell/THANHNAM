@@ -1,15 +1,15 @@
-import type { ReactNode } from "react";
+import Link from "next/link";
 
 export function PageHead({
   eyebrow,
   title,
   lede,
-  children,
+  actions = [],
 }: {
   eyebrow: string;
   title: string;
-  lede?: ReactNode;
-  children?: ReactNode;
+  lede?: string;
+  actions?: readonly { href: string; label: string; primary?: boolean }[];
 }) {
   return (
     <div className="page-head">
@@ -18,7 +18,15 @@ export function PageHead({
         <h1>{title}</h1>
         {lede ? <p className="lede">{lede}</p> : null}
       </div>
-      {children ? <div className="actions">{children}</div> : null}
+      {actions.length > 0 ? (
+        <div className="actions">
+          {actions.map((item) => (
+            <Link key={`${item.href}-${item.label}`} className={item.primary ? "btn" : "btn secondary"} href={item.href}>
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
