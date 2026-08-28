@@ -60,7 +60,22 @@ describe("ad-library-cards", () => {
     expect(cards[0]?.pageName).toBe("NhaGo");
     expect(cards[0]?.libraryAdUrl).toContain("id=111");
     expect(cards[0]?.landingKind).toBe("shopee");
+    expect(cards[0]?.landingUrl).toBe("https://shopee.vn/shop-den/led");
     expect(cards[0]?.heat).toBe(45);
+  });
+
+  it("drops javascript landing so cards never emit a dangerous href", () => {
+    const research = [enrichResearchRow(row(), [ad({ landingUrl: "javascript:alert(1)" })], now)];
+    const cards = buildLibraryCards(
+      [ad({ landingUrl: "javascript:alert(1)" })],
+      [{ slug: "den-led", title: "Đèn LED cảm ứng tủ bếp", nicheSlug: "gadget", imageUrl: null }],
+      [{ pageId: "900021", pageName: "NhaGo" }],
+      research,
+      now,
+    );
+    expect(cards).toHaveLength(1);
+    expect(cards[0]?.landingUrl).toBeNull();
+    expect(cards[0]?.landingKind).toBe("none");
   });
 
   it("sorts by running days or first seen without inventing engagement", () => {

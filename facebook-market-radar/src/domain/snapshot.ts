@@ -1,3 +1,4 @@
+import { parseLandingUrl } from "./landing";
 import { PUBLISHER_PLATFORMS, type NormalizedAd, type PublisherPlatform } from "./ports";
 import { parseImageUrl } from "./product-image";
 
@@ -70,7 +71,7 @@ export function parseAdSnapshot(payload: unknown): SnapshotParseResult {
       isActive,
       platforms: parsePlatforms(raw.platforms ?? raw.publisher_platforms),
       snapshotUrl: asString(raw.snapshotUrl ?? raw.ad_snapshot_url, "snapshotUrl"),
-      landingUrl: asString(raw.landingUrl, "landingUrl"),
+      landingUrl: parseLandingUrl(asString(raw.landingUrl, "landingUrl")),
       imageUrl: parseImageUrl(asString(raw.imageUrl ?? raw.image_url, "imageUrl") ?? undefined),
       productHint: asString(raw.productHint ?? raw.productTitle, "productHint"),
       nicheHint: asString(raw.nicheHint ?? raw.nicheSlug, "nicheHint"),

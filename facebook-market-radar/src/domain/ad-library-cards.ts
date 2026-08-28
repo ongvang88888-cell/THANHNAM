@@ -1,6 +1,6 @@
 import { buildAdLibraryAdUrl, buildAdLibraryPageUrl } from "./ad-library-url";
 import { detectCreativeAngles, hookLine, type CreativeAngle } from "./creative-angles";
-import { classifyLanding, type LandingKind } from "./landing";
+import { classifyLanding, safeLandingHref, type LandingKind } from "./landing";
 import { productImagePath, uniqueImageUrls } from "./product-image";
 import type { ResearchRow, SavedAdLite, TrendLane } from "./saved-research";
 import { adAgeDays } from "./scoring";
@@ -90,7 +90,7 @@ export function buildLibraryCards(
       hook: hookLine([ad.title, ad.body, row.clusterTitle]),
       copy: [ad.title, ad.body].filter(Boolean).join(" — ").slice(0, 180),
       landingKind: classifyLanding(ad.landingUrl),
-      landingUrl: ad.landingUrl,
+      landingUrl: safeLandingHref(ad.landingUrl),
       startDate: ad.startDate,
       firstSeenMs: ad.firstSeenMs,
       lastSeenMs: ad.lastSeenMs,

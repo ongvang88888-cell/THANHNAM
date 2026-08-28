@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { CREATIVE_ANGLE_VI, isCreativeAngle } from "@/domain/creative-angles";
 import type { LibraryAdCard } from "@/domain/ad-library-cards";
-import { LANDING_KIND_VI } from "@/domain/landing";
+import { LANDING_KIND_VI, safeLandingHref } from "@/domain/landing";
+import { safeImageSrc } from "@/domain/product-image";
 import { AdActions } from "@/ui/ad-actions";
 
 function day(ms: number): string {
@@ -21,10 +22,12 @@ export function SpyCard({
   tags: string[];
 }) {
   const angles = [...new Set([...card.angles, ...tags.filter(isCreativeAngle)])];
+  const imageSrc = safeImageSrc(card.imageUrl);
+  const landingHref = safeLandingHref(card.landingUrl);
   return (
     <article className="spy-card">
       <Link href={`/san-pham/${card.clusterSlug}`} className="spy-cover">
-        {card.imageUrl ? <img src={card.imageUrl} alt="" /> : <div className="spy-cover-empty">No creative</div>}
+        {imageSrc ? <img src={imageSrc} alt="" /> : <div className="spy-cover-empty">No creative</div>}
         <span className="spy-platform">Facebook</span>
         {card.isActive ? <span className="spy-live">In-play</span> : <span className="spy-live off">Off</span>}
       </Link>
@@ -79,8 +82,8 @@ export function SpyCard({
           <a className="btn secondary" href={card.libraryPageUrl} target="_blank" rel="noreferrer">
             Page
           </a>
-          {card.landingUrl ? (
-            <a className="btn secondary" href={card.landingUrl} target="_blank" rel="noreferrer">
+          {landingHref ? (
+            <a className="btn secondary" href={landingHref} target="_blank" rel="noreferrer">
               Landing
             </a>
           ) : null}

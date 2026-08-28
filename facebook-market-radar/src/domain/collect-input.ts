@@ -1,4 +1,5 @@
 import { parseAdLibraryUrl } from "./ad-library-url";
+import { parseLandingUrl } from "./landing";
 import { PUBLISHER_PLATFORMS, type NormalizedAd, type PublisherPlatform } from "./ports";
 import { parseOptionalPriceVnd } from "./price";
 import { parseImageUrl } from "./product-image";
@@ -157,7 +158,7 @@ export function validateCollectManual(input: CollectManualInput): CollectManualR
       isActive: input.isActive !== false,
       platforms: parsePlatformList(input.platforms),
       snapshotUrl: sourceUrl || null,
-      landingUrl: input.landingUrl?.trim() || null,
+      landingUrl: parseLandingUrl(input.landingUrl),
       productHint: productTitle,
       nicheHint: input.nicheSlug?.trim() || null,
       imageUrl: parseImageUrl(input.imageUrl),

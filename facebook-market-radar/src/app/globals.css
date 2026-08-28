@@ -276,7 +276,8 @@ tr:hover td { background: #fff7ed; }
 .badge.warn { background: #ffedd5; color: var(--warn); }
 .badge.danger { background: #fee2e2; color: var(--danger); }
 .badge.muted { background: #f3f4f6; color: var(--muted); }
-form.stack { display: grid; gap: 10px; max-width: 640px; }
+.stack { display: grid; gap: 10px; max-width: 640px; }
+.stack.watch-panel { max-width: 920px; }
 label { display: grid; gap: 4px; font-size: 0.88rem; color: var(--muted); }
 input, textarea, select {
   background: #fff;

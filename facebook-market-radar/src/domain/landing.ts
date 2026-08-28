@@ -20,6 +20,31 @@ function safeUrl(raw: string | null | undefined): URL | null {
   }
 }
 
+/** Persist / validate user-pasted landing. Empty → null. Non-http(s) throws. */
+export function parseLandingUrl(raw: string | null | undefined): string | null {
+  if (raw === undefined || raw === null) {
+    return null;
+  }
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const url = safeUrl(trimmed);
+  if (!url || (url.protocol !== "http:" && url.protocol !== "https:")) {
+    throw new Error("Landing chỉ nhận URL http hoặc https");
+  }
+  return url.toString();
+}
+
+/** Display-only: never throw; drop javascript:/data:/junk so href stays safe. */
+export function safeLandingHref(raw: string | null | undefined): string | null {
+  try {
+    return parseLandingUrl(raw);
+  } catch {
+    return null;
+  }
+}
+
 export function classifyLanding(raw: string | null | undefined): LandingKind {
   const url = safeUrl(raw);
   if (!url) {

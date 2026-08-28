@@ -42,6 +42,15 @@ describe("validateCollectManual", () => {
       imageUrl: "javascript:alert(1)",
     });
     expect(bad.ok).toBe(false);
+    const badLanding = validateCollectManual({
+      libraryId: "1",
+      pageId: "2",
+      pageName: "Page",
+      productTitle: "Serum",
+      startDate: "2026-08-01",
+      landingUrl: "javascript:alert(1)",
+    });
+    expect(badLanding.ok).toBe(false);
   });
 
   it("requires libraryId when URL is only a keyword search", () => {
@@ -51,6 +60,21 @@ describe("validateCollectManual", () => {
       pageName: "X",
       productTitle: "Serum",
       startDate: "2026-08-01",
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects javascript landing inside a snapshot", () => {
+    const result = validateCollectManual({
+      snapshot: {
+        libraryId: "99",
+        pageId: "12",
+        pageName: "Demo Page",
+        startDate: "2026-08-01",
+        productTitle: "Đèn LED",
+        landingUrl: "javascript:alert(1)",
+      },
+      productTitle: "Đèn LED cảm ứng tủ bếp",
     });
     expect(result.ok).toBe(false);
   });
