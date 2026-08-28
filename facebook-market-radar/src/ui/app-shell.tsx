@@ -60,7 +60,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             Menu
           </button>
           <form className="spy-search" action="/" method="get">
-            <input name="ten" placeholder="Search saved ads — tên, hook, ngành…" aria-label="Tìm ads đã lưu" />
+            <input name="ten" placeholder="Tìm ads đã lưu — tên, hook, ngành…" aria-label="Tìm ads đã lưu" />
             <button type="submit">Search</button>
           </form>
           <div className="spy-top-meta" aria-label="Nền tảng">

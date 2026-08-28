@@ -9,8 +9,7 @@ import {
 } from "@/domain/sales-channels";
 import { ProductCell } from "@/ui/product-cell";
 import { getRadarService } from "@/server/radar";
-import { parsePlatformTab } from "@/domain/platform-dashboards";
-import { PlatformPanel } from "@/ui/platform-panel";
+import { PageHead } from "@/ui/page-head";
 import { ChannelObservationForm } from "./channel-form";
 
 export const dynamic = "force-dynamic";
@@ -45,8 +44,6 @@ export default async function ChannelAnalysisPage({ searchParams }: Props) {
   const niche = params.niche?.trim() || undefined;
   const sort = parseChannelSort(params.xep);
   const service = getRadarService();
-  const kenh = parsePlatformTab(params.kenh);
-  const dashboard = await service.listPlatformDashboard(nowMs, kenh, niche);
   const rows = await service.listChannelAnalysis(nowMs, sort, niche);
   const clusters = (await service.listClusters()).map((cluster) => ({
     slug: cluster.slug,
@@ -61,14 +58,18 @@ export default async function ChannelAnalysisPage({ searchParams }: Props) {
 
   return (
     <>
-      <h1>Bảng tổng hợp đa kênh</h1>
-      <p className="muted">
-        Cộng ads Facebook đã lưu với số bạn đọc trên Google Ads Transparency, YouTube, TikTok Creative
-        Center và sàn (Shopee / Lazada / Tiki / Sendo). Không có dump chính thức “bán chạy + chạy ads
-        nhiều nhất Việt Nam”.
-      </p>
-      <h2>Thống kê từng nền tảng</h2>
-      <PlatformPanel dashboard={dashboard} base="kenh" niche={niche} />
+      <PageHead
+        eyebrow="Đa kênh"
+        title="Bảng tổng hợp"
+        lede="Cộng ads Facebook đã lưu với số bạn đọc trên Google, YouTube, TikTok và sàn. Không có dump “bán chạy + chạy ads nhiều nhất Việt Nam”."
+      >
+        <Link className="btn secondary" href="/kenh/shopee">
+          Từng kênh
+        </Link>
+        <Link className="btn" href="/collect">
+          Nhập số
+        </Link>
+      </PageHead>
 
       <h2>Kênh nghiên cứu hợp pháp</h2>
       {families.map((group) => (

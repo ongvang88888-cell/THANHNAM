@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { buildLibraryCards, sortLibraryCards } from "@/domain/ad-library-cards";
 import { LibraryChrome } from "@/ui/library-chrome";
+import { PageHead } from "@/ui/page-head";
 import { SpyGrid } from "@/ui/spy-grid";
+import { StatStrip } from "@/ui/stat-strip";
 import { getRadarService } from "@/server/radar";
 
 export const dynamic = "force-dynamic";
@@ -22,19 +24,30 @@ export default async function AdsPage() {
   for (const tag of tags) {
     tagsById.set(tag.libraryId, [...(tagsById.get(tag.libraryId) ?? []), tag.tag]);
   }
+  const active = cards.filter((card) => card.isActive).length;
   return (
     <>
-      <LibraryChrome query={{}} action="/ads" />
-      <p className="eyebrow">Saved Ads</p>
-      <h1>Quảng cáo đã lưu</h1>
-      <p className="muted">
-        {ads.length} bản ghi — nhập tay / dữ liệu mẫu / file đã mua.{" "}
-        <Link href="/bo-suu-tap">Collection</Link> · <Link href="/">Ad Library</Link>
-      </p>
-      <div className="banner">
-        Đây là thẻ bạn đã Collect — không phải kho ads toàn Facebook. See Ad mở Thư viện chính thức. Không có
-        like / share / impression.
-      </div>
+      <LibraryChrome query={{}} action="/ads" defaultPlatform="facebook" />
+      <PageHead
+        eyebrow="Kho thẻ"
+        title="Ads đã lưu"
+        lede="Từng thẻ bạn Collect — không phải kho ads toàn Facebook. See Ad mở Thư viện chính thức."
+      >
+        <Link className="btn secondary" href="/">
+          Tổng quan
+        </Link>
+        <Link className="btn" href="/collect">
+          Lưu ads
+        </Link>
+      </PageHead>
+      <StatStrip
+        items={[
+          { value: String(ads.length), label: "Thẻ đã lưu", href: "/ads" },
+          { value: String(active), label: "Đang chạy (ước lượng)" },
+          { value: String(research.length), label: "Sản phẩm", href: "/?view=table" },
+          { value: String(boards.length), label: "Bộ sưu tập", href: "/bo-suu-tap" },
+        ]}
+      />
       {cards.length === 0 ? (
         <p className="muted">
           Chưa có thẻ. <Link href="/collect">Save Ad</Link>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isPlatformTabId, parsePlatformTab, platformTab } from "@/domain/platform-dashboards";
 import { BestsellerPanel } from "@/ui/bestseller-panel";
+import { PageHead } from "@/ui/page-head";
 import { getRadarService } from "@/server/radar";
 
 export const dynamic = "force-dynamic";
@@ -29,11 +30,18 @@ export default async function PlatformBestsellerPage({ params, searchParams }: P
 
   return (
     <>
-      <h1>999 sản phẩm nghiên cứu trên {label}</h1>
-      <p className="muted">
-        Catalog sâu theo 26 ngành — cùng 999 tên trên mọi kênh, chỉ đổi thứ tự ưu tiên. Bấm link để mở trang
-        tìm kiếm chính thức; tự đọc số rồi <Link href="/collect">nhập vào kho</Link> nếu muốn thấy cột số.
-      </p>
+      <PageHead
+        eyebrow="Catalog nghiên cứu"
+        title={`999 tên trên ${label}`}
+        lede="Cùng 999 tên trên mọi kênh, chỉ đổi thứ tự ưu tiên. Không phải GMV live. Bấm link trang chính thức, tự đọc số rồi nhập vào kho."
+      >
+        <Link className="btn secondary" href={`/kenh/${tab}`}>
+          Thống kê kho
+        </Link>
+        <Link className="btn" href="/collect">
+          Nhập số
+        </Link>
+      </PageHead>
       <BestsellerPanel page={page} />
       <p className="muted">
         <Link href={`/kenh/${tab}`}>Thống kê kho {label}</Link> · <Link href="/">Trang chủ</Link> ·{" "}

@@ -14,7 +14,24 @@ export type ResearchQuery = {
   lane?: string;
   shop?: string;
   sort?: string;
+  kenh?: string;
 };
+
+const FILTER_KEYS = [
+  "ten",
+  "niche",
+  "group",
+  "minDays",
+  "minPages",
+  "landing",
+  "landingKind",
+  "angle",
+  "media",
+  "minPrice",
+  "maxPrice",
+  "lane",
+  "shop",
+] as const;
 
 export function researchHref(path: string, current: ResearchQuery, patch: Partial<ResearchQuery> = {}): string {
   const merged = { ...current, ...patch };
@@ -46,5 +63,13 @@ export function queryFromParams(params: Record<string, string | undefined>): Res
     lane: params.lane,
     shop: params.shop,
     sort: params.sort,
+    kenh: params.kenh,
   };
+}
+
+export function hasActiveResearchQuery(query: ResearchQuery): boolean {
+  return FILTER_KEYS.some((key) => {
+    const value = query[key]?.trim() ?? "";
+    return value.length > 0 && value !== "any" && value !== "all";
+  });
 }

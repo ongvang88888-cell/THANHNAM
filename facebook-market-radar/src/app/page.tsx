@@ -1,15 +1,22 @@
 import Link from "next/link";
+import { buildLibraryCards, parseLibrarySort, sortLibraryCards } from "@/domain/ad-library-cards";
 import { MEGA_SCAN_CAP } from "@/domain/mega-scan";
-import { LOCKED_NICHES, NICHE_GROUPS, nicheGroup, nichesInGroup } from "@/domain/niches";
-import { adRunSummary } from "@/domain/product-watch";
-import { rankStrongProducts } from "@/domain/strong-ads";
+import { nicheGroup } from "@/domain/niches";
 import { parseSavedFilter } from "@/domain/saved-research";
-import { ProductCell } from "@/ui/product-cell";
-import { ResearchFilters } from "@/ui/research-filters";
-import { ResearchGrid } from "@/ui/research-grid";
-import { queryFromParams, researchHref } from "@/ui/research-query";
+import { adRunSummary } from "@/domain/product-watch";
+import { TRENDING_DEFAULT_PLATFORM } from "@/domain/app-nav";
 import { parsePlatformTab } from "@/domain/platform-dashboards";
-import { PlatformPanel } from "@/ui/platform-panel";
+import { ProductCell } from "@/ui/product-cell";
+import { FilterDrawer } from "@/ui/filter-drawer";
+import { LibraryChrome } from "@/ui/library-chrome";
+import { PageHead } from "@/ui/page-head";
+import { PlatformMatrix } from "@/ui/platform-matrix";
+import { ResearchGrid } from "@/ui/research-grid";
+import { hasActiveResearchQuery, queryFromParams, researchHref } from "@/ui/research-query";
+import { SpyGrid } from "@/ui/spy-grid";
+import { StatStrip } from "@/ui/stat-strip";
+import { BestsellerPanel } from "@/ui/bestseller-panel";
+import { WarehouseAutoRefresh } from "@/ui/warehouse-auto-refresh";
 import { getRadarService } from "@/server/radar";
 
 export const dynamic = "force-dynamic";
@@ -31,247 +38,143 @@ type Props = {
     maxPrice?: string;
     lane?: string;
     shop?: string;
+    sort?: string;
     kenh?: string;
   }>;
 };
+
+function parseHomeView(raw?: string): "ads" | "table" | "grid" | "999" {
+  if (raw === "table" || raw === "grid" || raw === "999") {
+    return raw;
+  }
+  return "ads";
+}
 
 export default async function HomePage({ searchParams }: Props) {
   const params = await searchParams;
   const asOf = params.asOf ? Date.parse(params.asOf) : Date.now();
   const nowMs = Number.isFinite(asOf) ? asOf : Date.now();
   const ten = params.ten?.trim() ?? "";
-  const view = params.view === "grid" ? "grid" : "table";
+  const view = parseHomeView(params.view);
   const query = queryFromParams({ ...params, view });
   const filter = parseSavedFilter(params);
+  const kenh = parsePlatformTab(params.kenh, TRENDING_DEFAULT_PLATFORM);
+  const sort = parseLibrarySort(params.sort);
   const service = getRadarService();
-  const allRankings = await service.listRankings(nowMs, params.niche);
+  const needsAds = view === "ads";
+  const needs999 = view === "999";
+
+  const [allRankings, research, ads, alerts, overview, dashboard, boards, tags, clusters, pages, bestsellers] =
+    await Promise.all([
+      service.listRankings(nowMs, params.niche),
+      service.listResearch(nowMs, filter),
+      service.listAds(),
+      service.listAlerts(),
+      service.industryOverview(nowMs),
+      service.listPlatformDashboard(nowMs, kenh, params.niche),
+      needsAds ? service.listBoards() : Promise.resolve([]),
+      needsAds ? service.listAdTags() : Promise.resolve([]),
+      needsAds ? service.listClusters() : Promise.resolve([]),
+      needsAds ? service.listPages() : Promise.resolve([]),
+      needs999
+        ? service.listPlatformBestsellers(nowMs, kenh, {
+            niche: params.niche,
+            q: ten || undefined,
+            trang: 1,
+          })
+        : Promise.resolve(null),
+    ]);
+
+  const { coverage } = overview;
   const scoped = params.group
     ? allRankings.filter((row) => nicheGroup(row.nicheSlug) === params.group)
     : allRankings;
-  const research = await service.listResearch(nowMs, filter);
-  const ads = await service.listAds();
-  const alerts = await service.listAlerts();
-  const { industries, coverage } = await service.industryOverview(nowMs);
-  const plan = await service.scanPlan(nowMs);
-  const hot = industries.filter((row) => row.isHot).slice(0, 8);
-  const topStrong = rankStrongProducts(scoped).slice(0, 8);
-  const visibleNiches = params.group ? nichesInGroup(params.group) : LOCKED_NICHES;
-  const kenh = parsePlatformTab(params.kenh);
-  const dashboard = await service.listPlatformDashboard(nowMs, kenh, params.niche);
+  const scopedSlugs = new Set(research.map((row) => row.clusterSlug));
+  const filterOn = hasActiveResearchQuery(query);
+  const cards = needsAds
+    ? sortLibraryCards(buildLibraryCards(ads, clusters, pages, research, nowMs), sort).filter(
+        (card) => !filterOn || scopedSlugs.has(card.clusterSlug),
+      )
+    : [];
+  const tagsById = new Map<string, string[]>();
+  for (const tag of tags) {
+    tagsById.set(tag.libraryId, [...(tagsById.get(tag.libraryId) ?? []), tag.tag]);
+  }
 
   return (
     <>
-      <h1>Thống kê ads &amp; sàn (Facebook, Google, YouTube, TMĐT)</h1>
-      <p className="muted">
-        Bấm chip nền tảng bên dưới để xem bảng <strong>chi tiết từng kênh</strong>. Số sàn / Google /
-        YouTube lấy từ kho đã lưu và được tính lại liên tục — không phải crawler. Điểm nóng Facebook
-        vẫn là ước lượng; lượt xem YouTube không vào điểm nóng.
-      </p>
+      <LibraryChrome query={query} action="/" />
+      <PageHead
+        eyebrow="Đa nền tảng · kho đã lưu"
+        title="Thống kê ads & sàn"
+        lede="Shopee, Lazada, Google, YouTube, TikTok, Facebook trên cùng một bảng. Số sàn / ads ngoài Facebook = bạn nhập. Điểm nóng Facebook luôn ước lượng."
+      >
+        <Link className="btn secondary" href={ten ? `/quet?ten=${encodeURIComponent(ten)}` : "/quet"}>
+          Quét
+        </Link>
+        <Link className="btn" href="/collect">
+          Nhập số
+        </Link>
+      </PageHead>
+      <WarehouseAutoRefresh />
       <div className="banner">
-        Bảng dưới chỉ ads <strong>bạn đã lưu</strong> ({allRankings.length} sản phẩm) — không phải tổng sản phẩm
-        chạy ads trên Facebook. Bộ lọc / lưới creative soi trên thẻ đã lưu (kiểu EachSpy / Kalodata), không
-        crawl. Để mở rộng, dùng ~{MEGA_SCAN_CAP.toLocaleString("vi-VN")} ô tìm Thư viện trên{" "}
-        <Link href="/quet">Quét cành</Link>. Không có ROAS / chi phí đối thủ.
+        {scoped.length} sản phẩm · {ads.length} thẻ đã lưu — không phải tổng ads / GMV Việt Nam. ~{" "}
+        {MEGA_SCAN_CAP.toLocaleString("vi-VN")} ô tìm Thư viện trên <Link href="/quet">Quét cành</Link>. Không
+        crawl, không ROAS đối thủ.
       </div>
-      <ResearchFilters action="/" query={query} />
-      <div className="filters">
+      <StatStrip
+        items={[
+          { value: String(scoped.length), label: "Sản phẩm đang theo", href: "/?view=table" },
+          { value: String(ads.length), label: "Ads đã lưu", href: "/ads" },
+          {
+            value: `${coverage.nichesWithData}/${coverage.totalNiches}`,
+            label: `Phủ ngành (${coverage.coveragePercent}%)`,
+            href: "/nganh",
+          },
+          { value: String(alerts.length), label: "Cảnh báo", href: "/alerts" },
+        ]}
+      />
+      <PlatformMatrix coverage={dashboard.coverage} active={kenh} />
+      <FilterDrawer action="/" query={query} />
+      <div className="filters spy-views" role="tablist" aria-label="Kiểu xem">
+        <Link href={researchHref("/", query, { view: "ads" })} className={view === "ads" ? "on" : ""}>
+          Ads
+        </Link>
         <Link href={researchHref("/", query, { view: "table" })} className={view === "table" ? "on" : ""}>
           Bảng
         </Link>
         <Link href={researchHref("/", query, { view: "grid" })} className={view === "grid" ? "on" : ""}>
-          Lưới creative
+          Lưới
         </Link>
-        <Link href="/manh">Ads mạnh nhất</Link>
-        <Link href="/tong-hop">Tổng hợp kênh</Link>
-        <Link href={`/kenh/${kenh}`}>Trang kênh đủ</Link>
-        <Link href={`/top/${kenh}`}>999 tên / {kenh}</Link>
-        <Link href="/xu-huong">Xu hướng / hook</Link>
-        <Link href="/bo-suu-tap">Bộ sưu tập</Link>
+        <Link href={researchHref("/", query, { view: "999" })} className={view === "999" ? "on" : ""}>
+          999 tên
+        </Link>
+        <Link href="/manh">Ads mạnh</Link>
+        <Link href="/tong-hop">Tổng hợp</Link>
+        <Link href={`/top/${kenh}`}>Đủ 999 / {kenh}</Link>
       </div>
-      <div className="cards">
-        <div className="card">
-          <div className="n">{ads.length}</div>
-          <div className="muted">Quảng cáo đã lưu</div>
-        </div>
-        <div className="card">
-          <div className="n">{scoped.length}</div>
-          <div className="muted">Sản phẩm đang theo</div>
-        </div>
-        <div className="card">
-          <div className="n">
-            {coverage.nichesWithData}/{coverage.totalNiches}
-          </div>
-          <div className="muted">Độ phủ ngành ({coverage.coveragePercent}%)</div>
-        </div>
-        <div className="card">
-          <div className="n">{coverage.hotIndustryCount}</div>
-          <div className="muted">Ngành đang chạy mạnh</div>
-        </div>
-        <div className="card">
-          <div className="n">{coverage.strongProductCount}</div>
-          <div className="muted">
-            <Link href="/manh">Sản phẩm ads mạnh nhất</Link>
-          </div>
-        </div>
-        <div className="card">
-          <div className="n">{alerts.length}</div>
-          <div className="muted">Cảnh báo</div>
-        </div>
-        <div className="card">
-          <div className="n">{plan.uncoveredCount}</div>
-          <div className="muted">
-            <Link href="/quet">Cành chưa có mẫu</Link>
-          </div>
-        </div>
-        <div className="card">
-          <div className="n">~{MEGA_SCAN_CAP.toLocaleString("vi-VN")}</div>
-          <div className="muted">
-            <Link href={ten ? `/quet?ten=${encodeURIComponent(ten)}` : "/quet"}>Ô tìm mở rộng</Link>
-          </div>
-        </div>
-        <div className="card">
-          <div className="n">999</div>
-          <div className="muted">
-            <Link href={`/top/${kenh}`}>Tên nghiên cứu / kênh</Link>
-          </div>
-        </div>
-      </div>
-
-      <h2>Thống kê từng nền tảng / sàn</h2>
-      <PlatformPanel
-        dashboard={dashboard}
-        base="home"
-        niche={params.niche}
-        extra={{ ten, group: params.group, view }}
-        limit={12}
-      />
 
       {ten.length >= 2 ? (
         <p className="muted">
-          Lọc “{ten}”: {research.length}/{scoped.length} sản phẩm đã lưu. Muốn thêm bài đang chạy trên Facebook,
-          mở <Link href={`/quet?ten=${encodeURIComponent(ten)}`}>hàng đợi Thư viện</Link> — Radar không tự kéo ads.
+          Lọc “{ten}”: {research.length}/{scoped.length} sản phẩm đã lưu.{" "}
+          <Link href={`/quet?ten=${encodeURIComponent(ten)}`}>Mở hàng đợi Thư viện</Link> — Radar không tự kéo ads.
         </p>
       ) : null}
 
-      <h2>Sản phẩm ads mạnh nhất trên kho đã lưu</h2>
-      <p className="muted">
-        Ngưỡng mạnh = điểm nóng ≥ 40 hoặc độ bền ≥ 50 và ≥ 2 ads đang chạy.{" "}
-        <Link href="/manh">Xem playbook + bảng đủ</Link> · <Link href="/tong-hop">Tổng hợp Google / YouTube / sàn</Link>{" "}
-        — không phải ranking toàn quốc.
-      </p>
-      {topStrong.length === 0 ? (
-        <p className="muted">
-          Chưa có sản phẩm đạt ngưỡng. <Link href="/quet">Mở Thư viện</Link> rồi lưu thẻ Active lâu ngày / nhiều
-          page.
-        </p>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Sản phẩm</th>
-              <th>Ngành</th>
-              <th>QC / trang</th>
-              <th>Điểm nóng</th>
-            </tr>
-          </thead>
-          <tbody>
-            {topStrong.map((row, index) => (
-              <tr key={row.clusterSlug}>
-                <td>{index + 1}</td>
-                <td>
-                  <Link href={`/san-pham/${row.clusterSlug}`}>{row.clusterTitle}</Link>
-                </td>
-                <td>{row.nicheName}</td>
-                <td>
-                  {row.activeAdCount} / {row.distinctPageCount}
-                </td>
-                <td>
-                  <span className="badge warn">{row.scores.heat} ước lượng</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      {view === "ads" ? (
+        cards.length === 0 ? (
+          <p className="muted">
+            Chưa có thẻ khớp. <Link href="/collect">Nhập số / lưu ads</Link> hoặc{" "}
+            <Link href={ten ? `/quet?ten=${encodeURIComponent(ten)}` : "/quet"}>Quét cành</Link>.
+          </p>
+        ) : (
+          <SpyGrid cards={cards} boards={boards} tagsById={tagsById} />
+        )
+      ) : null}
 
-      <h2>Ngành đang chạy mạnh</h2>
-      <p className="muted">
-        Ngành có ít nhất một sản phẩm điểm nóng ≥ 40 hoặc quảng cáo bền (≥ 50 độ bền và ≥ 2 quảng cáo
-        đang chạy).{" "}
-        <Link href="/nganh">Xem đủ {coverage.totalNiches} ngành</Link>.
-      </p>
-      {hot.length === 0 ? (
-        <p className="muted">Chưa đủ dữ liệu để đánh dấu ngành nóng.</p>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Ngành hàng</th>
-              <th>Nhóm</th>
-              <th>Quảng cáo</th>
-              <th>Sản phẩm mạnh</th>
-              <th>Điểm nóng cao nhất</th>
-              <th>Tỷ trọng QC</th>
-            </tr>
-          </thead>
-          <tbody>
-            {hot.map((row) => (
-              <tr key={row.nicheSlug}>
-                <td>
-                  <Link href={`/?niche=${row.nicheSlug}`}>{row.nicheName}</Link>
-                </td>
-                <td>{row.group}</td>
-                <td>{row.activeAdCount}</td>
-                <td>{row.strongProductCount}</td>
-                <td>
-                  <span className="badge">{row.maxHeat} ước lượng</span>
-                </td>
-                <td>{row.shareOfAds}%</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      {view === "grid" ? <ResearchGrid rows={research} /> : null}
 
-      <h2>Lọc theo nhóm / ngành</h2>
-      <div className="filters">
-        <Link href={researchHref("/", { ...query, group: undefined, niche: undefined })} className={!params.group && !params.niche ? "on" : ""}>
-          Tất cả nhóm
-        </Link>
-        {NICHE_GROUPS.map((group) => (
-          <Link
-            key={group}
-            href={researchHref("/", query, { group, niche: undefined })}
-            className={params.group === group ? "on" : ""}
-          >
-            {group}
-          </Link>
-        ))}
-      </div>
-      <div className="filters">
-        <Link href={researchHref("/", { ...query, niche: undefined })} className={!params.niche ? "on" : ""}>
-          Tất cả ngành
-        </Link>
-        {visibleNiches.map((n) => (
-          <Link
-            key={n.slug}
-            href={researchHref("/", query, { niche: n.slug })}
-            className={params.niche === n.slug ? "on" : ""}
-          >
-            {n.nameVi}
-          </Link>
-        ))}
-      </div>
-
-      <h2>Xếp hạng điểm nóng Facebook (kho đã lưu)</h2>
-      <p className="muted">
-        Bảng này vẫn là ads Facebook đã lưu. Muốn Shopee / Lazada / Google / YouTube: chip phía trên hoặc{" "}
-        <Link href="/kenh/shopee">/kenh/shopee</Link>.
-      </p>
-      {view === "grid" ? (
-        <ResearchGrid rows={research} />
-      ) : (
+      {view === "table" ? (
         <table className="rankings">
           <thead>
             <tr>
@@ -318,14 +221,15 @@ export default async function HomePage({ searchParams }: Props) {
             ))}
           </tbody>
         </table>
-      )}
-      {research.length === 0 ? (
+      ) : null}
+
+      {view === "999" && bestsellers ? <BestsellerPanel page={bestsellers} /> : null}
+
+      {(view === "table" || view === "grid") && research.length === 0 ? (
         <p className="muted">
-          {ten.length >= 2
-            ? "Không khớp sản phẩm đã lưu với bộ lọc này."
-            : "Chưa có dữ liệu."}{" "}
+          {ten.length >= 2 ? "Không khớp sản phẩm đã lưu với bộ lọc này." : "Chưa có dữ liệu."}{" "}
           <Link href={ten ? `/quet?ten=${encodeURIComponent(ten)}` : "/quet"}>Mở hàng đợi ~1.000.000 ô tìm</Link>,{" "}
-          <Link href="/collect">lưu quảng cáo từ Thư viện</Link> hoặc chạy <code>pnpm db:seed</code>.
+          <Link href="/collect">lưu quảng cáo từ Thư viện</Link>.
         </p>
       ) : null}
     </>

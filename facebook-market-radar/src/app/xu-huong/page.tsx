@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { adRunSummary } from "@/domain/product-watch";
-import { parsePlatformTab } from "@/domain/platform-dashboards";
+import { parsePlatformTab, platformTab } from "@/domain/platform-dashboards";
 import { TRENDING_DEFAULT_PLATFORM } from "@/domain/app-nav";
 import { ProductCell } from "@/ui/product-cell";
-import { PlatformPanel } from "@/ui/platform-panel";
 import { PlatformWall } from "@/ui/platform-wall";
 import { BestsellerPanel } from "@/ui/bestseller-panel";
 import { ResearchGrid } from "@/ui/research-grid";
+import { PageHead } from "@/ui/page-head";
 import { getRadarService } from "@/server/radar";
 
 export const dynamic = "force-dynamic";
@@ -20,28 +20,30 @@ export default async function TrendPage({ searchParams }: Props) {
   const nowMs = Date.now();
   const service = getRadarService();
   const kenh = parsePlatformTab(params.kenh, TRENDING_DEFAULT_PLATFORM);
-  const [{ trending, fresh, hooks }, dashboard, bestsellers] = await Promise.all([
+  const [{ trending, fresh, hooks }, bestsellers] = await Promise.all([
     service.listTrendLanes(nowMs),
-    service.listPlatformDashboard(nowMs, kenh),
     service.listPlatformBestsellers(nowMs, kenh, { trang: 1 }),
   ]);
   return (
     <>
-      <p className="eyebrow">Mọi nền tảng</p>
-      <h1>Xu hướng Shopee · Google · YouTube · Facebook</h1>
-      <div className="banner">
-        Mỗi ô dưới là <strong>một nền tảng</strong> — 999 tên nghiên cứu, không phải GMV toàn quốc. Bấm Shopee /
-        Google / YouTube. Lưới Facebook phía dưới chỉ là thẻ <strong>bạn đã lưu</strong>. Radar không crawl.
-      </div>
+      <PageHead
+        eyebrow="Mọi nền tảng"
+        title="Xu hướng Shopee · Google · YouTube · Facebook"
+        lede="Mỗi ô là một nền tảng — 999 tên nghiên cứu, không phải GMV toàn quốc. Lưới Facebook phía dưới chỉ thẻ đã lưu."
+      >
+        <Link className="btn secondary" href={`/kenh/${kenh}`}>
+          Thống kê kho
+        </Link>
+        <Link className="btn" href="/collect">
+          Nhập số
+        </Link>
+      </PageHead>
       <PlatformWall active={kenh} />
       <p className="muted">
-        Đang xem <strong>{dashboard.tab.labelVi}</strong> ·{" "}
-        <Link href={`/top/${kenh}`}>Đủ 999 tên {dashboard.tab.labelVi}</Link> ·{" "}
-        <Link href={`/kenh/${kenh}`}>Thống kê kho</Link> · <Link href="/collect">Nhập số đã bán / ads</Link>
+        Đang xem <strong>{platformTab(kenh).labelVi}</strong> ·{" "}
+        <Link href={`/top/${kenh}`}>Đủ 999 tên</Link> · <Link href={`/kenh/${kenh}`}>Kho {kenh}</Link>
       </p>
       <BestsellerPanel page={bestsellers} />
-      <h2>Kho đã lưu trên {dashboard.tab.labelVi}</h2>
-      <PlatformPanel dashboard={dashboard} base="trend" limit={8} showTimeline={false} />
       <h2>Trending Facebook đã lưu ({trending.length})</h2>
       {trending.length === 0 ? <p className="muted">Chưa đủ thẻ mạnh.</p> : <ResearchGrid rows={trending} />}
       <h2>Fresh / mới nổi ({fresh.length})</h2>

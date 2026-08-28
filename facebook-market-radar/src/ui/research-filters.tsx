@@ -13,6 +13,7 @@ export function ResearchFilters({
   return (
     <form className="research-filters" action={action} method="get">
       {query.view ? <input type="hidden" name="view" value={query.view} /> : null}
+      {query.kenh ? <input type="hidden" name="kenh" value={query.kenh} /> : null}
       <label>
         Tên / hook
         <input name="ten" defaultValue={query.ten ?? ""} placeholder="Serum, Đèn LED…" />
@@ -109,16 +110,16 @@ export function ResearchFilters({
         <input name="shop" defaultValue={query.shop ?? ""} placeholder="shopee:shop-name" />
       </label>
       <label>
-        Sort by
+        Sắp xếp
         <select name="sort" defaultValue={query.sort ?? "heat"}>
           <option value="heat">Heat ước lượng</option>
-          <option value="days">Running days</option>
-          <option value="latest">Latest creatives</option>
-          <option value="lastSeen">Last seen</option>
+          <option value="days">Ngày chạy</option>
+          <option value="latest">Creative mới</option>
+          <option value="lastSeen">Vừa thấy</option>
         </select>
       </label>
       <div className="watch-actions">
-        <button type="submit">Apply filters</button>
+        <button type="submit">Áp dụng</button>
         <a className="btn secondary" href={action}>
           Xóa lọc
         </a>

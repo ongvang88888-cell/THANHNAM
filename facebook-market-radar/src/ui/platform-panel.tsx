@@ -18,6 +18,7 @@ export function PlatformPanel({
   extra,
   limit,
   showTimeline = true,
+  showCoverage = true,
 }: {
   dashboard: PlatformDashboard;
   base: "home" | "kenh" | "trend";
@@ -25,6 +26,7 @@ export function PlatformPanel({
   extra?: Record<string, string | undefined>;
   limit?: number;
   showTimeline?: boolean;
+  showCoverage?: boolean;
 }) {
   const tab = dashboard.tab.id;
   const ranked = limit ? dashboard.ranked.slice(0, limit) : dashboard.ranked;
@@ -45,7 +47,7 @@ export function PlatformPanel({
         · <Link href={`/top/${tab}`}>999 tên nghiên cứu</Link> · <Link href="/collect">Nhập số</Link> ·{" "}
         <Link href="/tong-hop">Bảng đủ cột</Link>
       </p>
-      <div className="cards platform-coverage">
+      {showCoverage ? <div className="cards platform-coverage">
         {dashboard.coverage.map((card) => (
           <Link
             key={card.id}
@@ -68,7 +70,7 @@ export function PlatformPanel({
             <div className="muted">Cập nhật: {formatObservedVi(card.lastObservedMs, dashboard.recomputedMs)}</div>
           </Link>
         ))}
-      </div>
+      </div> : null}
       <PlatformRankTable tab={tab} rows={ranked} nowMs={dashboard.recomputedMs} />
       {dashboard.ranked.length > ranked.length ? (
         <p>

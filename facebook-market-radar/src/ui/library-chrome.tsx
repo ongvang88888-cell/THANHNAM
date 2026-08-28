@@ -1,14 +1,11 @@
+import { TOP_PLATFORM_PILLS } from "@/domain/app-nav";
+import { parsePlatformTab, type PlatformTabId } from "@/domain/platform-dashboards";
 import type { ResearchQuery } from "./research-query";
 import { researchHref } from "./research-query";
 
-const NETWORKS = [
-  { id: "facebook", label: "Facebook", on: true },
-  { id: "instagram", label: "Instagram", on: false },
-  { id: "tiktok", label: "TikTok", on: false },
-  { id: "youtube", label: "YouTube", on: false },
-  { id: "x", label: "X", on: false },
-  { id: "pinterest", label: "Pinterest", on: false },
-] as const;
+export function libraryChromePlatforms(): readonly { id: string; href: string; label: string }[] {
+  return TOP_PLATFORM_PILLS;
+}
 
 function chip(label: string, href: string) {
   return (
@@ -18,10 +15,19 @@ function chip(label: string, href: string) {
   );
 }
 
-export function LibraryChrome({ query, action = "/" }: { query: ResearchQuery; action?: string }) {
+export function LibraryChrome({
+  query,
+  action = "/",
+  defaultPlatform = "shopee",
+}: {
+  query: ResearchQuery;
+  action?: string;
+  defaultPlatform?: PlatformTabId;
+}) {
+  const active = parsePlatformTab(query.kenh, defaultPlatform);
   const chips: Array<{ label: string; href: string }> = [];
   if (query.ten) {
-    chips.push({ label: `Keyword: ${query.ten}`, href: researchHref(action, query, { ten: undefined }) });
+    chips.push({ label: `Từ khóa: ${query.ten}`, href: researchHref(action, query, { ten: undefined }) });
   }
   if (query.group) {
     chips.push({ label: `Nhóm: ${query.group}`, href: researchHref(action, query, { group: undefined }) });
@@ -62,36 +68,26 @@ export function LibraryChrome({ query, action = "/" }: { query: ResearchQuery; a
 
   return (
     <div className="spy-chrome">
-      <div className="spy-modes">
-        <span className="on">Ad Info Search</span>
-        <span className="off" title="Không so khớp ảnh/video trên Facebook">
-          Feature Search
-        </span>
-        <span className="off" title="Không upload creative để tìm similar trên kho ads">
-          Visual Search
-        </span>
-      </div>
-      <div className="spy-industries">
-        <span className="on">E-commerce</span>
-        <span className="off">Game</span>
-        <span className="off">Tool</span>
-      </div>
-      <div className="spy-networks" aria-label="Mạng">
-        {NETWORKS.map((net) => (
-          <span key={net.id} className={`net-pill${net.on ? " on" : " off"}`} title={net.on ? "VN · thẻ đã lưu" : "Chưa có dữ liệu — không crawl"}>
+      <div className="spy-networks" aria-label="Nền tảng và sàn">
+        {libraryChromePlatforms().map((net) => (
+          <a
+            key={net.id}
+            href={net.href}
+            className={`net-pill${net.id === active ? " on" : ""}`}
+          >
             {net.label}
-          </span>
+          </a>
         ))}
-        <span className="net-pill">Country: VN</span>
-        <span className="net-pill">Language: VI</span>
       </div>
       <div className="spy-selected">
-        <strong>Selected</strong>
-        {chips.length === 0 ? <span className="muted">Industry: E-commerce · Time: trên thẻ đã lưu</span> : null}
+        <strong>Đang lọc</strong>
+        {chips.length === 0 ? (
+          <span className="muted">Kho đã lưu · số bạn nhập · không crawl</span>
+        ) : null}
         {chips.map((item) => chip(item.label, item.href))}
         {chips.length > 0 ? (
           <a className="spy-chip clear" href={action}>
-            Clear
+            Xóa lọc
           </a>
         ) : null}
       </div>

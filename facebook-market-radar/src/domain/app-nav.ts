@@ -11,10 +11,10 @@ export type AppNavGroup = {
   items: readonly AppNavItem[];
 };
 
-/** Trending mở Shopee trước — user đang tìm sàn, không phải Facebook. */
+/** Trending và tổng quan mở Shopee trước — user đang tìm sàn. */
 export const TRENDING_DEFAULT_PLATFORM: PlatformTabId = "shopee";
 
-/** Thứ tự trên menu / pill: sàn và Google/YouTube trước Facebook. */
+/** Thứ tự thống kê: sàn và Google/YouTube trước Facebook. */
 export const PLATFORM_MENU_ORDER: readonly PlatformTabId[] = [
   "shopee",
   "lazada",
@@ -27,38 +27,45 @@ export const PLATFORM_MENU_ORDER: readonly PlatformTabId[] = [
   "instagram",
 ];
 
-/** Menu người dùng đang mở trên mobile — nền tảng phải là dòng đầu, cùng kiểu Ad Search. */
+/** Menu khoa học: nền tảng trước, rồi phân tích, rồi kho. */
 export const APP_NAV_GROUPS: readonly AppNavGroup[] = [
   {
-    title: "Nền tảng / sàn",
+    title: "Nền tảng",
     items: [
-      { href: "/kenh/shopee", label: "Shopee", vi: "Sàn — số đã nhập" },
+      { href: "/kenh/shopee", label: "Shopee", vi: "Đã bán đã nhập" },
       { href: "/kenh/lazada", label: "Lazada", vi: "Sàn" },
       { href: "/kenh/tiki", label: "Tiki", vi: "Sàn" },
       { href: "/kenh/sendo", label: "Sendo", vi: "Sàn" },
       { href: "/kenh/google", label: "Google", vi: "Ads Transparency" },
-      { href: "/kenh/youtube", label: "YouTube", vi: "Video / ads đã đếm" },
+      { href: "/kenh/youtube", label: "YouTube", vi: "Video / ads đếm" },
       { href: "/kenh/tiktok", label: "TikTok", vi: "Shop + ads" },
-      { href: "/kenh/facebook", label: "Facebook", vi: "Thư viện ads đã lưu" },
+      { href: "/kenh/facebook", label: "Facebook", vi: "Ads đã lưu" },
       { href: "/kenh/instagram", label: "Instagram", vi: "Placement IG" },
-      { href: "/top/shopee", label: "999 products", vi: "999 tên / mỗi kênh" },
+      { href: "/top/shopee", label: "999 tên", vi: "Catalog / kênh" },
     ],
   },
   {
-    title: "Ad Library",
+    title: "Phân tích",
     items: [
-      { href: "/", label: "Ad Library", vi: "Thư viện ads" },
-      { href: "/quet", label: "Ad Search", vi: "Quét cành" },
-      { href: "/theo-doi", label: "Ad Pages", vi: "Theo dõi trang" },
-      { href: "/xu-huong", label: "Trending", vi: "Xu hướng mọi nền tảng" },
-      { href: "/nganh", label: "Rankings", vi: "Xếp hạng ngành" },
-      { href: "/bo-suu-tap", label: "Collection", vi: "Bộ sưu tập" },
-      { href: "/collect", label: "Save Ad", vi: "Lưu quảng cáo" },
-      { href: "/ads", label: "Saved Ads", vi: "Ads đã lưu" },
-      { href: "/alerts", label: "Alerts", vi: "Cảnh báo" },
-      { href: "/own-ads", label: "My Ads", vi: "Tài khoản của tôi" },
-      { href: "/report", label: "Report", vi: "Báo cáo tuần" },
-      { href: "/niches", label: "Niches", vi: "Danh mục ngành" },
+      { href: "/", label: "Tổng quan", vi: "KPI + đa kênh" },
+      { href: "/xu-huong", label: "Xu hướng", vi: "Mọi nền tảng" },
+      { href: "/nganh", label: "Ngành", vi: "Xếp hạng ước lượng" },
+      { href: "/tong-hop", label: "Tổng hợp", vi: "Bảng đủ cột" },
+      { href: "/manh", label: "Ads mạnh", vi: "Ngưỡng trên kho" },
+      { href: "/quet", label: "Quét cành", vi: "URL Thư viện" },
+    ],
+  },
+  {
+    title: "Kho",
+    items: [
+      { href: "/ads", label: "Ads đã lưu", vi: "Từng thẻ" },
+      { href: "/collect", label: "Nhập số", vi: "Collect + sàn" },
+      { href: "/theo-doi", label: "Theo dõi", vi: "Trang đã lưu" },
+      { href: "/bo-suu-tap", label: "Bộ sưu tập", vi: "Swipe file" },
+      { href: "/alerts", label: "Cảnh báo", vi: "Trên kho" },
+      { href: "/report", label: "Báo cáo", vi: "Tuần" },
+      { href: "/own-ads", label: "Ads của tôi", vi: "Tài khoản" },
+      { href: "/niches", label: "Danh mục", vi: "26 ngành" },
     ],
   },
 ];
@@ -92,7 +99,7 @@ export function platformIdFromPath(pathname: string, kenh?: string | null): Plat
   if (top?.[1] && PLATFORM_TABS.some((tab) => tab.id === top[1])) {
     return top[1] as PlatformTabId;
   }
-  if (pathname === "/xu-huong" || pathname.startsWith("/xu-huong/")) {
+  if (pathname === "/xu-huong" || pathname.startsWith("/xu-huong/") || pathname === "/") {
     return TRENDING_DEFAULT_PLATFORM;
   }
   return "facebook";
