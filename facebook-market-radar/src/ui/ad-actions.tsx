@@ -70,17 +70,20 @@ export function AdActions({
           <button type="submit">Collect</button>
         </form>
       ) : null}
-      <form onSubmit={(event) => void saveTags(event)}>
-        {CREATIVE_ANGLES.map((angle) => (
-          <label key={angle}>
-            <input type="checkbox" name="tags" value={angle} defaultChecked={initialTags.includes(angle)} />
-            {CREATIVE_ANGLE_VI[angle]}
-          </label>
-        ))}
-        <button type="submit" className="secondary">
-          Tags
-        </button>
-      </form>
+      <details className="ad-tags">
+        <summary>Tags</summary>
+        <form onSubmit={(event) => void saveTags(event)}>
+          {CREATIVE_ANGLES.map((angle) => (
+            <label key={angle}>
+              <input type="checkbox" name="tags" value={angle} defaultChecked={initialTags.includes(angle)} />
+              {CREATIVE_ANGLE_VI[angle]}
+            </label>
+          ))}
+          <button type="submit" className="secondary">
+            Save tags
+          </button>
+        </form>
+      </details>
       {error ? <p className="err">{error}</p> : null}
       {ok ? <p className="ok">{ok}</p> : null}
     </div>

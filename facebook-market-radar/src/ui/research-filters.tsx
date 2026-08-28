@@ -101,7 +101,7 @@ export function ResearchFilters({
         <input name="maxPrice" inputMode="numeric" defaultValue={query.maxPrice ?? ""} />
       </label>
       <label>
-        Shop / landing đã dán
+        Shop
         <input name="shop" defaultValue={query.shop ?? ""} placeholder="shopee:shop-name" />
       </label>
       <label>

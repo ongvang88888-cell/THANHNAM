@@ -439,6 +439,12 @@ tr.scan-uncovered td { background: #fff7ed; }
 .ad-actions { display: grid; gap: 8px; }
 .ad-actions form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .ad-actions label { display: flex; gap: 6px; align-items: center; font-size: 0.72rem; }
+.ad-tags summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
 
 @media (max-width: 960px) {
   .spy-app { grid-template-columns: 1fr; }
