@@ -43,6 +43,10 @@ import {
   type PlatformTabId,
 } from "../domain/platform-dashboards";
 import {
+  buildPlatformBestsellerPage,
+  type PlatformBestsellerPage,
+} from "../domain/platform-bestsellers";
+import {
   parseChannelMetricSource,
   type ChannelMetricSource,
   type ChannelSort,
@@ -415,6 +419,21 @@ export class RadarService {
       tab: parsed,
       nowMs,
       titleBySlug,
+    });
+  }
+
+  async listPlatformBestsellers(
+    nowMs: number,
+    tab: string | PlatformTabId = "shopee",
+    opts: { niche?: string; q?: string; trang?: number } = {},
+  ): Promise<PlatformBestsellerPage> {
+    const warehouse = await this.listChannelAnalysis(nowMs, "tong");
+    return buildPlatformBestsellerPage({
+      tab,
+      niche: opts.niche,
+      q: opts.q,
+      trang: opts.trang,
+      warehouse,
     });
   }
 

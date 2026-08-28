@@ -338,6 +338,12 @@ describe("RadarService", () => {
     const youtube = await service.listPlatformDashboard(now, "youtube");
     expect(youtube.withDataCount).toBeGreaterThan(0);
     expect(youtube.ranked.some((row) => row.youtubeViews === 50_000)).toBe(true);
+    const top = await service.listPlatformBestsellers(now, "lazada", { q: "đèn LED cảm ứng" });
+    expect(top.autoCrawl).toBe(false);
+    expect(top.nationalDump).toBe(false);
+    expect(top.total).toBeGreaterThan(0);
+    expect(top.rows.some((row) => row.overlay?.soldLazada === 400)).toBe(true);
+    expect(top.rows.every((row) => row.officialUrl.startsWith("https://"))).toBe(true);
   });
 
   it("records a channel observation with collect-key authz", async () => {

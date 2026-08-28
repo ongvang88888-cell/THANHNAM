@@ -47,6 +47,7 @@ export default async function PlatformDashboardPage({ params, searchParams }: Pr
       </div>
       <PlatformPanel dashboard={dashboard} base="kenh" niche={niche} />
       <p className="muted">
+        <Link href={`/top/${tab}`}>999 tên nghiên cứu {dashboard.tab.labelVi}</Link> ·{" "}
         <Link href="/">Về trang chủ</Link> · <Link href="/tong-hop">Bảng đủ cột</Link> ·{" "}
         <Link href="/collect">Nhập đã bán / ads đếm tay</Link>
       </p>

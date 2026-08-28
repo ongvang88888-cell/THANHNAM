@@ -221,7 +221,7 @@ export const DATA_SOURCES: readonly DataSource[] = [
     status: "wired",
     vnCommercial: "yes",
     radarPort: "manual",
-    ingestPath: "/api/collect + /api/kenh + /api/theo-doi",
+    ingestPath: "/api/collect + /api/kenh + /api/top + /api/theo-doi",
     provides: [
       "listingPriceVnd",
       "shopeeSold",

@@ -4,7 +4,7 @@ Nghiên cứu mọi đường **có thật** để thống kê sản phẩm vừ
 
 **Kết luận khóa:** không có dump chính thức “top bán chạy + top ads VN” trên bất kỳ kênh nào. Radar cộng **thẻ Facebook đã lưu** với **số user tự đọc rồi nhập**. Mọi điểm tổng hợp là **ước lượng**. Server **không HTTP GET** facebook.com, adstransparency.google.com, youtube.com, shopee.vn, lazada.vn, tiki.vn, sendo.vn, tiktok.com.
 
-UI: chip nền tảng trên `/` · `/kenh/[facebook|instagram|google|youtube|tiktok|shopee|lazada|tiki|sendo]` · `/tong-hop` · API: `GET /api/kenh?tab=` + `GET /api/tong-hop` (`estimated: true`, `autoCrawl: false`, `facebookNationalDump: false`, `nationalSalesDump: false`) · ghi thêm: `POST /api/kenh`.
+UI: chip nền tảng trên `/` · `/kenh/[facebook|instagram|google|youtube|tiktok|shopee|lazada|tiki|sendo]` · `/top/[cùng slugs]` (999 tên nghiên cứu / kênh, 50 dòng/trang) · `/tong-hop` · API: `GET /api/kenh?tab=` + `GET /api/top?tab=` + `GET /api/tong-hop` (`estimated: true`, `autoCrawl: false`, `facebookNationalDump: false`, `nationalSalesDump: false`) · ghi thêm: `POST /api/kenh`.
 
 **Tự động liên tục** = tính lại từ kho mỗi lần mở trang và mỗi 30 giây (tab đang mở). **Không** có crawler Shopee / Lazada / Google / YouTube / Facebook.
 
@@ -55,6 +55,14 @@ Licensed feed **không** được trỏ vào host sàn / Transparency / YouTube 
 - Gọi Google Ads Transparency API như thể đó là kho bán hàng VN (API chủ yếu EEA)
 - Trộn views YouTube vào proxy bán / HeatScore
 - Trộn spend tài khoản của bạn vào bảng thị trường
-- Seed bảng “top toàn quốc” giả
+- Seed bảng “top toàn quốc” giả / invent GMV cho catalog 999 tên
+
+## 5. Catalog 999 tên / kênh (`/top`)
+
+Cùng **999 tên nghiên cứu** trên mọi nền tảng (26 ngành, round-robin, SKU sâu từ lexicon). Mỗi kênh **chỉ đổi thứ tự** theo ngành hay gặp trên kênh đó (Shopee: mẹ bé / thực phẩm; YouTube: điện tử / khóa học…). Mỗi dòng có URL chính thức (Ad Library, Ads Transparency, YouTube, Creative Center, Shopee, Lazada, Tiki, Sendo). User tự mở — server không HTTP GET.
+
+Cột số kho chỉ hiện khi tiêu đề catalog khớp mạnh cụm đã lưu (≥2 token hoặc normalize trùng). Một từ “serum” không ăn số của “serum vitamin c”. Lượt xem YouTube không phải đơn hàng.
+
+`GET /api/top?tab=shopee&trang=1` trả `nationalDump: false`, `autoCrawl: false`.
 
 Facebook-only: [SOURCES.md](./SOURCES.md). Sản phẩm: [PRODUCT.md](./PRODUCT.md).

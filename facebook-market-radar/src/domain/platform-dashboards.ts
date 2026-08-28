@@ -449,9 +449,22 @@ export function buildPlatformDashboard(input: {
 
 export function platformHref(
   tab: PlatformTabId,
-  opts: { base?: "home" | "kenh"; niche?: string; extra?: Record<string, string | undefined> } = {},
+  opts: { base?: "home" | "kenh" | "top"; niche?: string; extra?: Record<string, string | undefined> } = {},
 ): string {
   const niche = opts.niche?.trim();
+  if (opts.base === "top") {
+    const params = new URLSearchParams();
+    if (niche) {
+      params.set("niche", niche);
+    }
+    for (const [key, value] of Object.entries(opts.extra ?? {})) {
+      if (value?.trim() && key !== "kenh" && key !== "tab") {
+        params.set(key, value.trim());
+      }
+    }
+    const query = params.toString();
+    return query ? `/top/${tab}?${query}` : `/top/${tab}`;
+  }
   if (opts.base === "kenh" || opts.base === undefined) {
     const params = new URLSearchParams();
     if (niche) {

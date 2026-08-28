@@ -39,6 +39,7 @@ Trên dữ liệu user đã lưu (+ feed licensed nếu có), Radar có các b�
 2. **Trending / Fresh** `/xu-huong` — mạnh (điểm nóng / độ bền) vs mới thấy ≤ 7 ngày hoặc tốc độ mới cao.
 2b. **Ads mạnh nhất** `/manh` — playbook hợp pháp + bảng sản phẩm đạt ngưỡng mạnh trên kho đã lưu (điểm nóng ≥ 40 hoặc độ bền ≥ 50 và ≥ 2 ads đang chạy). Không có dump Facebook toàn quốc.
 2c. **Tổng hợp đa kênh** `/tong-hop` + **bảng từng nền tảng** trên trang chủ và `/kenh/[nền-tảng]` — ads Facebook đã lưu + đã bán sàn + ads Google/YouTube/TikTok user đếm + views YouTube. Tính lại liên tục từ kho; không crawl. Không có dump bán chạy toàn quốc. Chi tiết [CHANNELS.md](./CHANNELS.md).
+2d. **999 tên nghiên cứu / kênh** `/top/[nền-tảng]` — catalog sâu (không phải GMV live). Cùng 999 tên, xếp lại theo ngành ưu tiên từng sàn / ads. Overlay số kho khi khớp mạnh tiêu đề. Phân trang 50. API `GET /api/top`.
 3. **Lưới creative** `/?view=grid` — hover hiện hook từ copy đã lưu.
 4. **Bộ lọc** trên `/` — ngày chạy, số trang, landing, Shopee/TikTok/Lazada/Tiki/Sendo/YouTube/web, góc, media, giá, shop key, làn.
 5. **Watch Page** `/theo-doi` — cảnh báo khi user lưu thẻ mới từ trang đó (không crawl 24/7).

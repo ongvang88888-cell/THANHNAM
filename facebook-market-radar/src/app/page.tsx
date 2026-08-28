@@ -84,6 +84,7 @@ export default async function HomePage({ searchParams }: Props) {
         <Link href="/manh">Ads mạnh nhất</Link>
         <Link href="/tong-hop">Tổng hợp kênh</Link>
         <Link href={`/kenh/${kenh}`}>Trang kênh đủ</Link>
+        <Link href={`/top/${kenh}`}>999 tên / {kenh}</Link>
         <Link href="/xu-huong">Xu hướng / hook</Link>
         <Link href="/bo-suu-tap">Bộ sưu tập</Link>
       </div>
@@ -126,6 +127,12 @@ export default async function HomePage({ searchParams }: Props) {
           <div className="n">~{MEGA_SCAN_CAP.toLocaleString("vi-VN")}</div>
           <div className="muted">
             <Link href={ten ? `/quet?ten=${encodeURIComponent(ten)}` : "/quet"}>Ô tìm mở rộng</Link>
+          </div>
+        </div>
+        <div className="card">
+          <div className="n">999</div>
+          <div className="muted">
+            <Link href={`/top/${kenh}`}>Tên nghiên cứu / kênh</Link>
           </div>
         </div>
       </div>

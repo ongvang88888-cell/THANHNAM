@@ -52,6 +52,7 @@ Chỉ parse query string user dán:
 `GET /api/manh` — sản phẩm đạt ngưỡng mạnh trên kho đã lưu (`estimated: true`, `facebookNationalDump: false`).
 `GET /api/tong-hop` — bảng đa kênh (`estimated: true`, `nationalSalesDump: false`).
 `GET /api/kenh?tab=shopee` — dashboard từng nền tảng (`autoCrawl: false`).
+`GET /api/top?tab=shopee&trang=&niche=&q=` — 999 tên nghiên cứu / kênh, overlay kho nếu khớp mạnh (`nationalDump: false`).
 `POST /api/kenh` — ghi một chỉ số kênh vào cụm đã có (cần `x-fmr-key`).
 `POST /api/collect/sheet` nhập CSV (tối đa 200 dòng), idempotent theo `libraryId`.
 `POST /api/collect` nhận thêm `watchPage` + `tags[]` (góc creative) + sold/ads/views kênh.

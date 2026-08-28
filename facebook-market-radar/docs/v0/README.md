@@ -15,7 +15,7 @@ Xem [niches.csv](./niches.csv). Radar khóa 13 nhóm: Làm đẹp, Sức khỏe,
 3. Ghi ads vào bản sao của [ad-library-sheet.template.csv](./ad-library-sheet.template.csv). Kèm URL ảnh nếu copy được.
 4. Nếu trùng sản phẩm trên Shopee/TikTok/Lazada/Tiki/Sendo: điền cột đã bán tương ứng (proxy ngoài Facebook, không phải doanh số ads). Ads Google/YouTube/TikTok đếm tay và `youtubeViews` (không vào điểm nóng). `listingPriceVnd` nếu nhìn thấy giá niêm yết (ước lượng, không crawl). Bảng tổng hợp: `/tong-hop`.
 5. Trên Radar: gõ tên / từ khóa bài ads ở **Quét cành** hoặc **Theo dõi sản phẩm** để xem bài đang chạy trong dữ liệu đã lưu và mở URL Thư viện.
-6. Xem sản phẩm đạt ngưỡng mạnh trên `/manh` và bảng từng nền tảng trên `/` (chip) / `/kenh/shopee` / `/tong-hop` (kho đã lưu — không phải dump toàn quốc).
+6. Xem sản phẩm đạt ngưỡng mạnh trên `/manh` và bảng từng nền tảng trên `/` (chip) / `/kenh/shopee` / `/tong-hop` (kho đã lưu — không phải dump toàn quốc). Catalog 999 tên nghiên cứu / kênh: `/top/shopee` (không phải GMV toàn sàn).
 7. Sinh báo cáo từ [weekly-report.template.md](./weekly-report.template.md).
 
 ## Tiêu chí “đáng làm Vòng 1”
