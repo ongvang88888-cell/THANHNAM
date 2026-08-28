@@ -169,6 +169,36 @@ describe("RadarService", () => {
     expect(ads.filter((ad) => ad.libraryId === "111000099")).toHaveLength(1);
   });
 
+  it("imports licensed snapshots into the warehouse without claiming competitor ROAS", async () => {
+    const service = await seededService();
+    const result = await service.importNormalizedAds(
+      [
+        {
+          libraryId: "licensed-1",
+          pageId: "900199",
+          pageName: "Licensed Shop",
+          body: "Serum niacinamide",
+          title: "Serum",
+          startDate: "2026-08-01",
+          isActive: true,
+          platforms: ["facebook"],
+          snapshotUrl: null,
+          landingUrl: "https://example.com/serum",
+          imageUrl: null,
+          productHint: "Serum licensed",
+          nicheHint: "my-pham",
+        },
+      ],
+      now,
+      null,
+      undefined,
+    );
+    expect(result.imported).toBe(1);
+    const stats = await service.warehouseStats();
+    expect(stats.adCount).toBeGreaterThanOrEqual(4);
+    expect(stats.productCount).toBeGreaterThanOrEqual(3);
+  });
+
   it("rejects collect when key is required", async () => {
     const service = new RadarService(new MemoryRadarRepository());
     await expect(
@@ -228,6 +258,13 @@ describe("RadarService", () => {
     expect(dossier?.officialSearchUrl).toContain("ads/library");
     const lanes = await service.listTrendLanes(now);
     expect(lanes.trending.length + lanes.fresh.length).toBeGreaterThan(0);
+    const strong = await service.listStrongProducts(now);
+    expect(strong.every((row) => row.scores.heat >= 40 || (row.scores.longevity >= 50 && row.activeAdCount >= 2))).toBe(
+      true,
+    );
+    expect(strong.every((row) => row.scores.estimated)).toBe(true);
+    const heats = strong.map((row) => row.scores.heat);
+    expect(heats).toEqual([...heats].sort((a, b) => b - a));
   });
 
   it("alerts when a watched page gets a newly saved card", async () => {

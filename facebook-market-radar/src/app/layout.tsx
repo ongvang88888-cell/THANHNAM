@@ -17,11 +17,13 @@ export default function RootLayout(props: { children: React.ReactNode }) {
             <strong>Radar FB Việt Nam</strong>
             <nav>
               <Link href="/">Xếp hạng sản phẩm</Link>
+              <Link href="/manh">Ads mạnh nhất</Link>
               <Link href="/xu-huong">Xu hướng</Link>
               <Link href="/nganh">Ngành chạy mạnh</Link>
               <Link href="/theo-doi">Theo dõi</Link>
               <Link href="/bo-suu-tap">Bộ sưu tập</Link>
               <Link href="/quet">Quét cành</Link>
+              <Link href="/nguon">Nguồn dữ liệu</Link>
               <Link href="/collect">Lưu quảng cáo</Link>
               <Link href="/ads">Quảng cáo đã lưu</Link>
               <Link href="/alerts">Cảnh báo</Link>

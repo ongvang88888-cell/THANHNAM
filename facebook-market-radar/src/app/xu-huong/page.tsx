@@ -16,8 +16,8 @@ export default async function TrendPage() {
         nhưng chưa bền. Không phải ranking Facebook toàn quốc. Radar không tự kéo ads.
       </div>
       <p className="muted">
-        <Link href="/?lane=trending">Lọc bảng trending</Link> · <Link href="/?lane=fresh">Lọc fresh</Link> ·{" "}
-        <Link href="/?view=grid">Lưới creative</Link>
+        <Link href="/manh">Sản phẩm ads mạnh nhất</Link> · <Link href="/?lane=trending">Lọc bảng trending</Link> ·{" "}
+        <Link href="/?lane=fresh">Lọc fresh</Link> · <Link href="/?view=grid">Lưới creative</Link>
       </p>
       <h2>Trending ({trending.length})</h2>
       {trending.length === 0 ? <p className="muted">Chưa đủ thẻ mạnh.</p> : <ResearchGrid rows={trending} />}

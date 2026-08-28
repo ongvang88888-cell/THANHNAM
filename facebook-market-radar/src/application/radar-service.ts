@@ -30,12 +30,13 @@ import {
   type SavedFilter,
 } from "../domain/saved-research";
 import { scoreHeat } from "../domain/scoring";
+import { rankStrongProducts } from "../domain/strong-ads";
 import { parseAdLibrarySheet } from "../domain/sheet-import";
 import { buildClusterSignals, maxSold } from "../domain/signals";
 import { weekStartUtc } from "../domain/week";
 import { buildWeeklyReportMarkdown, type RankingRow } from "../domain/weekly-report";
 import { summarizeOwnInsights } from "../domain/own-insights";
-import type { IOwnAdsInsightsProvider } from "../domain/ports";
+import type { IOwnAdsInsightsProvider, NormalizedAd } from "../domain/ports";
 import type {
   IRadarRepository,
   StoredAd,
@@ -350,6 +351,11 @@ export class RadarService {
       ...splitTrendLanes(rows),
       hooks: hookDigest(ads, nicheByCluster),
     };
+  }
+
+  async listStrongProducts(nowMs: number, nicheSlug?: string): Promise<ResearchRow[]> {
+    const rows = await this.listResearch(nowMs, { niche: nicheSlug });
+    return rankStrongProducts(rows);
   }
 
   async listPageWatches(): Promise<StoredPageWatch[]> {
@@ -699,6 +705,62 @@ export class RadarService {
       }
     }
     return { imported, skipped: parsed.skipped, failed, errors };
+  }
+
+  async importNormalizedAds(
+    ads: NormalizedAd[],
+    nowMs: number,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<{ imported: number; failed: number; errors: string[] }> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    if (ads.length > 10_000) {
+      throw new Error("Tối đa 10000 ads mỗi lần nhập licensed");
+    }
+    const errors: string[] = [];
+    let imported = 0;
+    let failed = 0;
+    for (const ad of ads) {
+      try {
+        await this.collectManual(
+          {
+            snapshot: ad,
+            productTitle: ad.productHint ?? ad.title ?? ad.pageName,
+            nicheSlug: ad.nicheHint ?? undefined,
+          },
+          nowMs,
+          collectKey,
+          expectedKey,
+        );
+        imported += 1;
+      } catch (error) {
+        failed += 1;
+        errors.push(`${ad.libraryId}: ${error instanceof Error ? error.message : "Không lưu được"}`);
+      }
+    }
+    return { imported, failed, errors };
+  }
+
+  async warehouseStats(): Promise<{
+    adCount: number;
+    activeAdCount: number;
+    pageCount: number;
+    productCount: number;
+    nicheCount: number;
+  }> {
+    const [ads, pages, clusters] = await Promise.all([
+      this.repo.listAds(this.appId),
+      this.repo.listPages(this.appId),
+      this.repo.listClusters(this.appId),
+    ]);
+    const niches = new Set(clusters.map((cluster) => cluster.nicheSlug));
+    return {
+      adCount: ads.length,
+      activeAdCount: ads.filter((ad) => ad.isActive).length,
+      pageCount: pages.length,
+      productCount: clusters.length,
+      nicheCount: niches.size,
+    };
   }
 
   async weeklyReport(nowMs: number): Promise<string> {

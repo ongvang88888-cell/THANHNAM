@@ -27,7 +27,7 @@ Hướng dẫn Nginx + systemd (không chứa mật khẩu): [docs/DEPLOYMENT.md
 
 Đọc [docs/v0/README.md](./docs/v0/README.md) và [docs/PRODUCT.md](./docs/PRODUCT.md).
 
-Hàng đợi quét: `/quet` — mở URL Thư viện (VN, đang chạy) theo cành catalog, ~1.000.000 ô tìm tên sản phẩm mở rộng, biến thể tên, và từ khóa trong bài ads đã lưu. Ô tìm trên `/quet?ten=` khớp tên + nội dung ads. Bảng `/` chỉ ads đã lưu. Soi thêm: `/xu-huong`, `/san-pham/[slug]`, `/bo-suu-tap`, lưới `/?view=grid`. Extension unpacked: `extension/`. Radar không tự kéo Facebook.
+Hàng đợi quét: `/quet` — mở URL Thư viện (VN, đang chạy) theo cành catalog, ~1.000.000 ô tìm tên sản phẩm mở rộng, biến thể tên, và từ khóa trong bài ads đã lưu. Ô tìm trên `/quet?ten=` khớp tên + nội dung ads. Bảng `/` chỉ ads đã lưu. Nguồn nào đồng bộ được vào kho: `/nguon` và [docs/SOURCES.md](./docs/SOURCES.md). Soi thêm: `/manh` (sản phẩm ads mạnh trên kho đã lưu), `/xu-huong`, `/san-pham/[slug]`, `/bo-suu-tap`, lưới `/?view=grid`. Extension unpacked: `extension/`. Radar không tự kéo Facebook.
 
 ## Scripts
 
