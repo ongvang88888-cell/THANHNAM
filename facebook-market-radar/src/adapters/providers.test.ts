@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { HttpLicensedFeedReader } from "./http-licensed-reader";
+import { YoutubeDataApiProvider } from "./youtube-data-api";
 import { LicensedAdIndexProvider, JsonLicensedFeedReader } from "./licensed-provider";
 import { ManualAdIndexProvider } from "./manual-provider";
 import {
@@ -56,5 +58,44 @@ describe("IAdIndexProvider adapters", () => {
     });
     expect(rows.length).toBe(2);
     expect(rows[0]?.spendMinor).toBe(150);
+  });
+
+  it("http licensed reader refuses Facebook hosts and reads vendor JSON", async () => {
+    await expect(
+      new HttpLicensedFeedReader("https://graph.facebook.com/v26.0/ads_archive", "secret").read(),
+    ).rejects.toThrow(/Facebook/);
+    const reader = new HttpLicensedFeedReader(
+      "https://vendor.example.com/feed",
+      "secret-token",
+      async (url, init) => {
+        expect(url).toBe("https://vendor.example.com/feed");
+        expect(init.headers).toMatchObject({ Authorization: "secret-token" });
+        return new Response(JSON.stringify({ ads: [sample] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      },
+    );
+    const payload = (await reader.read()) as { ads: unknown[] };
+    expect(payload.ads).toHaveLength(1);
+  });
+
+  it("YouTube Data API only hits googleapis videos.list and never youtube.com", async () => {
+    const empty = new YoutubeDataApiProvider("");
+    expect(empty.enabled).toBe(false);
+    const provider = new YoutubeDataApiProvider("test-key", async (url) => {
+      const parsed = new URL(url);
+      expect(parsed.hostname).toBe("www.googleapis.com");
+      expect(parsed.pathname).toBe("/youtube/v3/videos");
+      expect(parsed.searchParams.get("id")).toBe("dQw4w9wgXcQ");
+      expect(url.includes("youtube.com/watch")).toBe(false);
+      return new Response(
+        JSON.stringify({ items: [{ id: "dQw4w9wgXcQ", statistics: { viewCount: "99" } }] }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    });
+    expect(provider.enabled).toBe(true);
+    const rows = await provider.fetchViewCounts(["dQw4w9wgXcQ", "bad"]);
+    expect(rows).toEqual([{ videoId: "dQw4w9wgXcQ", viewCount: 99 }]);
   });
 });

@@ -5,6 +5,7 @@ import { LOCKED_NICHES, NICHE_GROUPS, nichesInGroup } from "@/domain/niches";
 export default function NichesPage() {
   return (
     <>
+      <p className="eyebrow">Niches</p>
       <h1>Danh mục ngành hàng</h1>
       <p className="muted">
         {LOCKED_NICHES.length} ngành, {NICHE_GROUPS.length} nhóm, {catalogScanQueryCount()} cành từ

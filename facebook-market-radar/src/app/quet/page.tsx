@@ -21,6 +21,7 @@ export default async function ScanPage({ searchParams }: Props) {
 
   return (
     <>
+      <p className="eyebrow">Ad Search</p>
       <h1>Hàng đợi quét nhiều cành</h1>
       <p className="muted">
         {plan.totalBranches} cành catalog ưu tiên, cộng hàng đợi mở rộng ~{MEGA_SCAN_CAP.toLocaleString("vi-VN")}{" "}

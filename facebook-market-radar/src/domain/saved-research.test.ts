@@ -90,6 +90,21 @@ describe("saved-research", () => {
     );
     expect(fresh.lane).toBe("fresh");
     expect(fresh.hasLanding).toBe(false);
+
+    const fromCopy = enrichResearchRow(
+      row({ clusterSlug: "serum-tiki", clusterTitle: "Serum Tiki" }),
+      [
+        ad({
+          libraryId: "9",
+          clusterSlug: "serum-tiki",
+          landingUrl: null,
+          body: "Mua tại https://tiki.vn/serum-p1.html",
+        }),
+      ],
+      now,
+    );
+    expect(fromCopy.hasLanding).toBe(true);
+    expect(fromCopy.landingKinds).toContain("tiki");
   });
 
   it("filters by landing, angle, days and lane", () => {
