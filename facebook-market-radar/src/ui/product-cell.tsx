@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { priceConfidenceLabel, type PriceEstimate } from "@/domain/price";
 
 export function ProductCell({
@@ -5,11 +6,13 @@ export function ProductCell({
   imageUrls,
   price,
   adSummary,
+  href,
 }: {
   title: string;
   imageUrls: string[];
   price?: PriceEstimate | null;
   adSummary?: string;
+  href?: string;
 }) {
   const thumbs = imageUrls.slice(0, 4);
   return (
@@ -20,7 +23,13 @@ export function ProductCell({
         ))}
       </div>
       <div className="product-meta">
-        <span className="product-name">{title}</span>
+        {href ? (
+          <Link className="product-name" href={href}>
+            {title}
+          </Link>
+        ) : (
+          <span className="product-name">{title}</span>
+        )}
         {price ? (
           <span className={`product-price ${price.confidence}`}>
             {price.label}

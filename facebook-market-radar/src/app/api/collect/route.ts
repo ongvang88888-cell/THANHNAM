@@ -55,11 +55,19 @@ export async function POST(request: Request) {
   try {
     const body: unknown = await request.json();
     const input = readCollectInput(body);
+    const raw = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+    const tags = Array.isArray(raw.tags)
+      ? raw.tags.filter((item): item is string => typeof item === "string")
+      : undefined;
     const result = await getRadarService().collectManual(
       input,
       Date.now(),
       request.headers.get("x-fmr-key"),
       expectedCollectKey(),
+      {
+        watchPage: raw.watchPage === true,
+        tags,
+      },
     );
     return NextResponse.json(result);
   } catch (error) {

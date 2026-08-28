@@ -2,9 +2,13 @@ import type { PrismaClient } from "../generated/prisma";
 import type {
   IRadarRepository,
   StoredAd,
+  StoredAdTag,
   StoredAlert,
+  StoredBoard,
+  StoredBoardItem,
   StoredCluster,
   StoredPage,
+  StoredPageWatch,
   StoredSalesProxy,
   StoredSnapshot,
   StoredWatch,
@@ -358,6 +362,136 @@ export class PrismaRadarRepository implements IRadarRepository {
       purchases: row.purchases,
       purchaseValueMinor: row.purchaseValueMinor,
     }));
+  }
+
+  async upsertPageWatch(appId: string, row: StoredPageWatch): Promise<void> {
+    await this.db.pageWatch.upsert({
+      where: { appId_pageId: { appId, pageId: row.pageId } },
+      create: {
+        appId,
+        pageId: row.pageId,
+        pageName: row.pageName,
+        note: row.note,
+        createdAt: new Date(row.createdMs),
+      },
+      update: {
+        pageName: row.pageName,
+        note: row.note,
+      },
+    });
+  }
+
+  async listPageWatches(appId: string): Promise<StoredPageWatch[]> {
+    const rows = await this.db.pageWatch.findMany({
+      where: { appId },
+      orderBy: { createdAt: "desc" },
+    });
+    return rows.map((row) => ({
+      pageId: row.pageId,
+      pageName: row.pageName,
+      note: row.note,
+      createdMs: row.createdAt.getTime(),
+    }));
+  }
+
+  async deletePageWatch(appId: string, pageId: string): Promise<void> {
+    await this.db.pageWatch.deleteMany({ where: { appId, pageId } });
+  }
+
+  async upsertBoard(appId: string, row: StoredBoard): Promise<void> {
+    await this.db.creativeBoard.upsert({
+      where: { appId_slug: { appId, slug: row.slug } },
+      create: {
+        appId,
+        slug: row.slug,
+        name: row.name,
+        note: row.note,
+        createdAt: new Date(row.createdMs),
+      },
+      update: {
+        name: row.name,
+        note: row.note,
+      },
+    });
+  }
+
+  async listBoards(appId: string): Promise<StoredBoard[]> {
+    const rows = await this.db.creativeBoard.findMany({
+      where: { appId },
+      orderBy: { createdAt: "desc" },
+    });
+    return rows.map((row) => ({
+      slug: row.slug,
+      name: row.name,
+      note: row.note,
+      createdMs: row.createdAt.getTime(),
+    }));
+  }
+
+  async deleteBoard(appId: string, slug: string): Promise<void> {
+    await this.db.creativeBoard.deleteMany({ where: { appId, slug } });
+  }
+
+  async addBoardItem(appId: string, row: StoredBoardItem): Promise<void> {
+    const board = await this.db.creativeBoard.findUnique({
+      where: { appId_slug: { appId, slug: row.boardSlug } },
+    });
+    if (!board) {
+      throw new Error("Bộ sưu tập không tồn tại");
+    }
+    await this.db.boardItem.upsert({
+      where: { boardId_libraryId: { boardId: board.id, libraryId: row.libraryId } },
+      create: {
+        appId,
+        boardId: board.id,
+        libraryId: row.libraryId,
+        clusterSlug: row.clusterSlug,
+        createdAt: new Date(row.createdMs),
+      },
+      update: { clusterSlug: row.clusterSlug },
+    });
+  }
+
+  async listBoardItems(appId: string, boardSlug?: string): Promise<StoredBoardItem[]> {
+    const rows = await this.db.boardItem.findMany({
+      where: {
+        appId,
+        ...(boardSlug ? { board: { slug: boardSlug } } : {}),
+      },
+      include: { board: true },
+      orderBy: { createdAt: "desc" },
+    });
+    return rows.map((row) => ({
+      boardSlug: row.board.slug,
+      libraryId: row.libraryId,
+      clusterSlug: row.clusterSlug,
+      createdMs: row.createdAt.getTime(),
+    }));
+  }
+
+  async removeBoardItem(appId: string, boardSlug: string, libraryId: string): Promise<void> {
+    const board = await this.db.creativeBoard.findUnique({
+      where: { appId_slug: { appId, slug: boardSlug } },
+    });
+    if (!board) {
+      return;
+    }
+    await this.db.boardItem.deleteMany({ where: { appId, boardId: board.id, libraryId } });
+  }
+
+  async replaceAdTags(appId: string, libraryId: string, tags: string[]): Promise<void> {
+    await this.db.adTag.deleteMany({ where: { appId, libraryId } });
+    if (tags.length === 0) {
+      return;
+    }
+    await this.db.adTag.createMany({
+      data: tags.map((tag) => ({ appId, libraryId, tag })),
+    });
+  }
+
+  async listAdTags(appId: string): Promise<StoredAdTag[]> {
+    const rows = await this.db.adTag.findMany({ where: { appId } });
+    return rows.map((row) => ({ libraryId: row.libraryId, tag: row.tag }));
   }
 }
 

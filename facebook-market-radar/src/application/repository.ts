@@ -59,6 +59,32 @@ export type StoredWatch = {
   createdMs: number;
 };
 
+export type StoredPageWatch = {
+  pageId: string;
+  pageName: string | null;
+  note: string | null;
+  createdMs: number;
+};
+
+export type StoredBoard = {
+  slug: string;
+  name: string;
+  note: string | null;
+  createdMs: number;
+};
+
+export type StoredBoardItem = {
+  boardSlug: string;
+  libraryId: string;
+  clusterSlug: string;
+  createdMs: number;
+};
+
+export type StoredAdTag = {
+  libraryId: string;
+  tag: string;
+};
+
 export type StoredAlert = {
   type: AlertType;
   title: string;
@@ -87,4 +113,15 @@ export interface IRadarRepository {
   upsertWatch(appId: string, row: StoredWatch): Promise<void>;
   listWatches(appId: string): Promise<StoredWatch[]>;
   deleteWatch(appId: string, slug: string): Promise<void>;
+  upsertPageWatch(appId: string, row: StoredPageWatch): Promise<void>;
+  listPageWatches(appId: string): Promise<StoredPageWatch[]>;
+  deletePageWatch(appId: string, pageId: string): Promise<void>;
+  upsertBoard(appId: string, row: StoredBoard): Promise<void>;
+  listBoards(appId: string): Promise<StoredBoard[]>;
+  deleteBoard(appId: string, slug: string): Promise<void>;
+  addBoardItem(appId: string, row: StoredBoardItem): Promise<void>;
+  listBoardItems(appId: string, boardSlug?: string): Promise<StoredBoardItem[]>;
+  removeBoardItem(appId: string, boardSlug: string, libraryId: string): Promise<void>;
+  replaceAdTags(appId: string, libraryId: string, tags: string[]): Promise<void>;
+  listAdTags(appId: string): Promise<StoredAdTag[]>;
 }

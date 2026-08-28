@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { CREATIVE_ANGLE_VI, CREATIVE_ANGLES } from "@/domain/creative-angles";
+import { classifyLanding, LANDING_KIND_VI } from "@/domain/landing";
 import { NICHE_GROUPS, type NicheDef } from "@/domain/niches";
 import { collectJsonHeaders } from "@/ui/collect-headers";
 import { CollectKeyField } from "@/ui/collect-key-field";
@@ -15,6 +17,8 @@ export function CollectForm({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [landingUrl, setLandingUrl] = useState("");
+  const landingKind = useMemo(() => classifyLanding(landingUrl), [landingUrl]);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -52,6 +56,8 @@ export function CollectForm({
       shopeeSold: shopee ? Number(shopee) : undefined,
       tiktokSold: tiktok ? Number(tiktok) : undefined,
       isActive: form.get("isActive") !== "false",
+      watchPage: form.get("watchPage") === "on",
+      tags: form.getAll("tags").map((item) => String(item)),
     };
     const response = await fetch("/api/collect", {
       method: "POST",
@@ -117,8 +123,27 @@ export function CollectForm({
       </label>
       <label>
         Đường dẫn đích (không bắt buộc)
-        <input name="landingUrl" />
+        <input
+          name="landingUrl"
+          value={landingUrl}
+          onChange={(event) => setLandingUrl(event.target.value)}
+          placeholder="https://shopee.vn/… hoặc landing"
+        />
       </label>
+      <p className="muted">Radar nhận loại đích: {LANDING_KIND_VI[landingKind]} — không mở URL đó.</p>
+      <label className="scan-check">
+        <input type="checkbox" name="watchPage" />
+        Theo dõi trang này (cảnh báo khi bạn lưu thẻ mới — không crawl 24/7)
+      </label>
+      <fieldset className="angle-set">
+        <legend>Góc creative (tùy chọn)</legend>
+        {CREATIVE_ANGLES.map((angle) => (
+          <label className="scan-check" key={angle}>
+            <input type="checkbox" name="tags" value={angle} />
+            {CREATIVE_ANGLE_VI[angle]}
+          </label>
+        ))}
+      </fieldset>
       <label>
         Nội dung quảng cáo (không bắt buộc — nếu có giá kiểu 189.000đ / 189k sẽ được đọc)
         <textarea name="body" rows={3} />

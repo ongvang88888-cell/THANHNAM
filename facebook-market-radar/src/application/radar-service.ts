@@ -1,5 +1,6 @@
 import { detectAlerts, creativeHash, type AlertDraft } from "../domain/alerts";
 import { buildScanLookup, buildScanPlan, type ScanLookup, type ScanPlan } from "../domain/ad-library-scan";
+import { isCreativeAngle } from "../domain/creative-angles";
 import {
   megaScanCount,
   megaScanCountsByNiche,
@@ -14,6 +15,20 @@ import { nicheName } from "../domain/niches";
 import { estimateProductPrice } from "../domain/price";
 import { productImagePath, uniqueImageUrls } from "../domain/product-image";
 import { analyzeProductName, type ProductAdAnalysis } from "../domain/product-watch";
+import {
+  enrichResearchRow,
+  filterResearchRows,
+  hookDigest,
+  buildProductDossier,
+  sanitizeUserTags,
+  splitTrendLanes,
+  watchedPageNewAdAlerts,
+  type HookDigestRow,
+  type ProductDossier,
+  type ResearchRow,
+  type SavedAdLite,
+  type SavedFilter,
+} from "../domain/saved-research";
 import { scoreHeat } from "../domain/scoring";
 import { parseAdLibrarySheet } from "../domain/sheet-import";
 import { buildClusterSignals, maxSold } from "../domain/signals";
@@ -24,11 +39,22 @@ import type { IOwnAdsInsightsProvider } from "../domain/ports";
 import type {
   IRadarRepository,
   StoredAd,
+  StoredAdTag,
   StoredAlert,
+  StoredBoard,
+  StoredBoardItem,
   StoredCluster,
+  StoredPageWatch,
   StoredSnapshot,
   StoredWatch,
 } from "./repository";
+
+const ID_RE = /^[0-9A-Za-z._-]{1,64}$/;
+
+export type CollectExtras = {
+  watchPage?: boolean;
+  tags?: string[];
+};
 
 export const DEFAULT_APP_ID = "fmr_vn";
 
@@ -43,6 +69,7 @@ export class RadarService {
     nowMs: number,
     collectKey: string | null,
     expectedKey: string | undefined,
+    extras: CollectExtras = {},
   ): Promise<{ libraryId: string; clusterSlug: string }> {
     assertCollectAuthorized(collectKey, expectedKey);
     const parsed = validateCollectManual(input);
@@ -110,6 +137,21 @@ export class RadarService {
         observedMs: nowMs,
       });
     }
+    if (extras.watchPage) {
+      const existingWatch = (await this.repo.listPageWatches(this.appId)).find(
+        (row) => row.pageId === parsed.ad.pageId,
+      );
+      await this.repo.upsertPageWatch(this.appId, {
+        pageId: parsed.ad.pageId,
+        pageName: parsed.ad.pageName,
+        note: existingWatch?.note ?? null,
+        createdMs: existingWatch?.createdMs ?? nowMs,
+      });
+    }
+    const tags = sanitizeUserTags(extras.tags ?? []);
+    if (tags.length > 0) {
+      await this.repo.replaceAdTags(this.appId, parsed.ad.libraryId, tags);
+    }
     await this.recompute(nowMs);
     return { libraryId: parsed.ad.libraryId, clusterSlug: cluster.slug };
   }
@@ -176,7 +218,17 @@ export class RadarService {
     }
 
     await this.repo.replaceSnapshots(this.appId, weekStartMs, snapshots);
-    const uniqueAlerts = uniqueAlertDrafts(alertDrafts).map((draft) => ({
+    const pageWatches = await this.repo.listPageWatches(this.appId);
+    const watchAlerts: AlertDraft[] = watchedPageNewAdAlerts(pageWatches, ads, pages, nowMs).map(
+      (row) => ({
+        type: "WATCHED_PAGE_NEW_AD" as const,
+        title: row.title,
+        detail: row.detail,
+        pageId: row.pageId,
+        clusterSlug: row.clusterSlug,
+      }),
+    );
+    const uniqueAlerts = uniqueAlertDrafts([...alertDrafts, ...watchAlerts]).map((draft) => ({
       ...draft,
       createdMs: nowMs,
     }));
@@ -251,6 +303,237 @@ export class RadarService {
   async listAlerts(): Promise<StoredAlert[]> {
     const alerts = await this.repo.listAlerts(this.appId);
     return [...alerts].sort((a, b) => b.createdMs - a.createdMs);
+  }
+
+  async listResearch(nowMs: number, filter: SavedFilter = {}): Promise<ResearchRow[]> {
+    const rankings = await this.listRankings(nowMs, filter.niche);
+    const ads = await this.savedAdsLite();
+    const rows = rankings.map((row) => enrichResearchRow(row, ads, nowMs));
+    return filterResearchRows(rows, filter);
+  }
+
+  async getProductDossier(slug: string, nowMs: number): Promise<ProductDossier | null> {
+    const trimmed = slug.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const rankings = await this.listRankings(nowMs);
+    const row = rankings.find((item) => item.clusterSlug === trimmed);
+    if (!row) {
+      return null;
+    }
+    const ads = await this.savedAdsLite();
+    return buildProductDossier(enrichResearchRow(row, ads, nowMs), ads, nowMs);
+  }
+
+  async compareProducts(
+    leftSlug: string,
+    rightSlug: string,
+    nowMs: number,
+  ): Promise<{ left: ProductDossier | null; right: ProductDossier | null }> {
+    return {
+      left: await this.getProductDossier(leftSlug, nowMs),
+      right: await this.getProductDossier(rightSlug, nowMs),
+    };
+  }
+
+  async listTrendLanes(nowMs: number): Promise<{
+    trending: ResearchRow[];
+    fresh: ResearchRow[];
+    hooks: HookDigestRow[];
+  }> {
+    const rows = await this.listResearch(nowMs);
+    const ads = await this.savedAdsLite();
+    const clusters = await this.repo.listClusters(this.appId);
+    const nicheByCluster = new Map(clusters.map((cluster) => [cluster.slug, cluster.nicheSlug]));
+    return {
+      ...splitTrendLanes(rows),
+      hooks: hookDigest(ads, nicheByCluster),
+    };
+  }
+
+  async listPageWatches(): Promise<StoredPageWatch[]> {
+    return this.repo.listPageWatches(this.appId);
+  }
+
+  async upsertPageWatch(
+    pageId: string,
+    pageName: string | null,
+    note: string | null,
+    nowMs: number,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<StoredPageWatch> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    const trimmed = pageId.trim();
+    if (!ID_RE.test(trimmed)) {
+      throw new Error("pageId bắt buộc (id trang Facebook)");
+    }
+    const existing = (await this.repo.listPageWatches(this.appId)).find((row) => row.pageId === trimmed);
+    const page = await this.repo.getPage(this.appId, trimmed);
+    const watch: StoredPageWatch = {
+      pageId: trimmed,
+      pageName: pageName?.trim() || page?.pageName || existing?.pageName || null,
+      note,
+      createdMs: existing?.createdMs ?? nowMs,
+    };
+    await this.repo.upsertPageWatch(this.appId, watch);
+    await this.recompute(nowMs);
+    return watch;
+  }
+
+  async deletePageWatch(
+    pageId: string,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<void> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    const trimmed = pageId.trim();
+    if (!ID_RE.test(trimmed)) {
+      throw new Error("pageId bắt buộc");
+    }
+    await this.repo.deletePageWatch(this.appId, trimmed);
+  }
+
+  async listBoards(): Promise<StoredBoard[]> {
+    return this.repo.listBoards(this.appId);
+  }
+
+  async listBoardItems(boardSlug?: string): Promise<StoredBoardItem[]> {
+    return this.repo.listBoardItems(this.appId, boardSlug);
+  }
+
+  async upsertBoard(
+    name: string,
+    note: string | null,
+    nowMs: number,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<StoredBoard> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    const trimmed = name.trim();
+    if (trimmed.length < 2 || trimmed.length > 80) {
+      throw new Error("Tên bộ sưu tập phải từ 2–80 ký tự");
+    }
+    const slug = slugifyTitle(trimmed);
+    const existing = (await this.repo.listBoards(this.appId)).find((row) => row.slug === slug);
+    const board: StoredBoard = {
+      slug,
+      name: trimmed,
+      note,
+      createdMs: existing?.createdMs ?? nowMs,
+    };
+    await this.repo.upsertBoard(this.appId, board);
+    return board;
+  }
+
+  async deleteBoard(
+    slug: string,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<void> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    const trimmed = slug.trim();
+    if (!trimmed) {
+      throw new Error("slug bắt buộc");
+    }
+    await this.repo.deleteBoard(this.appId, trimmed);
+  }
+
+  async addBoardItem(
+    boardSlug: string,
+    libraryId: string,
+    nowMs: number,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<StoredBoardItem> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    const slug = boardSlug.trim();
+    const id = libraryId.trim();
+    if (!slug) {
+      throw new Error("boardSlug bắt buộc");
+    }
+    if (!ID_RE.test(id)) {
+      throw new Error("libraryId bắt buộc");
+    }
+    const boards = await this.repo.listBoards(this.appId);
+    if (!boards.some((board) => board.slug === slug)) {
+      throw new Error("Bộ sưu tập không tồn tại");
+    }
+    const ad = (await this.repo.listAds(this.appId)).find((row) => row.libraryId === id);
+    if (!ad) {
+      throw new Error("Thẻ chưa lưu — lưu quảng cáo trước khi ghim");
+    }
+    const item: StoredBoardItem = {
+      boardSlug: slug,
+      libraryId: id,
+      clusterSlug: ad.clusterSlug,
+      createdMs: nowMs,
+    };
+    await this.repo.addBoardItem(this.appId, item);
+    return item;
+  }
+
+  async removeBoardItem(
+    boardSlug: string,
+    libraryId: string,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<void> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    await this.repo.removeBoardItem(this.appId, boardSlug.trim(), libraryId.trim());
+  }
+
+  async listAdTags(): Promise<StoredAdTag[]> {
+    return this.repo.listAdTags(this.appId);
+  }
+
+  async replaceAdTags(
+    libraryId: string,
+    tags: string[],
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<string[]> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    const id = libraryId.trim();
+    if (!ID_RE.test(id)) {
+      throw new Error("libraryId bắt buộc");
+    }
+    const ad = (await this.repo.listAds(this.appId)).find((row) => row.libraryId === id);
+    if (!ad) {
+      throw new Error("Thẻ chưa lưu");
+    }
+    const clean = sanitizeUserTags(tags);
+    await this.repo.replaceAdTags(this.appId, id, clean);
+    return clean;
+  }
+
+  private async savedAdsLite(): Promise<SavedAdLite[]> {
+    const ads = await this.repo.listAds(this.appId);
+    const tags = await this.repo.listAdTags(this.appId);
+    const anglesById = new Map<string, SavedAdLite["userAngles"]>();
+    for (const tag of tags) {
+      if (!isCreativeAngle(tag.tag)) {
+        continue;
+      }
+      const prev = anglesById.get(tag.libraryId) ?? [];
+      anglesById.set(tag.libraryId, [...prev, tag.tag]);
+    }
+    return ads.map((ad) => ({
+      libraryId: ad.libraryId,
+      pageId: ad.pageId,
+      clusterSlug: ad.clusterSlug,
+      startDate: ad.startDate,
+      isActive: ad.isActive,
+      body: ad.body,
+      title: ad.title,
+      landingUrl: ad.landingUrl,
+      imageUrl: ad.imageUrl,
+      listingPriceVnd: ad.listingPriceVnd,
+      firstSeenMs: ad.firstSeenMs,
+      lastSeenMs: ad.lastSeenMs,
+      userAngles: anglesById.get(ad.libraryId),
+    }));
   }
 
   async analyzeProductName(query: string): Promise<ProductAdAnalysis> {

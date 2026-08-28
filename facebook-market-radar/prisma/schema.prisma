@@ -197,3 +197,58 @@ model Alert {
   @@index([appId, createdAt])
   @@map("alerts")
 }
+
+model PageWatch {
+  id        String   @id @default(cuid())
+  appId     String
+  pageId    String
+  pageName  String?
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([appId, pageId])
+  @@index([appId, createdAt])
+  @@map("page_watches")
+}
+
+model CreativeBoard {
+  id        String      @id @default(cuid())
+  appId     String
+  slug      String
+  name      String
+  note      String?
+  items     BoardItem[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([appId, slug])
+  @@index([appId])
+  @@map("creative_boards")
+}
+
+model BoardItem {
+  id          String        @id @default(cuid())
+  appId       String
+  boardId     String
+  board       CreativeBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  libraryId   String
+  clusterSlug String
+  createdAt   DateTime      @default(now())
+
+  @@unique([boardId, libraryId])
+  @@index([appId, clusterSlug])
+  @@map("board_items")
+}
+
+model AdTag {
+  id        String   @id @default(cuid())
+  appId     String
+  libraryId String
+  tag       String
+  createdAt DateTime @default(now())
+
+  @@unique([appId, libraryId, tag])
+  @@index([appId, tag])
+  @@map("ad_tags")
+}

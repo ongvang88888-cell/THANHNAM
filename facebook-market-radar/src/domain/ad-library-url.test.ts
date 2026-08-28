@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAdLibrarySearchUrl, parseAdLibraryUrl } from "./ad-library-url";
+import { buildAdLibraryPageUrl, buildAdLibrarySearchUrl, parseAdLibraryUrl } from "./ad-library-url";
 
 describe("parseAdLibraryUrl", () => {
   it("reads ad id", () => {
@@ -27,6 +27,10 @@ describe("parseAdLibraryUrl", () => {
     expect(url).toContain("country=VN");
     expect(url).toContain("search_type=keyword_unordered");
     expect(url).toContain("q=serum+niacinamide");
+    const pageUrl = buildAdLibraryPageUrl("900001");
+    expect(pageUrl).toContain("view_all_page_id=900001");
+    expect(pageUrl).toContain("country=VN");
+    expect(pageUrl).toContain("active_status=active");
   });
 
   it("rejects non-library and empty urls", () => {

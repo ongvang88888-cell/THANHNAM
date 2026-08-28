@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LOCKED_NICHES } from "@/domain/niches";
 import { CollectBookmarklet } from "./collect-bookmarklet";
 import { CollectForm } from "./collect-form";
+import { LicensedImportForm } from "./licensed-import";
 import { SheetImportForm } from "./sheet-import";
 
 type Props = { searchParams: Promise<{ url?: string }> };
@@ -20,7 +21,8 @@ export default async function CollectPage({ searchParams }: Props) {
       <h2>Bookmark lưu nhanh</h2>
       <p className="muted">
         Kéo liên kết này lên thanh bookmark. Khi đang ở Thư viện quảng cáo, bấm bookmark để mở form
-        trên cùng origin máy chủ (kể cả VPS).
+        trên cùng origin máy chủ (kể cả VPS). Extension unpacked trong thư mục{" "}
+        <code>extension/</code> cũng chỉ mở <code>/collect?url=</code> — không đọc facebook.com.
       </p>
       <p>
         <CollectBookmarklet />
@@ -29,6 +31,8 @@ export default async function CollectPage({ searchParams }: Props) {
       <CollectForm niches={[...LOCKED_NICHES]} defaultUrl={url ?? ""} />
       <h2>Nhập nhiều thẻ từ sheet</h2>
       <SheetImportForm />
+      <h2>Feed đã mua (licensed)</h2>
+      <LicensedImportForm />
     </>
   );
 }

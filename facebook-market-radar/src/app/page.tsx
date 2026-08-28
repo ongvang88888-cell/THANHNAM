@@ -1,28 +1,50 @@
 import Link from "next/link";
-import { textsMatchScanQuery } from "@/domain/ad-library-scan";
 import { MEGA_SCAN_CAP } from "@/domain/mega-scan";
 import { LOCKED_NICHES, NICHE_GROUPS, nicheGroup, nichesInGroup } from "@/domain/niches";
 import { adRunSummary } from "@/domain/product-watch";
+import { parseSavedFilter } from "@/domain/saved-research";
 import { ProductCell } from "@/ui/product-cell";
+import { ResearchFilters } from "@/ui/research-filters";
+import { ResearchGrid } from "@/ui/research-grid";
+import { queryFromParams, researchHref } from "@/ui/research-query";
 import { getRadarService } from "@/server/radar";
 
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams: Promise<{ niche?: string; group?: string; asOf?: string; ten?: string }> };
+type Props = {
+  searchParams: Promise<{
+    niche?: string;
+    group?: string;
+    asOf?: string;
+    ten?: string;
+    view?: string;
+    minDays?: string;
+    minPages?: string;
+    landing?: string;
+    landingKind?: string;
+    angle?: string;
+    media?: string;
+    minPrice?: string;
+    maxPrice?: string;
+    lane?: string;
+    shop?: string;
+  }>;
+};
 
 export default async function HomePage({ searchParams }: Props) {
   const params = await searchParams;
   const asOf = params.asOf ? Date.parse(params.asOf) : Date.now();
   const nowMs = Number.isFinite(asOf) ? asOf : Date.now();
   const ten = params.ten?.trim() ?? "";
+  const view = params.view === "grid" ? "grid" : "table";
+  const query = queryFromParams({ ...params, view });
+  const filter = parseSavedFilter(params);
   const service = getRadarService();
   const allRankings = await service.listRankings(nowMs, params.niche);
   const scoped = params.group
     ? allRankings.filter((row) => nicheGroup(row.nicheSlug) === params.group)
     : allRankings;
-  const rankings = ten.length >= 2
-    ? scoped.filter((row) => textsMatchScanQuery(ten, [row.clusterTitle, row.nicheName]))
-    : scoped;
+  const research = await service.listResearch(nowMs, filter);
   const ads = await service.listAds();
   const alerts = await service.listAlerts();
   const { industries, coverage } = await service.industryOverview(nowMs);
@@ -39,28 +61,21 @@ export default async function HomePage({ searchParams }: Props) {
       </p>
       <div className="banner">
         Bảng dưới chỉ ads <strong>bạn đã lưu</strong> ({allRankings.length} sản phẩm) — không phải tổng sản phẩm
-        chạy ads trên Facebook. Để mở rộng, dùng ~{MEGA_SCAN_CAP.toLocaleString("vi-VN")} ô tìm Thư viện trên{" "}
-        <Link href="/quet">Quét cành</Link>. Điểm nóng vẫn ước lượng. Không có ROAS / chi phí đối thủ. Không
-        crawl Facebook / Shopee / TikTok.
+        chạy ads trên Facebook. Bộ lọc / lưới creative soi trên thẻ đã lưu (kiểu EachSpy / Kalodata), không
+        crawl. Để mở rộng, dùng ~{MEGA_SCAN_CAP.toLocaleString("vi-VN")} ô tìm Thư viện trên{" "}
+        <Link href="/quet">Quét cành</Link>. Không có ROAS / chi phí đối thủ.
       </div>
-      <form className="watch-search" action="/" method="get">
-        <label>
-          Lọc sản phẩm đã lưu, hoặc mở hàng đợi Thư viện
-          <input
-            name="ten"
-            defaultValue={ten}
-            placeholder="Serum Niacinamide, kem chống nắng, Đèn LED…"
-          />
-        </label>
-        <div className="watch-actions">
-          {params.niche ? <input type="hidden" name="niche" value={params.niche} /> : null}
-          {params.group ? <input type="hidden" name="group" value={params.group} /> : null}
-          <button type="submit">Lọc bảng đã lưu</button>
-          <button type="submit" className="secondary" formAction="/quet">
-            Tìm trên Thư viện
-          </button>
-        </div>
-      </form>
+      <ResearchFilters action="/" query={query} />
+      <div className="filters">
+        <Link href={researchHref("/", query, { view: "table" })} className={view === "table" ? "on" : ""}>
+          Bảng
+        </Link>
+        <Link href={researchHref("/", query, { view: "grid" })} className={view === "grid" ? "on" : ""}>
+          Lưới creative
+        </Link>
+        <Link href="/xu-huong">Xu hướng / hook</Link>
+        <Link href="/bo-suu-tap">Bộ sưu tập</Link>
+      </div>
       <div className="cards">
         <div className="card">
           <div className="n">{ads.length}</div>
@@ -103,7 +118,7 @@ export default async function HomePage({ searchParams }: Props) {
       </div>
       {ten.length >= 2 ? (
         <p className="muted">
-          Lọc “{ten}”: {rankings.length}/{scoped.length} sản phẩm đã lưu. Muốn thêm bài đang chạy trên Facebook,
+          Lọc “{ten}”: {research.length}/{scoped.length} sản phẩm đã lưu. Muốn thêm bài đang chạy trên Facebook,
           mở <Link href={`/quet?ten=${encodeURIComponent(ten)}`}>hàng đợi Thư viện</Link> — Radar không tự kéo ads.
         </p>
       ) : null}
@@ -149,23 +164,27 @@ export default async function HomePage({ searchParams }: Props) {
 
       <h2>Lọc theo nhóm / ngành</h2>
       <div className="filters">
-        <Link href="/" className={!params.group && !params.niche ? "on" : ""}>
+        <Link href={researchHref("/", { ...query, group: undefined, niche: undefined })} className={!params.group && !params.niche ? "on" : ""}>
           Tất cả nhóm
         </Link>
         {NICHE_GROUPS.map((group) => (
-          <Link key={group} href={`/?group=${encodeURIComponent(group)}`} className={params.group === group ? "on" : ""}>
+          <Link
+            key={group}
+            href={researchHref("/", query, { group, niche: undefined })}
+            className={params.group === group ? "on" : ""}
+          >
             {group}
           </Link>
         ))}
       </div>
       <div className="filters">
-        <Link href={params.group ? `/?group=${encodeURIComponent(params.group)}` : "/"} className={!params.niche ? "on" : ""}>
+        <Link href={researchHref("/", { ...query, niche: undefined })} className={!params.niche ? "on" : ""}>
           Tất cả ngành
         </Link>
         {visibleNiches.map((n) => (
           <Link
             key={n.slug}
-            href={`/?niche=${n.slug}${params.group ? `&group=${encodeURIComponent(params.group)}` : ""}`}
+            href={researchHref("/", query, { niche: n.slug })}
             className={params.niche === n.slug ? "on" : ""}
           >
             {n.nameVi}
@@ -173,51 +192,60 @@ export default async function HomePage({ searchParams }: Props) {
         ))}
       </div>
 
-      <table className="rankings">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Sản phẩm</th>
-            <th>Ngành hàng</th>
-            <th>Số QC / Số trang</th>
-            <th>Cường độ</th>
-            <th>Độ bền</th>
-            <th>Tốc độ mới</th>
-            <th>Proxy bán</th>
-            <th>Điểm nóng</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rankings.map((row, i) => (
-            <tr key={row.clusterSlug}>
-              <td>{i + 1}</td>
-              <td>
-                <ProductCell
-                  title={row.clusterTitle}
-                  imageUrls={row.imageUrls}
-                  price={row.price}
-                  adSummary={adRunSummary(row.activeAdCount, row.distinctPageCount, row.totalAdCount)}
-                />
-              </td>
-              <td>{row.nicheName}</td>
-              <td>
-                {row.activeAdCount} / {row.distinctPageCount}
-              </td>
-              <td>{row.scores.intensity}</td>
-              <td>{row.scores.longevity}</td>
-              <td>{row.scores.velocity}</td>
-              <td>{row.scores.salesProxy}</td>
-              <td>
-                <span className="badge">{row.scores.heat} ước lượng</span>
-              </td>
+      {view === "grid" ? (
+        <ResearchGrid rows={research} />
+      ) : (
+        <table className="rankings">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Sản phẩm</th>
+              <th>Ngành hàng</th>
+              <th>Số QC / Số trang</th>
+              <th>Ngày chạy</th>
+              <th>Làn</th>
+              <th>Cường độ</th>
+              <th>Độ bền</th>
+              <th>Tốc độ mới</th>
+              <th>Proxy bán</th>
+              <th>Điểm nóng</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      {rankings.length === 0 ? (
+          </thead>
+          <tbody>
+            {research.map((row, i) => (
+              <tr key={row.clusterSlug}>
+                <td>{i + 1}</td>
+                <td>
+                  <ProductCell
+                    title={row.clusterTitle}
+                    imageUrls={row.imageUrls}
+                    price={row.price}
+                    adSummary={adRunSummary(row.activeAdCount, row.distinctPageCount, row.totalAdCount)}
+                    href={`/san-pham/${row.clusterSlug}`}
+                  />
+                </td>
+                <td>{row.nicheName}</td>
+                <td>
+                  {row.activeAdCount} / {row.distinctPageCount}
+                </td>
+                <td>{row.daysRunning} ngày</td>
+                <td>{row.lane === "trending" ? "Trending" : row.lane === "fresh" ? "Fresh" : "Khác"}</td>
+                <td>{row.scores.intensity}</td>
+                <td>{row.scores.longevity}</td>
+                <td>{row.scores.velocity}</td>
+                <td>{row.scores.salesProxy}</td>
+                <td>
+                  <span className="badge">{row.scores.heat} ước lượng</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {research.length === 0 ? (
         <p className="muted">
           {ten.length >= 2
-            ? "Không khớp sản phẩm đã lưu với tên / từ khóa này."
+            ? "Không khớp sản phẩm đã lưu với bộ lọc này."
             : "Chưa có dữ liệu."}{" "}
           <Link href={ten ? `/quet?ten=${encodeURIComponent(ten)}` : "/quet"}>Mở hàng đợi ~1.000.000 ô tìm</Link>,{" "}
           <Link href="/collect">lưu quảng cáo từ Thư viện</Link> hoặc chạy <code>pnpm db:seed</code>.

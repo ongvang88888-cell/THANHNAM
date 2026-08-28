@@ -9,7 +9,8 @@ export default async function AlertsPage() {
     <>
       <h1>Cảnh báo</h1>
       <p className="muted">
-        Trang mới, nội dung mới, hoặc tăng tốc quảng cáo trong 7 ngày — dựa trên dữ liệu bạn đã lưu.
+        Trang mới, nội dung mới, tăng tốc, hoặc thẻ mới trên trang đang theo — chỉ từ dữ liệu bạn đã
+        lưu. Radar không tự kéo Facebook.
       </p>
       {alerts.length === 0 ? <p className="muted">Chưa có cảnh báo.</p> : null}
       {alerts.map((alert, index) => (

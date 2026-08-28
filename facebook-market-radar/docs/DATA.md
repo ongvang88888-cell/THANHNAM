@@ -24,6 +24,10 @@ Mọi nguồn ads đi qua port. Domain không import SDK Meta / filesystem.
 - `market_snapshots` — `@@unique([appId, clusterId, weekStart])`
 - `own_insights_daily` — `@@unique([appId, adAccountId, date, campaignId])`
 - `alerts`
+- `page_watches` — `@@unique([appId, pageId])` trang user theo dõi (cảnh báo khi lưu thẻ mới)
+- `creative_boards` — `@@unique([appId, slug])` swipe file
+- `board_items` — `@@unique([boardId, libraryId])`
+- `ad_tags` — `@@unique([appId, libraryId, tag])` góc user gắn
 
 `app_id` mặc định `fmr_vn`. Token Marketing API chỉ qua env, không ghi DB, không log.
 
@@ -45,6 +49,10 @@ Chỉ parse query string user dán:
 `GET /api/quet/mo-rong?offset=&limit=&niche=&q=` phân trang ~1.000.000 ô tìm chính thức (không dump Facebook).
 `GET /api/quet/tim?q=` và `GET /api/theo-doi?ten=` tìm bài đã lưu theo tên / từ khóa trong body, kèm URL Thư viện.
 `POST /api/collect/sheet` nhập CSV (tối đa 200 dòng), idempotent theo `libraryId`.
+`POST /api/collect` nhận thêm `watchPage` + `tags[]` (góc creative).
+`GET/POST/DELETE /api/theo-doi-trang` — watch page (ghi cần `x-fmr-key`).
+`GET/POST/DELETE /api/boards` và `/api/boards/items` — bộ sưu tập.
+`GET/POST /api/tags` — nhãn góc trên thẻ đã lưu.
 
 Cụm copy lấy từ title/body ads active (2–3 từ, bỏ stopword / giá). Server không HTTP GET Facebook.
 

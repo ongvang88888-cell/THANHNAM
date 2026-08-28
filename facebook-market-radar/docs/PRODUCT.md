@@ -31,6 +31,23 @@ User ghi một tên **hoặc từ khóa trong nội dung ads** → Radar khớp 
 
 Danh mục khóa: **26 ngành / 13 nhóm**. “Quét đầy đủ” = hàng đợi **cành từ khóa** (`/quet`) + ~1.000.000 ô tìm tên sản phẩm mở rộng (tổ hợp lexicon VN, phân trang) + biến thể tên + cụm rút từ bài ads đã lưu. User tự mở Thư viện — không scrape Facebook. Bảng xếp hạng không bao giờ là tổng ads Facebook.
 
+## Soi thẻ đã lưu (học UX, không copy kho ads)
+
+Trên dữ liệu user đã lưu (+ feed licensed nếu có), Radar có các bề mặt kiểu EachSpy / Kalodata / Foreplay — **không** index hàng triệu ads:
+
+1. **Hồ sơ sản phẩm** `/san-pham/[slug]` — mọi thẻ, trang, landing/shop đã dán, góc creative, URL tìm Thư viện.
+2. **Trending / Fresh** `/xu-huong` — mạnh (điểm nóng / độ bền) vs mới thấy ≤ 7 ngày hoặc tốc độ mới cao.
+3. **Lưới creative** `/?view=grid` — hover hiện hook từ copy đã lưu.
+4. **Bộ lọc** trên `/` — ngày chạy, số trang, landing, Shopee/TikTok/web, góc, media, giá, shop key, làn.
+5. **Watch Page** `/theo-doi` — cảnh báo khi user lưu thẻ mới từ trang đó (không crawl 24/7).
+6. **Shop / landing** — phân loại URL user dán; lọc `?shop=`.
+7. **Bộ sưu tập** `/bo-suu-tap` + nhãn góc trên thẻ (swipe file).
+8. **Hook digest** trên `/xu-huong` — cụm 2–3 từ từ title/body đã lưu.
+9. **Extension unpacked** `extension/` + bookmarklet — chỉ mở `/collect?url=`.
+10. **Feed licensed** — nút nhập trên `/collect` qua port sẵn có.
+
+Không copy: scrape/index triệu ads; giả spend/ROAS; harvest pixel; `/ads_archive` cho ads bán hàng VN.
+
 ## Thu thập hợp lệ
 
 1. User dán URL Ad Library hoặc JSON snapshot họ copy.
@@ -44,7 +61,7 @@ Không scrape `facebook.com/ads/library`. Không gọi `/ads_archive` để lấ
 
 ## Ngoài phạm vi Vòng 1
 
-- SaaS multi-region, Chrome Web Store extension đầy đủ
+- SaaS multi-region, Chrome Web Store listing (extension **unpacked** trong repo thì được)
 - CASD / Meta Content Library
 - Ước đoán spend giả như số thật
 - Gắn vào monorepo education cores

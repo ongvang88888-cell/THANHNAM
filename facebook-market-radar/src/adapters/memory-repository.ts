@@ -1,9 +1,13 @@
 import type {
   IRadarRepository,
   StoredAd,
+  StoredAdTag,
   StoredAlert,
+  StoredBoard,
+  StoredBoardItem,
   StoredCluster,
   StoredPage,
+  StoredPageWatch,
   StoredSalesProxy,
   StoredSnapshot,
   StoredWatch,
@@ -23,6 +27,10 @@ export class MemoryRadarRepository implements IRadarRepository {
   private readonly alerts = new Map<string, StoredAlert[]>();
   private readonly insights = new Map<string, OwnCampaignInsight>();
   private readonly watches = new Map<string, StoredWatch>();
+  private readonly pageWatches = new Map<string, StoredPageWatch>();
+  private readonly boards = new Map<string, StoredBoard>();
+  private readonly boardItems: StoredBoardItem[] = [];
+  private readonly tags: StoredAdTag[] = [];
 
   async upsertPage(appId: string, page: StoredPage): Promise<void> {
     this.pages.set(key(appId, page.pageId), page);
@@ -105,5 +113,82 @@ export class MemoryRadarRepository implements IRadarRepository {
 
   async deleteWatch(appId: string, slug: string): Promise<void> {
     this.watches.delete(key(appId, slug));
+  }
+
+  async upsertPageWatch(appId: string, row: StoredPageWatch): Promise<void> {
+    this.pageWatches.set(key(appId, row.pageId), row);
+  }
+
+  async listPageWatches(appId: string): Promise<StoredPageWatch[]> {
+    return [...this.pageWatches.entries()]
+      .filter(([k]) => k.startsWith(`${appId}::`))
+      .map(([, v]) => v)
+      .sort((a, b) => b.createdMs - a.createdMs);
+  }
+
+  async deletePageWatch(appId: string, pageId: string): Promise<void> {
+    this.pageWatches.delete(key(appId, pageId));
+  }
+
+  async upsertBoard(appId: string, row: StoredBoard): Promise<void> {
+    this.boards.set(key(appId, row.slug), row);
+  }
+
+  async listBoards(appId: string): Promise<StoredBoard[]> {
+    return [...this.boards.entries()]
+      .filter(([k]) => k.startsWith(`${appId}::`))
+      .map(([, v]) => v)
+      .sort((a, b) => b.createdMs - a.createdMs);
+  }
+
+  async deleteBoard(appId: string, slug: string): Promise<void> {
+    this.boards.delete(key(appId, slug));
+    for (let i = this.boardItems.length - 1; i >= 0; i -= 1) {
+      if (this.boardItems[i]?.boardSlug === slug) {
+        this.boardItems.splice(i, 1);
+      }
+    }
+  }
+
+  async addBoardItem(appId: string, row: StoredBoardItem): Promise<void> {
+    const exists = this.boardItems.some(
+      (item) => item.boardSlug === row.boardSlug && item.libraryId === row.libraryId,
+    );
+    if (!exists) {
+      this.boardItems.push(row);
+    }
+    void appId;
+  }
+
+  async listBoardItems(appId: string, boardSlug?: string): Promise<StoredBoardItem[]> {
+    void appId;
+    return this.boardItems.filter((item) => !boardSlug || item.boardSlug === boardSlug);
+  }
+
+  async removeBoardItem(appId: string, boardSlug: string, libraryId: string): Promise<void> {
+    void appId;
+    const idx = this.boardItems.findIndex(
+      (item) => item.boardSlug === boardSlug && item.libraryId === libraryId,
+    );
+    if (idx >= 0) {
+      this.boardItems.splice(idx, 1);
+    }
+  }
+
+  async replaceAdTags(appId: string, libraryId: string, tags: string[]): Promise<void> {
+    void appId;
+    for (let i = this.tags.length - 1; i >= 0; i -= 1) {
+      if (this.tags[i]?.libraryId === libraryId) {
+        this.tags.splice(i, 1);
+      }
+    }
+    for (const tag of tags) {
+      this.tags.push({ libraryId, tag });
+    }
+  }
+
+  async listAdTags(appId: string): Promise<StoredAdTag[]> {
+    void appId;
+    return [...this.tags];
   }
 }

@@ -1,4 +1,5 @@
 import { getRadarService } from "@/server/radar";
+import { PageWatchPanel } from "./page-watch-panel";
 import { WatchPanel } from "./watch-panel";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ export default async function WatchPage({ searchParams }: Props) {
   const service = getRadarService();
   const lookup = query.length >= 2 ? await service.lookupScan(query) : null;
   const watches = await service.listWatchesWithAnalysis();
+  const pageWatches = await service.listPageWatches();
   return (
     <>
       <h1>Theo dõi sản phẩm — soi ads đang chạy</h1>
@@ -28,6 +30,7 @@ export default async function WatchPage({ searchParams }: Props) {
         initialVariants={lookup?.variants ?? []}
         initialWatches={watches}
       />
+      <PageWatchPanel initialWatches={pageWatches} />
     </>
   );
 }

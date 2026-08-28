@@ -216,4 +216,45 @@ describe("RadarService", () => {
     const market = await service.listRankings(now);
     expect(market.every((r) => r.scores.estimated)).toBe(true);
   });
+
+  it("builds research rows, dossiers, and trend lanes from saved ads", async () => {
+    const service = await seededService();
+    const research = await service.listResearch(now, { landing: "any" });
+    expect(research.some((row) => row.clusterTitle.includes("Đèn LED"))).toBe(true);
+    const led = research.find((row) => row.clusterTitle.includes("Đèn LED"));
+    expect(led?.daysRunning).toBeGreaterThan(0);
+    const dossier = await service.getProductDossier(led?.clusterSlug ?? "", now);
+    expect(dossier?.ads.length).toBe(2);
+    expect(dossier?.officialSearchUrl).toContain("ads/library");
+    const lanes = await service.listTrendLanes(now);
+    expect(lanes.trending.length + lanes.fresh.length).toBeGreaterThan(0);
+  });
+
+  it("alerts when a watched page gets a newly saved card", async () => {
+    const service = await seededService();
+    await service.upsertPageWatch("900024", "TaiNghe Tot", null, now, null, undefined);
+    const alerts = await service.listAlerts();
+    expect(alerts.some((row) => row.type === "WATCHED_PAGE_NEW_AD" && row.pageId === "900024")).toBe(true);
+  });
+
+  it("pins boards and tags with collect-key authz", async () => {
+    const service = await seededService();
+    const board = await service.upsertBoard("Hook giá", null, now, null, undefined);
+    const item = await service.addBoardItem(board.slug, "111000021", now, null, undefined);
+    expect(item.clusterSlug).toContain("den-led");
+    const tags = await service.replaceAdTags("111000021", ["price", "ugc"], null, undefined);
+    expect(tags).toEqual(["price", "ugc"]);
+    await expect(service.upsertBoard("X", null, now, "wrong", "secret")).rejects.toBeInstanceOf(
+      UnauthorizedError,
+    );
+    await expect(service.upsertPageWatch("900021", "P", null, now, "wrong", "secret")).rejects.toBeInstanceOf(
+      UnauthorizedError,
+    );
+    await expect(service.replaceAdTags("111000021", ["price"], "wrong", "secret")).rejects.toBeInstanceOf(
+      UnauthorizedError,
+    );
+    await expect(service.addBoardItem(board.slug, "111000021", now, "wrong", "secret")).rejects.toBeInstanceOf(
+      UnauthorizedError,
+    );
+  });
 });

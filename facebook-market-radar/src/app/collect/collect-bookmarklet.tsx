@@ -8,7 +8,7 @@ export function CollectBookmarklet() {
   useEffect(() => {
     const origin = window.location.origin;
     setHref(
-      `javascript:(function(){var u=location.href;if(u.indexOf('facebook.com/ads/library')===-1){alert('Mở Thư viện quảng cáo rồi bấm lại');return;}location.href='${origin}/collect?url='+encodeURIComponent(u);}())`,
+      `javascript:(function(){var u=location.href;if(u.indexOf('facebook.com/ads/library')===-1){alert('Mở Thư viện quảng cáo rồi bấm lại');return;}var id=(/[?&]id=([^&]+)/.exec(u)||[])[1];location.href='${origin}/collect?url='+encodeURIComponent(u)+(id?'#id='+encodeURIComponent(id):'');}())`,
     );
   }, []);
 
