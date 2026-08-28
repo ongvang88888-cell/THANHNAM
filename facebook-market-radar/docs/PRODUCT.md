@@ -13,7 +13,7 @@ Sản phẩm **độc lập**. Không phải App #2 của edu-commerce-platform.
 
 **Cường độ quảng cáo + độ bền + đa dạng creative + proxy bán hàng ngoài Facebook = điểm “đáng để soi”.**
 
-Điểm nóng luôn hiển thị chú thích “ước lượng”. Proxy bán chỉ từ Shopee/TikTok/user nhập — không phải đơn Facebook.
+Điểm nóng luôn hiển thị chú thích “ước lượng”. Proxy bán chỉ từ **đã bán sàn** (Shopee / TikTok / Lazada / Tiki / Sendo) user nhập — không phải đơn Facebook. Lượt xem YouTube và ads Google/YouTube/TikTok đếm tay **không** vào HeatScore.
 
 ## Giá bán cạnh tên sản phẩm
 
@@ -35,10 +35,14 @@ Danh mục khóa: **26 ngành / 13 nhóm**. “Quét đầy đủ” = hàng đ�
 
 Trên dữ liệu user đã lưu (+ feed licensed nếu có), Radar có các bề mặt kiểu EachSpy / Kalodata / Foreplay — **không** index hàng triệu ads:
 
+0. **Trang chủ = bảng tổng hợp** — một bảng đủ cột mọi nền tảng (FB ads + đã bán sàn + ads Google/YT/TT + views YT). Không lưới ads / catalog 999 / ma trận trên `/`. Sidebar nhóm **Nền tảng / Phân tích / Kho**. Pill header chỉ hiện ngoài trang chủ (`/kenh/…`). Logo **Radar** về `/`.
 1. **Hồ sơ sản phẩm** `/san-pham/[slug]` — mọi thẻ, trang, landing/shop đã dán, góc creative, URL tìm Thư viện.
-2. **Trending / Fresh** `/xu-huong` — mạnh (điểm nóng / độ bền) vs mới thấy ≤ 7 ngày hoặc tốc độ mới cao.
-3. **Lưới creative** `/?view=grid` — hover hiện hook từ copy đã lưu.
-4. **Bộ lọc** trên `/` — ngày chạy, số trang, landing, Shopee/TikTok/web, góc, media, giá, shop key, làn.
+2. **Trending / Fresh** `/xu-huong` — mặc định Shopee: 999 tên nghiên cứu mọi nền tảng + kho đã lưu; lưới Facebook phía dưới chỉ thẻ đã lưu (điểm nóng / Fresh ≤ 7 ngày).
+2b. **Ads mạnh nhất** `/manh` — playbook hợp pháp + bảng sản phẩm đạt ngưỡng mạnh trên kho đã lưu (điểm nóng ≥ 40 hoặc độ bền ≥ 50 và ≥ 2 ads đang chạy). Không có dump Facebook toàn quốc.
+2c. **Tổng hợp đa kênh** trên `/` (và `/tong-hop` redirect) — ads Facebook đã lưu + đã bán sàn + ads Google/YouTube/TikTok user đếm + views YouTube. Ghi snapshot + gọi API chính thức mỗi 6 giờ. Không crawl. Không có dump bán chạy toàn quốc. Chi tiết [CHANNELS.md](./CHANNELS.md).
+2d. **999 tên nghiên cứu / kênh** `/top/[nền-tảng]` — catalog sâu (không phải GMV live). Cùng 999 tên, xếp lại theo ngành ưu tiên từng sàn / ads. Overlay số kho khi khớp mạnh tiêu đề. Phân trang 50. API `GET /api/top`.
+3. **Lưới creative / ads đã lưu** — `/ads` và `/xu-huong`, không còn tab trên trang chủ.
+4. **Bộ lọc bảng tổng hợp** trên `/` — `?ten=` `?niche=` `?xep=tong|ads|sold`.
 5. **Watch Page** `/theo-doi` — cảnh báo khi user lưu thẻ mới từ trang đó (không crawl 24/7).
 6. **Shop / landing** — phân loại URL user dán; lọc `?shop=`.
 7. **Bộ sưu tập** `/bo-suu-tap` + nhãn góc trên thẻ (swipe file).
@@ -55,13 +59,16 @@ Không copy: scrape/index triệu ads; giả spend/ROAS; harvest pixel; `/ads_ar
 3. `/quet` sinh URL search chính thức (`active_status=active`, `country=VN`) cho hàng trăm cành ưu tiên và ~1.000.000 ô tìm mở rộng (không phải ads đã kéo). User mở Meta, rồi lưu thẻ. Radar đánh dấu cành đã khớp dữ liệu đã lưu.
 4. Nhập CSV sheet (`docs/v0/ad-library-sheet.template.csv`) qua `/api/collect/sheet` — cùng cổng collect, khóa `x-fmr-key`.
 5. Marketing API: insights của ad account user (token không log).
-6. Licensed feed: file/JSON đã mua, qua `IAdIndexProvider` source=`licensed`.
+6. Licensed feed: file / JSON dán / HTTPS vendor đã mua (`IAdIndexProvider` source=`licensed`). Cấm URL Facebook.
+7. Catalog nguồn: `/nguon` + `docs/SOURCES.md` — cái gì đồng bộ được, cái gì Meta không trả, cái gì cấm.
+8. Chỉ số kênh ngoài Facebook: form `/collect`, hàng đợi `/kenh/*`, `POST /api/kenh`, sheet, feed licensed, YouTube Data API (`/api/youtube-views` + search), Google CSE (URL listing), Open Platform shop của bạn (`/api/platform-stats`). User tự đọc listing / Transparency khi chưa có khóa. “Có đích” ≠ “có số”. Views / shop mình / CSE **không** thành đã bán đối thủ. HeatScore chỉ sold sàn user nhập.
 
-Không scrape `facebook.com/ads/library`. Không gọi `/ads_archive` để lấy ads bán hàng VN (API không trả commercial VN).
+Không scrape `facebook.com/ads/library`, Google Ads Transparency, YouTube, hay sàn TMĐT. Không gọi `/ads_archive` để lấy ads bán hàng VN (API chỉ trả chính trị toàn cầu + commercial đã reach EU/UK).
 
 ## Ngoài phạm vi Vòng 1
 
 - SaaS multi-region, Chrome Web Store listing (extension **unpacked** trong repo thì được)
-- CASD / Meta Content Library
+- CASD / Meta Content Library (cấm dùng thương mại)
+- Gọi `/ads_archive` như thể đó là kho ads bán hàng VN
 - Ước đoán spend giả như số thật
 - Gắn vào monorepo education cores

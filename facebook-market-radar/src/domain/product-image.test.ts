@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { escapeXml, parseImageUrl, productImagePath, renderProductSvg } from "./product-image";
+import { escapeXml, parseImageUrl, productImagePath, renderProductSvg, safeImageSrc, uniqueImageUrls } from "./product-image";
 
 describe("product image", () => {
   it("builds a local SVG path", () => {
@@ -18,6 +18,11 @@ describe("product image", () => {
   it("rejects javascript and other schemes", () => {
     expect(() => parseImageUrl("javascript:alert(1)")).toThrow(/http/);
     expect(() => parseImageUrl("data:text/html,x")).toThrow();
+    expect(safeImageSrc("javascript:alert(1)")).toBeNull();
+    expect(uniqueImageUrls(["javascript:alert(1)", "https://cdn.example.com/a.jpg", "/api/anh-san-pham?ten=X"])).toEqual([
+      "https://cdn.example.com/a.jpg",
+      "/api/anh-san-pham?ten=X",
+    ]);
   });
 
   it("escapes SVG text", () => {

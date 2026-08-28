@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAdLibraryPageUrl, buildAdLibrarySearchUrl, parseAdLibraryUrl } from "./ad-library-url";
+import { buildAdLibraryAdUrl, buildAdLibraryPageUrl, buildAdLibrarySearchUrl, parseAdLibraryUrl } from "./ad-library-url";
 
 describe("parseAdLibraryUrl", () => {
   it("reads ad id", () => {
@@ -31,6 +31,10 @@ describe("parseAdLibraryUrl", () => {
     expect(pageUrl).toContain("view_all_page_id=900001");
     expect(pageUrl).toContain("country=VN");
     expect(pageUrl).toContain("active_status=active");
+    const adUrl = buildAdLibraryAdUrl("111000001");
+    expect(adUrl).toContain("id=111000001");
+    expect(adUrl).toContain("country=VN");
+    expect(adUrl.startsWith("https://www.facebook.com/ads/library/?")).toBe(true);
   });
 
   it("rejects non-library and empty urls", () => {

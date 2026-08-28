@@ -16,6 +16,7 @@ describe("validateCollectManual", () => {
     if (result.ok) {
       expect(result.ad.libraryId).toBe("111000001");
       expect(result.shopeeSold).toBe(4200);
+      expect(result.observations).toEqual([{ source: "SHOPEE", value: 4200 }]);
       expect(result.imageUrl).toBeNull();
     }
   });
@@ -42,6 +43,15 @@ describe("validateCollectManual", () => {
       imageUrl: "javascript:alert(1)",
     });
     expect(bad.ok).toBe(false);
+    const badLanding = validateCollectManual({
+      libraryId: "1",
+      pageId: "2",
+      pageName: "Page",
+      productTitle: "Serum",
+      startDate: "2026-08-01",
+      landingUrl: "javascript:alert(1)",
+    });
+    expect(badLanding.ok).toBe(false);
   });
 
   it("requires libraryId when URL is only a keyword search", () => {
@@ -53,6 +63,24 @@ describe("validateCollectManual", () => {
       startDate: "2026-08-01",
     });
     expect(result.ok).toBe(false);
+  });
+
+  it("drops javascript landing inside a snapshot", () => {
+    const result = validateCollectManual({
+      snapshot: {
+        libraryId: "99",
+        pageId: "12",
+        pageName: "Demo Page",
+        startDate: "2026-08-01",
+        productTitle: "Đèn LED",
+        landingUrl: "javascript:alert(1)",
+      },
+      productTitle: "Đèn LED cảm ứng tủ bếp",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.ad.landingUrl).toBeNull();
+    }
   });
 
   it("parses snapshot JSON", () => {
@@ -110,6 +138,27 @@ describe("validateCollectManual", () => {
       listingPriceVnd: 12,
     });
     expect(bad.ok).toBe(false);
+  });
+
+  it("collects ecom sold and YouTube views without mixing kinds", () => {
+    const result = validateCollectManual({
+      libraryId: "1",
+      pageId: "2",
+      pageName: "Page",
+      productTitle: "Serum",
+      startDate: "2026-08-01",
+      lazadaSold: 80,
+      youtubeViews: 12_000,
+      googleAdsSeen: 3,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.observations).toEqual([
+        { source: "LAZADA", value: 80 },
+        { source: "GOOGLE_ADS", value: 3 },
+        { source: "YOUTUBE_VIEWS", value: 12_000 },
+      ]);
+    }
   });
 
   it("rejects negative sold counts", () => {

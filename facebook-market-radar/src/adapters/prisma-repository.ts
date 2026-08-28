@@ -7,8 +7,11 @@ import type {
   StoredBoard,
   StoredBoardItem,
   StoredCluster,
+  StoredOwnShopItem,
   StoredPage,
+  StoredSummaryCycle,
   StoredPageWatch,
+  StoredResearchLink,
   StoredSalesProxy,
   StoredSnapshot,
   StoredWatch,
@@ -16,7 +19,11 @@ import type {
 import type { AlertType } from "../domain/alerts";
 import { nicheName } from "../domain/niches";
 import { LOCKED_NICHES } from "../domain/niches";
+import { isOwnShopPlatform } from "../domain/own-shop";
+import { isResearchLinkSource } from "../domain/platform-stats-plan";
 import type { OwnCampaignInsight } from "../domain/ports";
+import { parseChannelMetricSource } from "../domain/sales-channels";
+import { SUMMARY_CYCLE_KEEP } from "../domain/summary-table";
 
 export class PrismaRadarRepository implements IRadarRepository {
   constructor(private readonly db: PrismaClient) {}
@@ -201,12 +208,20 @@ export class PrismaRadarRepository implements IRadarRepository {
       where: { appId },
       include: { cluster: true },
     });
-    return rows.map((row) => ({
-      clusterSlug: row.cluster.slug,
-      source: row.source === "TIKTOK" ? "TIKTOK" : "SHOPEE",
-      soldCount: row.soldCount,
-      observedMs: row.observedAt.getTime(),
-    }));
+    return rows.flatMap((row) => {
+      const source = parseChannelMetricSource(row.source);
+      if (!source) {
+        return [];
+      }
+      return [
+        {
+          clusterSlug: row.cluster.slug,
+          source,
+          soldCount: row.soldCount,
+          observedMs: row.observedAt.getTime(),
+        },
+      ];
+    });
   }
 
   async replaceSnapshots(appId: string, weekStartMs: number, rows: StoredSnapshot[]): Promise<void> {
@@ -492,6 +507,152 @@ export class PrismaRadarRepository implements IRadarRepository {
   async listAdTags(appId: string): Promise<StoredAdTag[]> {
     const rows = await this.db.adTag.findMany({ where: { appId } });
     return rows.map((row) => ({ libraryId: row.libraryId, tag: row.tag }));
+  }
+
+  async upsertResearchLink(appId: string, row: StoredResearchLink): Promise<boolean> {
+    const cluster = await this.db.productCluster.findUnique({
+      where: { appId_slug: { appId, slug: row.clusterSlug } },
+    });
+    if (!cluster) {
+      throw new Error("Cluster không tồn tại cho research link");
+    }
+    const existing = await this.db.clusterResearchLink.findUnique({
+      where: {
+        appId_clusterId_platform_url: {
+          appId,
+          clusterId: cluster.id,
+          platform: row.platform,
+          url: row.url,
+        },
+      },
+    });
+    if (existing) {
+      return false;
+    }
+    await this.db.clusterResearchLink.create({
+      data: {
+        appId,
+        clusterId: cluster.id,
+        platform: row.platform,
+        url: row.url,
+        title: row.title,
+        source: row.source,
+      },
+    });
+    return true;
+  }
+
+  async listResearchLinks(appId: string): Promise<StoredResearchLink[]> {
+    const rows = await this.db.clusterResearchLink.findMany({
+      where: { appId },
+      include: { cluster: true },
+    });
+    return rows.flatMap((row) => {
+      if (!isResearchLinkSource(row.source)) {
+        return [];
+      }
+      return [
+        {
+          clusterSlug: row.cluster.slug,
+          platform: row.platform,
+          url: row.url,
+          title: row.title,
+          source: row.source,
+          createdMs: row.createdAt.getTime(),
+        },
+      ];
+    });
+  }
+
+  async upsertOwnShopItem(appId: string, row: StoredOwnShopItem): Promise<void> {
+    await this.db.ownShopDaily.upsert({
+      where: {
+        appId_platform_shopId_itemId_date: {
+          appId,
+          platform: row.platform,
+          shopId: row.shopId,
+          itemId: row.itemId,
+          date: row.date,
+        },
+      },
+      create: {
+        appId,
+        platform: row.platform,
+        shopId: row.shopId,
+        itemId: row.itemId,
+        itemName: row.itemName,
+        soldCount: row.soldCount,
+        date: row.date,
+      },
+      update: {
+        itemName: row.itemName,
+        soldCount: row.soldCount,
+      },
+    });
+  }
+
+  async listOwnShopItems(appId: string): Promise<StoredOwnShopItem[]> {
+    const rows = await this.db.ownShopDaily.findMany({ where: { appId } });
+    return rows.flatMap((row) => {
+      if (!isOwnShopPlatform(row.platform)) {
+        return [];
+      }
+      return [
+        {
+          platform: row.platform,
+          shopId: row.shopId,
+          itemId: row.itemId,
+          itemName: row.itemName,
+          soldCount: row.soldCount,
+          date: row.date,
+        },
+      ];
+    });
+  }
+
+  async saveSummaryCycle(appId: string, row: StoredSummaryCycle): Promise<void> {
+    await this.db.summaryCycle.create({
+      data: {
+        appId,
+        capturedAt: new Date(row.capturedAtMs),
+        nextDueAt: new Date(row.nextDueAtMs),
+        rowCount: row.rowCount,
+        filledCells: row.filledCells,
+        emptyCells: row.emptyCells,
+        apiRan: row.apiRan,
+        payload: row.payloadJson,
+      },
+    });
+    const stale = await this.db.summaryCycle.findMany({
+      where: { appId },
+      orderBy: { capturedAt: "desc" },
+      skip: SUMMARY_CYCLE_KEEP,
+      select: { id: true },
+    });
+    if (stale.length > 0) {
+      await this.db.summaryCycle.deleteMany({
+        where: { id: { in: stale.map((item) => item.id) } },
+      });
+    }
+  }
+
+  async getLatestSummaryCycle(appId: string): Promise<StoredSummaryCycle | null> {
+    const row = await this.db.summaryCycle.findFirst({
+      where: { appId },
+      orderBy: { capturedAt: "desc" },
+    });
+    if (!row) {
+      return null;
+    }
+    return {
+      capturedAtMs: row.capturedAt.getTime(),
+      nextDueAtMs: row.nextDueAt.getTime(),
+      rowCount: row.rowCount,
+      filledCells: row.filledCells,
+      emptyCells: row.emptyCells,
+      apiRan: row.apiRan,
+      payloadJson: row.payload,
+    };
   }
 }
 
