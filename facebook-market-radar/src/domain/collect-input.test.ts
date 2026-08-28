@@ -16,6 +16,7 @@ describe("validateCollectManual", () => {
     if (result.ok) {
       expect(result.ad.libraryId).toBe("111000001");
       expect(result.shopeeSold).toBe(4200);
+      expect(result.observations).toEqual([{ source: "SHOPEE", value: 4200 }]);
       expect(result.imageUrl).toBeNull();
     }
   });
@@ -110,6 +111,27 @@ describe("validateCollectManual", () => {
       listingPriceVnd: 12,
     });
     expect(bad.ok).toBe(false);
+  });
+
+  it("collects ecom sold and YouTube views without mixing kinds", () => {
+    const result = validateCollectManual({
+      libraryId: "1",
+      pageId: "2",
+      pageName: "Page",
+      productTitle: "Serum",
+      startDate: "2026-08-01",
+      lazadaSold: 80,
+      youtubeViews: 12_000,
+      googleAdsSeen: 3,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.observations).toEqual([
+        { source: "LAZADA", value: 80 },
+        { source: "GOOGLE_ADS", value: 3 },
+        { source: "YOUTUBE_VIEWS", value: 12_000 },
+      ]);
+    }
   });
 
   it("rejects negative sold counts", () => {

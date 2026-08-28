@@ -17,6 +17,7 @@ import type { AlertType } from "../domain/alerts";
 import { nicheName } from "../domain/niches";
 import { LOCKED_NICHES } from "../domain/niches";
 import type { OwnCampaignInsight } from "../domain/ports";
+import { parseChannelMetricSource } from "../domain/sales-channels";
 
 export class PrismaRadarRepository implements IRadarRepository {
   constructor(private readonly db: PrismaClient) {}
@@ -201,12 +202,20 @@ export class PrismaRadarRepository implements IRadarRepository {
       where: { appId },
       include: { cluster: true },
     });
-    return rows.map((row) => ({
-      clusterSlug: row.cluster.slug,
-      source: row.source === "TIKTOK" ? "TIKTOK" : "SHOPEE",
-      soldCount: row.soldCount,
-      observedMs: row.observedAt.getTime(),
-    }));
+    return rows.flatMap((row) => {
+      const source = parseChannelMetricSource(row.source);
+      if (!source) {
+        return [];
+      }
+      return [
+        {
+          clusterSlug: row.cluster.slug,
+          source,
+          soldCount: row.soldCount,
+          observedMs: row.observedAt.getTime(),
+        },
+      ];
+    });
   }
 
   async replaceSnapshots(appId: string, weekStartMs: number, rows: StoredSnapshot[]): Promise<void> {

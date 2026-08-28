@@ -1,25 +1,48 @@
 import Link from "next/link";
 import { adRunSummary } from "@/domain/product-watch";
+import { parsePlatformTab } from "@/domain/platform-dashboards";
+import { TRENDING_DEFAULT_PLATFORM } from "@/domain/app-nav";
 import { ProductCell } from "@/ui/product-cell";
+import { PlatformPanel } from "@/ui/platform-panel";
+import { PlatformWall } from "@/ui/platform-wall";
+import { BestsellerPanel } from "@/ui/bestseller-panel";
 import { ResearchGrid } from "@/ui/research-grid";
 import { getRadarService } from "@/server/radar";
 
 export const dynamic = "force-dynamic";
 
-export default async function TrendPage() {
-  const { trending, fresh, hooks } = await getRadarService().listTrendLanes(Date.now());
+type Props = {
+  searchParams: Promise<{ kenh?: string }>;
+};
+
+export default async function TrendPage({ searchParams }: Props) {
+  const params = await searchParams;
+  const nowMs = Date.now();
+  const service = getRadarService();
+  const kenh = parsePlatformTab(params.kenh, TRENDING_DEFAULT_PLATFORM);
+  const [{ trending, fresh, hooks }, dashboard, bestsellers] = await Promise.all([
+    service.listTrendLanes(nowMs),
+    service.listPlatformDashboard(nowMs, kenh),
+    service.listPlatformBestsellers(nowMs, kenh, { trang: 1 }),
+  ]);
   return (
     <>
-      <h1>Xu hướng trên thẻ đã lưu</h1>
+      <p className="eyebrow">Mọi nền tảng</p>
+      <h1>Xu hướng Shopee · Google · YouTube · Facebook</h1>
       <div className="banner">
-        Trending = điểm nóng / độ bền mạnh trên dữ liệu bạn lưu. Fresh = mới thấy ≤ 7 ngày hoặc tốc độ mới cao
-        nhưng chưa bền. Không phải ranking Facebook toàn quốc. Radar không tự kéo ads.
+        Mỗi ô dưới là <strong>một nền tảng</strong> — 999 tên nghiên cứu, không phải GMV toàn quốc. Bấm Shopee /
+        Google / YouTube. Lưới Facebook phía dưới chỉ là thẻ <strong>bạn đã lưu</strong>. Radar không crawl.
       </div>
+      <PlatformWall active={kenh} />
       <p className="muted">
-        <Link href="/?lane=trending">Lọc bảng trending</Link> · <Link href="/?lane=fresh">Lọc fresh</Link> ·{" "}
-        <Link href="/?view=grid">Lưới creative</Link>
+        Đang xem <strong>{dashboard.tab.labelVi}</strong> ·{" "}
+        <Link href={`/top/${kenh}`}>Đủ 999 tên {dashboard.tab.labelVi}</Link> ·{" "}
+        <Link href={`/kenh/${kenh}`}>Thống kê kho</Link> · <Link href="/collect">Nhập số đã bán / ads</Link>
       </p>
-      <h2>Trending ({trending.length})</h2>
+      <BestsellerPanel page={bestsellers} />
+      <h2>Kho đã lưu trên {dashboard.tab.labelVi}</h2>
+      <PlatformPanel dashboard={dashboard} base="trend" limit={8} showTimeline={false} />
+      <h2>Trending Facebook đã lưu ({trending.length})</h2>
       {trending.length === 0 ? <p className="muted">Chưa đủ thẻ mạnh.</p> : <ResearchGrid rows={trending} />}
       <h2>Fresh / mới nổi ({fresh.length})</h2>
       {fresh.length === 0 ? (
