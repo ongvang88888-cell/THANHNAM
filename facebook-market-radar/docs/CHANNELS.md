@@ -4,7 +4,9 @@ Nghiên cứu mọi đường **có thật** để thống kê sản phẩm vừ
 
 **Kết luận khóa:** không có dump chính thức “top bán chạy + top ads VN” trên bất kỳ kênh nào. Radar cộng **thẻ Facebook đã lưu** với **số user tự đọc rồi nhập**. Mọi điểm tổng hợp là **ước lượng**. Server **không HTTP GET** facebook.com, adstransparency.google.com, youtube.com, shopee.vn, lazada.vn, tiki.vn, sendo.vn, tiktok.com.
 
-UI: `/tong-hop` · API: `GET /api/tong-hop` (`estimated: true`, `facebookNationalDump: false`, `nationalSalesDump: false`) · ghi thêm: `POST /api/kenh`.
+UI: chip nền tảng trên `/` · `/kenh/[facebook|instagram|google|youtube|tiktok|shopee|lazada|tiki|sendo]` · `/tong-hop` · API: `GET /api/kenh?tab=` + `GET /api/tong-hop` (`estimated: true`, `autoCrawl: false`, `facebookNationalDump: false`, `nationalSalesDump: false`) · ghi thêm: `POST /api/kenh`.
+
+**Tự động liên tục** = tính lại từ kho mỗi lần mở trang và mỗi 30 giây (tab đang mở). **Không** có crawler Shopee / Lazada / Google / YouTube / Facebook.
 
 ## 1. Kênh và việc được phép
 

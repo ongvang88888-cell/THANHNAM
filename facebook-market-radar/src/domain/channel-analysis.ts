@@ -37,6 +37,10 @@ export type ChannelAnalysisRow = {
   tiktokAdsSeen: number | null;
   youtubeViews: number | null;
   landingKinds: LandingKind[];
+  platforms: string[];
+  lastSeenMs: number;
+  lastObservedMs: number | null;
+  observationCount: number;
   adPush: number;
   soldPush: number;
   composite: number;
@@ -108,6 +112,7 @@ export function buildChannelAnalysisRow(
   ranking: RankingRow & { daysRunning?: number },
   observations: readonly ChannelObservation[],
   landingUrls: readonly (string | null)[],
+  extras: { platforms?: readonly string[]; lastSeenMs?: number } = {},
 ): ChannelAnalysisRow {
   const mine = observations.filter((row) => row.clusterSlug === ranking.clusterSlug);
   const sold: ChannelSoldMap = {
@@ -128,6 +133,10 @@ export function buildChannelAnalysisRow(
   const soldPush = round1(logScale(soldTotal, 10_000));
   const composite = round1(0.55 * adPush + 0.45 * soldPush);
   const kinds = [...new Set(landingUrls.map((url) => classifyLanding(url)).filter((kind) => kind !== "none"))];
+  const platforms = [
+    ...new Set((extras.platforms ?? []).map((item) => item.trim().toLowerCase()).filter(Boolean)),
+  ];
+  const lastObservedMs = mine.reduce((max, row) => Math.max(max, row.observedMs), 0);
   return {
     clusterSlug: ranking.clusterSlug,
     clusterTitle: ranking.clusterTitle,
@@ -147,6 +156,10 @@ export function buildChannelAnalysisRow(
     tiktokAdsSeen: peakForSource(mine, "TIKTOK_ADS"),
     youtubeViews: peakForSource(mine, "YOUTUBE_VIEWS"),
     landingKinds: kinds,
+    platforms,
+    lastSeenMs: extras.lastSeenMs ?? 0,
+    lastObservedMs: lastObservedMs > 0 ? lastObservedMs : null,
+    observationCount: mine.length,
     adPush,
     soldPush,
     composite,

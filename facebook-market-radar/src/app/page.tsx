@@ -8,6 +8,8 @@ import { ProductCell } from "@/ui/product-cell";
 import { ResearchFilters } from "@/ui/research-filters";
 import { ResearchGrid } from "@/ui/research-grid";
 import { queryFromParams, researchHref } from "@/ui/research-query";
+import { parsePlatformTab } from "@/domain/platform-dashboards";
+import { PlatformPanel } from "@/ui/platform-panel";
 import { getRadarService } from "@/server/radar";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +31,7 @@ type Props = {
     maxPrice?: string;
     lane?: string;
     shop?: string;
+    kenh?: string;
   }>;
 };
 
@@ -53,14 +56,16 @@ export default async function HomePage({ searchParams }: Props) {
   const hot = industries.filter((row) => row.isHot).slice(0, 8);
   const topStrong = rankStrongProducts(scoped).slice(0, 8);
   const visibleNiches = params.group ? nichesInGroup(params.group) : LOCKED_NICHES;
+  const kenh = parsePlatformTab(params.kenh);
+  const dashboard = await service.listPlatformDashboard(nowMs, kenh, params.niche);
 
   return (
     <>
-      <h1>Xếp hạng sản phẩm đang chạy quảng cáo</h1>
+      <h1>Thống kê ads &amp; sàn (Facebook, Google, YouTube, TMĐT)</h1>
       <p className="muted">
-        Điểm nóng là ước lượng từ cường độ quảng cáo, độ bền, tốc độ mới và proxy đã bán trên sàn
-        (Shopee / TikTok / Lazada / Tiki / Sendo) — không phải doanh số Facebook. Lượt xem YouTube không
-        vào điểm nóng. Bảng đa kênh: <Link href="/tong-hop">Tổng hợp kênh</Link>.
+        Bấm chip nền tảng bên dưới để xem bảng <strong>chi tiết từng kênh</strong>. Số sàn / Google /
+        YouTube lấy từ kho đã lưu và được tính lại liên tục — không phải crawler. Điểm nóng Facebook
+        vẫn là ước lượng; lượt xem YouTube không vào điểm nóng.
       </p>
       <div className="banner">
         Bảng dưới chỉ ads <strong>bạn đã lưu</strong> ({allRankings.length} sản phẩm) — không phải tổng sản phẩm
@@ -78,6 +83,7 @@ export default async function HomePage({ searchParams }: Props) {
         </Link>
         <Link href="/manh">Ads mạnh nhất</Link>
         <Link href="/tong-hop">Tổng hợp kênh</Link>
+        <Link href={`/kenh/${kenh}`}>Trang kênh đủ</Link>
         <Link href="/xu-huong">Xu hướng / hook</Link>
         <Link href="/bo-suu-tap">Bộ sưu tập</Link>
       </div>
@@ -123,6 +129,16 @@ export default async function HomePage({ searchParams }: Props) {
           </div>
         </div>
       </div>
+
+      <h2>Thống kê từng nền tảng / sàn</h2>
+      <PlatformPanel
+        dashboard={dashboard}
+        base="home"
+        niche={params.niche}
+        extra={{ ten, group: params.group, view }}
+        limit={12}
+      />
+
       {ten.length >= 2 ? (
         <p className="muted">
           Lọc “{ten}”: {research.length}/{scoped.length} sản phẩm đã lưu. Muốn thêm bài đang chạy trên Facebook,
@@ -241,6 +257,11 @@ export default async function HomePage({ searchParams }: Props) {
         ))}
       </div>
 
+      <h2>Xếp hạng điểm nóng Facebook (kho đã lưu)</h2>
+      <p className="muted">
+        Bảng này vẫn là ads Facebook đã lưu. Muốn Shopee / Lazada / Google / YouTube: chip phía trên hoặc{" "}
+        <Link href="/kenh/shopee">/kenh/shopee</Link>.
+      </p>
       {view === "grid" ? (
         <ResearchGrid rows={research} />
       ) : (

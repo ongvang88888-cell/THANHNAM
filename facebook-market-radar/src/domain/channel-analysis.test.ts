@@ -46,6 +46,7 @@ describe("channel analysis", () => {
         { clusterSlug: "den", source: "YOUTUBE_VIEWS", value: 90_000, observedMs: 1 },
       ],
       ["https://shopee.vn/shop-den/p"],
+      { platforms: ["facebook", "instagram"], lastSeenMs: 9 },
     );
     expect(row.sold.shopee).toBe(1000);
     expect(row.sold.lazada).toBe(200);
@@ -54,6 +55,9 @@ describe("channel analysis", () => {
     expect(row.estimated).toBe(true);
     expect(row.facebookNationalDump).toBe(false);
     expect(row.landingKinds).toEqual(["shopee"]);
+    expect(row.platforms).toEqual(["facebook", "instagram"]);
+    expect(row.lastObservedMs).toBe(2);
+    expect(row.observationCount).toBe(4);
     expect(row.links.googleAds).toContain("adstransparency.google.com");
     expect(heatEligibleSold([{ clusterSlug: "den", source: "YOUTUBE_VIEWS", value: 90_000, observedMs: 1 }])).toBeNull();
     expect(

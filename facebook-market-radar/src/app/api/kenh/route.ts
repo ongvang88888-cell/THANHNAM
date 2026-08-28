@@ -1,9 +1,29 @@
 import { NextResponse } from "next/server";
 import { UnauthorizedError } from "@/domain/authz";
+import { parsePlatformTab, serializePlatformTabs } from "@/domain/platform-dashboards";
 import { allowRequest } from "@/server/rate-limit";
 import { expectedCollectKey, getRadarService } from "@/server/radar";
 
 export const runtime = "nodejs";
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const tab = parsePlatformTab(url.searchParams.get("tab"));
+  const niche = url.searchParams.get("niche") ?? undefined;
+  const asOf = url.searchParams.get("asOf");
+  const parsed = asOf ? Date.parse(asOf) : Date.now();
+  const nowMs = Number.isFinite(parsed) ? parsed : Date.now();
+  const dashboard = await getRadarService().listPlatformDashboard(nowMs, tab, niche);
+  return NextResponse.json({
+    estimated: true,
+    autoCrawl: false,
+    scope: "saved_warehouse",
+    facebookNationalDump: false,
+    nationalSalesDump: false,
+    tabs: serializePlatformTabs(),
+    dashboard,
+  });
+}
 
 export async function POST(request: Request) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";

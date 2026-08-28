@@ -329,6 +329,15 @@ describe("RadarService", () => {
     const heat = (await service.listRankings(now)).find((row) => row.clusterTitle.includes("Đèn LED"));
     expect(heat?.scores.salesProxy).toBe(scoreSalesProxy(6300));
     expect(heat?.scores.salesProxy).not.toBe(scoreSalesProxy(50_000));
+    const dash = await service.listPlatformDashboard(now, "lazada");
+    expect(dash.autoCrawl).toBe(false);
+    expect(dash.nationalDump).toBe(false);
+    expect(dash.tab.id).toBe("lazada");
+    expect(dash.ranked[0]?.sold.lazada).toBe(400);
+    expect(dash.coverage.find((row) => row.id === "lazada")?.productsWithData).toBeGreaterThan(0);
+    const youtube = await service.listPlatformDashboard(now, "youtube");
+    expect(youtube.withDataCount).toBeGreaterThan(0);
+    expect(youtube.ranked.some((row) => row.youtubeViews === 50_000)).toBe(true);
   });
 
   it("records a channel observation with collect-key authz", async () => {

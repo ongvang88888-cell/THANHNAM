@@ -128,7 +128,8 @@ export default async function SourcesPage() {
       <h2>Kênh bán hàng / ads ngoài Facebook</h2>
       <p className="muted">
         Không có API dump “sản phẩm bán chạy nhất VN” trên Google, YouTube hay sàn. Radar chỉ sinh URL
-        chính thức và nhận số bạn nhập. Bảng chỉ số: <Link href="/tong-hop">/tong-hop</Link>.
+        chính thức và nhận số bạn nhập. Bảng từng kênh: <Link href="/kenh/shopee">/kenh/shopee</Link> ·{" "}
+        <Link href="/tong-hop">/tong-hop</Link>.
       </p>
       {(["ad_transparency", "ecommerce", "search_demand", "own_account", "blocked"] as const).map((family) => (
         <section key={family}>

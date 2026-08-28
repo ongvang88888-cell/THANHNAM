@@ -38,7 +38,7 @@ Trên dữ liệu user đã lưu (+ feed licensed nếu có), Radar có các b�
 1. **Hồ sơ sản phẩm** `/san-pham/[slug]` — mọi thẻ, trang, landing/shop đã dán, góc creative, URL tìm Thư viện.
 2. **Trending / Fresh** `/xu-huong` — mạnh (điểm nóng / độ bền) vs mới thấy ≤ 7 ngày hoặc tốc độ mới cao.
 2b. **Ads mạnh nhất** `/manh` — playbook hợp pháp + bảng sản phẩm đạt ngưỡng mạnh trên kho đã lưu (điểm nóng ≥ 40 hoặc độ bền ≥ 50 và ≥ 2 ads đang chạy). Không có dump Facebook toàn quốc.
-2c. **Tổng hợp đa kênh** `/tong-hop` — bảng ads Facebook đã lưu + đã bán sàn + ads Google/YouTube/TikTok user đếm + views YouTube. Không có dump bán chạy toàn quốc. Chi tiết [CHANNELS.md](./CHANNELS.md).
+2c. **Tổng hợp đa kênh** `/tong-hop` + **bảng từng nền tảng** trên trang chủ và `/kenh/[nền-tảng]` — ads Facebook đã lưu + đã bán sàn + ads Google/YouTube/TikTok user đếm + views YouTube. Tính lại liên tục từ kho; không crawl. Không có dump bán chạy toàn quốc. Chi tiết [CHANNELS.md](./CHANNELS.md).
 3. **Lưới creative** `/?view=grid` — hover hiện hook từ copy đã lưu.
 4. **Bộ lọc** trên `/` — ngày chạy, số trang, landing, Shopee/TikTok/Lazada/Tiki/Sendo/YouTube/web, góc, media, giá, shop key, làn.
 5. **Watch Page** `/theo-doi` — cảnh báo khi user lưu thẻ mới từ trang đó (không crawl 24/7).
@@ -59,7 +59,7 @@ Không copy: scrape/index triệu ads; giả spend/ROAS; harvest pixel; `/ads_ar
 5. Marketing API: insights của ad account user (token không log).
 6. Licensed feed: file / JSON dán / HTTPS vendor đã mua (`IAdIndexProvider` source=`licensed`). Cấm URL Facebook.
 7. Catalog nguồn: `/nguon` + `docs/SOURCES.md` — cái gì đồng bộ được, cái gì Meta không trả, cái gì cấm.
-8. Chỉ số kênh ngoài Facebook: form `/collect`, `POST /api/kenh`, bảng `/tong-hop` + `docs/CHANNELS.md`. User tự đọc listing / Transparency — không crawl.
+8. Chỉ số kênh ngoài Facebook: form `/collect`, `POST /api/kenh`, chip trên `/`, `/kenh/*`, `/tong-hop` + `docs/CHANNELS.md`. User tự đọc listing / Transparency — không crawl. Radar chỉ tính lại số đã có.
 
 Không scrape `facebook.com/ads/library`, Google Ads Transparency, YouTube, hay sàn TMĐT. Không gọi `/ads_archive` để lấy ads bán hàng VN (API chỉ trả chính trị toàn cầu + commercial đã reach EU/UK).
 

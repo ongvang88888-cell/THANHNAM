@@ -37,6 +37,12 @@ import {
   type ChannelAnalysisRow,
 } from "../domain/channel-analysis";
 import {
+  buildPlatformDashboard,
+  parsePlatformTab,
+  type PlatformDashboard,
+  type PlatformTabId,
+} from "../domain/platform-dashboards";
+import {
   parseChannelMetricSource,
   type ChannelMetricSource,
   type ChannelSort,
@@ -371,15 +377,54 @@ export class RadarService {
     const ads = await this.repo.listAds(this.appId);
     const observations = normalizeChannelObservations(await this.repo.listSalesProxies(this.appId));
     const landingByCluster = new Map<string, Array<string | null>>();
+    const platformsByCluster = new Map<string, string[]>();
+    const lastSeenByCluster = new Map<string, number>();
     for (const ad of ads) {
       const urls = landingByCluster.get(ad.clusterSlug) ?? [];
       urls.push(ad.landingUrl);
       landingByCluster.set(ad.clusterSlug, urls);
+      const platforms = platformsByCluster.get(ad.clusterSlug) ?? [];
+      platforms.push(...ad.platforms);
+      platformsByCluster.set(ad.clusterSlug, platforms);
+      lastSeenByCluster.set(
+        ad.clusterSlug,
+        Math.max(lastSeenByCluster.get(ad.clusterSlug) ?? 0, ad.lastSeenMs),
+      );
     }
     const rows = research.map((row) =>
-      buildChannelAnalysisRow(row, observations, landingByCluster.get(row.clusterSlug) ?? []),
+      buildChannelAnalysisRow(row, observations, landingByCluster.get(row.clusterSlug) ?? [], {
+        platforms: platformsByCluster.get(row.clusterSlug) ?? [],
+        lastSeenMs: lastSeenByCluster.get(row.clusterSlug) ?? row.lastSeenMs,
+      }),
     );
     return sortChannelAnalysis(rows, sort);
+  }
+
+  async listPlatformDashboard(
+    nowMs: number,
+    tab: string | PlatformTabId = "facebook",
+    nicheSlug?: string,
+  ): Promise<PlatformDashboard> {
+    const parsed = parsePlatformTab(typeof tab === "string" ? tab : tab);
+    const rows = await this.listChannelAnalysis(nowMs, "tong", nicheSlug);
+    const observations = normalizeChannelObservations(await this.repo.listSalesProxies(this.appId));
+    const titleBySlug = new Map(rows.map((row) => [row.clusterSlug, row.clusterTitle]));
+    return buildPlatformDashboard({
+      rows,
+      observations,
+      tab: parsed,
+      nowMs,
+      titleBySlug,
+    });
+  }
+
+  async getClusterChannelRow(slug: string, nowMs: number): Promise<ChannelAnalysisRow | null> {
+    const trimmed = slug.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const rows = await this.listChannelAnalysis(nowMs, "tong");
+    return rows.find((row) => row.clusterSlug === trimmed) ?? null;
   }
 
   async recordChannelObservation(

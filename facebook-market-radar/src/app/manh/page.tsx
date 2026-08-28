@@ -25,7 +25,8 @@ export default async function StrongAdsPage({ searchParams }: Props) {
       <h1>Sản phẩm đang chạy ads mạnh nhất</h1>
       <p className="muted">
         Meta không công bố bảng “ads mạnh nhất Việt Nam”. Cách hợp pháp: soi Thư viện (VN, đang chạy), lưu thẻ,
-        rồi để Radar xếp kho đó. Điểm nóng luôn ước lượng — không phải doanh số / ROAS đối thủ.
+        rồi để Radar xếp kho đó. Điểm nóng luôn ước lượng — không phải doanh số / ROAS đối thủ. Sàn /
+        Google / YouTube: <Link href="/kenh/shopee">thống kê kênh</Link>.
       </p>
       <div className="banner">
         Trang này chỉ sản phẩm <strong>đã lưu</strong> đạt ngưỡng mạnh (điểm nóng ≥ {STRONG_HEAT}, hoặc độ bền ≥{" "}

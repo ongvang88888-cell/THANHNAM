@@ -9,12 +9,14 @@ import {
 } from "@/domain/sales-channels";
 import { ProductCell } from "@/ui/product-cell";
 import { getRadarService } from "@/server/radar";
+import { parsePlatformTab } from "@/domain/platform-dashboards";
+import { PlatformPanel } from "@/ui/platform-panel";
 import { ChannelObservationForm } from "./channel-form";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams: Promise<{ niche?: string; xep?: string; asOf?: string }>;
+  searchParams: Promise<{ niche?: string; xep?: string; asOf?: string; kenh?: string }>;
 };
 
 function metric(value: number | null | undefined): string {
@@ -43,6 +45,8 @@ export default async function ChannelAnalysisPage({ searchParams }: Props) {
   const niche = params.niche?.trim() || undefined;
   const sort = parseChannelSort(params.xep);
   const service = getRadarService();
+  const kenh = parsePlatformTab(params.kenh);
+  const dashboard = await service.listPlatformDashboard(nowMs, kenh, niche);
   const rows = await service.listChannelAnalysis(nowMs, sort, niche);
   const clusters = (await service.listClusters()).map((cluster) => ({
     slug: cluster.slug,
@@ -63,11 +67,8 @@ export default async function ChannelAnalysisPage({ searchParams }: Props) {
         Center và sàn (Shopee / Lazada / Tiki / Sendo). Không có dump chính thức “bán chạy + chạy ads
         nhiều nhất Việt Nam”.
       </p>
-      <div className="banner">
-        Mọi cột đều <strong>ước lượng</strong>. Radar không HTTP GET Facebook, Google Transparency,
-        YouTube hay sàn. Lượt xem YouTube không phải đơn hàng và không vào điểm nóng. Ads Google/YouTube/TikTok
-        là số bạn đếm tay. Bảng không phải xếp hạng toàn quốc.
-      </div>
+      <h2>Thống kê từng nền tảng</h2>
+      <PlatformPanel dashboard={dashboard} base="kenh" niche={niche} />
 
       <h2>Kênh nghiên cứu hợp pháp</h2>
       {families.map((group) => (
