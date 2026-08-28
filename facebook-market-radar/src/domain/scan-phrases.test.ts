@@ -6,13 +6,20 @@ describe("scan phrases", () => {
     const phrases = extractCopyPhrases("Kem chống nắng SPF50 — chỉ 249.000đ hôm nay. Inbox Zalo.");
     expect(phrases.some((q) => q.includes("kem chống nắng"))).toBe(true);
     expect(phrases.every((q) => !q.includes("249"))).toBe(true);
+    expect(phrases.every((q) => !/000đ|590k|triệu/i.test(q))).toBe(true);
     expect(phrases.every((q) => !/\binbox\b/i.test(q))).toBe(true);
+    const priced = extractCopyPhrases("Tiếng Anh giao tiếp buổi tối, học phí 1.490.000đ");
+    expect(priced.some((q) => q.includes("tiếng anh") || q.includes("giao tiếp"))).toBe(true);
+    expect(priced.every((q) => !/000đ|học phí/i.test(q))).toBe(true);
   });
 
   it("builds name variants for a running product title", () => {
     const variants = nameVariantQueries("Đèn LED cảm ứng tủ bếp");
     expect(variants[0]).toBe("Đèn LED cảm ứng tủ bếp");
-    expect(variants.some((q) => q.includes("đèn led") || q.includes("Đèn LED"))).toBe(true);
+    expect(variants.some((q) => q.toLowerCase().includes("đèn led"))).toBe(true);
+    expect(variants.every((q) => q.toLowerCase().startsWith("đèn") || q === "Đèn LED cảm ứng tủ bếp")).toBe(
+      true,
+    );
     expect(variants.length).toBeGreaterThan(1);
     expect(variants.length).toBeLessThanOrEqual(6);
   });

@@ -141,6 +141,8 @@ describe("ad library scan plan", () => {
       },
     ]);
     expect(plan.moreRunningBatch.length).toBeGreaterThan(0);
+    expect(plan.copyKeywords.every((row) => !/000đ|249/.test(row.query))).toBe(true);
+    expect(plan.moreRunningBatch.some((row) => row.kind === "name-variant" || row.kind === "running")).toBe(true);
     const lookup = buildScanLookup("Đèn LED", {
       query: "Đèn LED",
       slug: "den-led",

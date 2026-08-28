@@ -161,9 +161,10 @@ export function buildScanPlan(
   const runningProducts = runningProductBranches(rankings);
   const nameVariants = nameVariantBranches(rankings, catalogKeys);
   const copyKeywords = copyKeywordBranches(ads, catalogKeys);
-  const moreRunningBatch = dedupeBranches([...nameVariants, ...copyKeywords, ...runningProducts])
-    .sort(compareScanBranches)
-    .slice(0, nextBatchSize);
+  const moreRunningBatch = interleaveScanKinds(
+    [nameVariants, copyKeywords, runningProducts],
+    nextBatchSize,
+  );
   return {
     branches,
     runningProducts,
@@ -353,16 +354,34 @@ function makeBranch(input: {
   };
 }
 
-function dedupeBranches(rows: ScanBranch[]): ScanBranch[] {
+function interleaveScanKinds(groups: ScanBranch[][], max: number): ScanBranch[] {
   const seen = new Set<string>();
+  const indexes = groups.map(() => 0);
   const out: ScanBranch[] = [];
-  for (const row of rows) {
-    const key = normalizeTitle(row.query);
-    if (seen.has(key)) {
-      continue;
+  let progressed = true;
+  while (out.length < max && progressed) {
+    progressed = false;
+    for (let g = 0; g < groups.length; g += 1) {
+      const group = groups[g] ?? [];
+      while ((indexes[g] ?? 0) < group.length) {
+        const row = group[indexes[g] ?? 0];
+        indexes[g] = (indexes[g] ?? 0) + 1;
+        if (!row) {
+          continue;
+        }
+        const key = normalizeTitle(row.query);
+        if (seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        out.push(row);
+        progressed = true;
+        break;
+      }
+      if (out.length >= max) {
+        break;
+      }
     }
-    seen.add(key);
-    out.push(row);
   }
   return out;
 }
