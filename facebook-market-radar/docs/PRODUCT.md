@@ -59,6 +59,8 @@ Không copy: scrape/index triệu ads; giả spend/ROAS; harvest pixel; `/ads_ar
 
 Không scrape `facebook.com/ads/library`. Không gọi `/ads_archive` để lấy ads bán hàng VN (API không trả commercial VN).
 
+Đặc tả đầy đủ “từ khóa → list → thống kê” (UI Thư viện vs API vs Radar): [`AD_LIBRARY_KEYWORD_SEARCH.md`](./AD_LIBRARY_KEYWORD_SEARCH.md).
+
 ## Ngoài phạm vi Vòng 1
 
 - SaaS multi-region, Chrome Web Store listing (extension **unpacked** trong repo thì được)
