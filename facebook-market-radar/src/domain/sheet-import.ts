@@ -80,6 +80,13 @@ export function parseAdLibrarySheet(csv: string): SheetParseResult {
     listingPriceVnd: index("listingPriceVnd"),
     shopeeSold: index("shopeeSold"),
     tiktokSold: index("tiktokSold"),
+    lazadaSold: index("lazadaSold"),
+    tikiSold: index("tikiSold"),
+    sendoSold: index("sendoSold"),
+    googleAdsSeen: index("googleAdsSeen"),
+    youtubeAdsSeen: index("youtubeAdsSeen"),
+    tiktokAdsSeen: index("tiktokAdsSeen"),
+    youtubeViews: index("youtubeViews"),
     notes: index("notes"),
   };
   if (col.libraryId < 0 || col.pageId < 0 || col.pageName < 0 || col.productTitle < 0 || col.startDate < 0) {
@@ -128,6 +135,13 @@ export function parseAdLibrarySheet(csv: string): SheetParseResult {
       listingPriceVnd: cell(col.listingPriceVnd) || undefined,
       shopeeSold: sold(cell(col.shopeeSold)),
       tiktokSold: sold(cell(col.tiktokSold)),
+      lazadaSold: sold(cell(col.lazadaSold)),
+      tikiSold: sold(cell(col.tikiSold)),
+      sendoSold: sold(cell(col.sendoSold)),
+      googleAdsSeen: sold(cell(col.googleAdsSeen)),
+      youtubeAdsSeen: sold(cell(col.youtubeAdsSeen)),
+      tiktokAdsSeen: sold(cell(col.tiktokAdsSeen)),
+      youtubeViews: sold(cell(col.youtubeViews)),
       body: cell(col.notes) || undefined,
     });
   });

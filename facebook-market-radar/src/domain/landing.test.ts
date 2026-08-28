@@ -5,6 +5,10 @@ describe("landing", () => {
   it("classifies shop hosts and empty", () => {
     expect(classifyLanding("https://shopee.vn/den-led-i.123")).toBe("shopee");
     expect(classifyLanding("https://vt.tiktok.com/abc")).toBe("tiktok");
+    expect(classifyLanding("https://www.lazada.vn/products/den-i123.html")).toBe("lazada");
+    expect(classifyLanding("https://tiki.vn/den-led-p123")).toBe("tiki");
+    expect(classifyLanding("https://www.sendo.vn/san-pham/den")).toBe("sendo");
+    expect(classifyLanding("https://www.youtube.com/watch?v=abc")).toBe("youtube");
     expect(classifyLanding("https://shop.example.com/p/1")).toBe("web");
     expect(classifyLanding(null)).toBe("none");
     expect(classifyLanding("not-a-url")).toBe("none");

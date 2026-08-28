@@ -35,6 +35,19 @@ describe("sheet import", () => {
     });
   });
 
+  it("maps extra channel metric columns", () => {
+    const csv = [
+      "libraryId,pageId,pageName,productTitle,startDate,lazadaSold,googleAdsSeen,youtubeViews",
+      "111000202,900202,Lazada Shop,Serum extra,2026-08-01,40,3,9000",
+    ].join("\n");
+    const parsed = parseAdLibrarySheet(csv);
+    expect(parsed.rows[0]).toMatchObject({
+      lazadaSold: 40,
+      googleAdsSeen: 3,
+      youtubeViews: 9000,
+    });
+  });
+
   it("rejects unknown niche slugs", () => {
     const csv = [
       "libraryId,pageId,pageName,productTitle,startDate,nicheSlug",

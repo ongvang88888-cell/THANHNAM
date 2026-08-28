@@ -3,9 +3,9 @@ import { AppShell } from "@/ui/app-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Radar Ad Library — Facebook Market Radar (VN)",
+  title: "Radar Ad Library — ads & sàn VN",
   description:
-    "Ad Library cho thẻ Facebook đã lưu. Điểm nóng ước lượng — không phải like, share, impression hay doanh số đối thủ.",
+    "Thống kê ads Facebook đã lưu và chỉ số Shopee / Lazada / Google / YouTube bạn nhập. Không crawl đối thủ.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

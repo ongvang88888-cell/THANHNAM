@@ -2,33 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
-
-const NAV = [
-  { href: "/", label: "Ad Library", vi: "Thư viện ads" },
-  { href: "/quet", label: "Ad Search", vi: "Quét cành" },
-  { href: "/theo-doi", label: "Ad Pages", vi: "Theo dõi trang" },
-  { href: "/xu-huong", label: "Trending", vi: "Xu hướng" },
-  { href: "/nganh", label: "Rankings", vi: "Xếp hạng ngành" },
-  { href: "/bo-suu-tap", label: "Collection", vi: "Bộ sưu tập" },
-  { href: "/collect", label: "Save Ad", vi: "Lưu quảng cáo" },
-  { href: "/ads", label: "Saved Ads", vi: "Ads đã lưu" },
-  { href: "/alerts", label: "Alerts", vi: "Cảnh báo" },
-  { href: "/own-ads", label: "My Ads", vi: "Tài khoản của tôi" },
-  { href: "/report", label: "Report", vi: "Báo cáo tuần" },
-  { href: "/niches", label: "Niches", vi: "Danh mục ngành" },
-];
-
-function isActive(pathname: string, href: string): boolean {
-  if (href === "/") {
-    return pathname === "/";
-  }
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
+import { useEffect, useState } from "react";
+import { APP_NAV_GROUPS, isActiveNav, platformIdFromPath, TOP_PLATFORM_PILLS } from "@/domain/app-nav";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
+  const [kenh, setKenh] = useState<string | null>(null);
+
+  useEffect(() => {
+    setKenh(new URLSearchParams(window.location.search).get("kenh"));
+  }, [pathname]);
+
+  const activePlatform = platformIdFromPath(pathname, kenh);
 
   return (
     <div className="spy-app">
@@ -36,44 +22,57 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <button type="button" className="spy-backdrop" aria-label="Đóng menu" onClick={() => setOpen(false)} />
       ) : null}
       <aside className={`spy-side${open ? " open" : ""}`}>
-        <Link href="/" className="spy-logo" onClick={() => setOpen(false)}>
+        <Link href="/kenh/shopee" className="spy-logo" onClick={() => setOpen(false)}>
           <span className="spy-mark" aria-hidden="true">
             ⌕
           </span>
           <span>
             <b>Radar</b>
-            <small>Ad Library</small>
+            <small>Ads &amp; sàn</small>
           </span>
         </Link>
-        <p className="spy-side-kicker">Ad Library · Việt Nam</p>
-        <nav className="spy-nav">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={isActive(pathname, item.href) ? "on" : ""}
-              onClick={() => setOpen(false)}
-            >
-              <span>{item.label}</span>
-              <small>{item.vi}</small>
-            </Link>
+        <p className="spy-side-kicker">Shopee · Google · YouTube · Facebook</p>
+        <nav className="spy-nav" aria-label="Menu Radar">
+          {APP_NAV_GROUPS.map((group) => (
+            <div key={group.title} className="spy-nav-group">
+              <p className="spy-side-kicker">{group.title}</p>
+              {group.items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={isActiveNav(pathname, item.href) ? "on" : ""}
+                  onClick={() => setOpen(false)}
+                >
+                  <span>{item.label}</span>
+                  <small>{item.vi}</small>
+                </Link>
+              ))}
+            </div>
           ))}
         </nav>
-        <p className="spy-side-note">Chỉ thẻ bạn đã lưu. Không kéo Facebook. Điểm nóng ước lượng.</p>
+        <p className="spy-side-note">
+          Dòng đầu menu là Shopee / Google / YouTube — không chỉ Facebook. Số sàn = bạn nhập. Radar không crawl.
+        </p>
       </aside>
       <div className="spy-main">
         <header className="spy-top">
-          <button type="button" className="spy-menu" onClick={() => setOpen((value) => !value)}>
+          <button type="button" className="spy-menu secondary" onClick={() => setOpen((value) => !value)}>
             Menu
           </button>
           <form className="spy-search" action="/" method="get">
             <input name="ten" placeholder="Search saved ads — tên, hook, ngành…" aria-label="Tìm ads đã lưu" />
             <button type="submit">Search</button>
           </form>
-          <div className="spy-top-meta">
-            <span className="net-pill on">Facebook</span>
-            <span className="net-pill">VN</span>
-            <span className="net-pill">Tiếng Việt</span>
+          <div className="spy-top-meta" aria-label="Nền tảng">
+            {TOP_PLATFORM_PILLS.map((pill) => (
+              <Link
+                key={pill.id}
+                href={pill.href}
+                className={pill.id === activePlatform ? "net-pill on" : "net-pill"}
+              >
+                {pill.label}
+              </Link>
+            ))}
           </div>
         </header>
         <div className="spy-page">{children}</div>

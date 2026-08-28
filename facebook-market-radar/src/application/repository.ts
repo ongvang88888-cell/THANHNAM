@@ -1,5 +1,6 @@
 import type { AlertType } from "../domain/alerts";
 import type { OwnCampaignInsight } from "../domain/ports";
+import type { ChannelMetricSource } from "../domain/sales-channels";
 
 export type StoredPage = {
   pageId: string;
@@ -35,7 +36,7 @@ export type StoredCluster = {
 
 export type StoredSalesProxy = {
   clusterSlug: string;
-  source: "SHOPEE" | "TIKTOK";
+  source: ChannelMetricSource;
   soldCount: number;
   observedMs: number;
 };

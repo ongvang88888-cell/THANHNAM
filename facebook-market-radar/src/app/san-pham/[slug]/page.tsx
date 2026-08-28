@@ -18,6 +18,7 @@ export default async function ProductDossierPage({ params }: Props) {
     notFound();
   }
   const { row } = dossier;
+  const channel = await getRadarService().getClusterChannelRow(slug, Date.now());
   return (
     <>
       <p className="muted">
@@ -74,6 +75,67 @@ export default async function ProductDossierPage({ params }: Props) {
           </li>
         ))}
       </ul>
+      {channel ? (
+        <>
+          <h2>Thống kê kênh / sàn (kho đã lưu)</h2>
+          <p className="muted">
+            Tự tính lại khi mở trang. Không phải GMV đối thủ.{" "}
+            <Link href={`/kenh/shopee`}>Mọi sàn</Link> · <Link href="/collect">Cập nhật số</Link>
+          </p>
+          <div className="cards">
+            <div className="card">
+              <div className="n">{channel.sold.shopee ?? "—"}</div>
+              <div className="muted">Shopee đã bán</div>
+            </div>
+            <div className="card">
+              <div className="n">{channel.sold.tiktok ?? "—"}</div>
+              <div className="muted">TikTok Shop đã bán</div>
+            </div>
+            <div className="card">
+              <div className="n">{channel.sold.lazada ?? "—"}</div>
+              <div className="muted">Lazada đã bán</div>
+            </div>
+            <div className="card">
+              <div className="n">{channel.sold.tiki ?? "—"}</div>
+              <div className="muted">Tiki đã bán</div>
+            </div>
+            <div className="card">
+              <div className="n">{channel.sold.sendo ?? "—"}</div>
+              <div className="muted">Sendo đã bán</div>
+            </div>
+            <div className="card">
+              <div className="n">{channel.googleAdsSeen ?? "—"}</div>
+              <div className="muted">Ads Google đã đếm</div>
+            </div>
+            <div className="card">
+              <div className="n">{channel.youtubeAdsSeen ?? "—"}</div>
+              <div className="muted">Ads YouTube đã đếm</div>
+            </div>
+            <div className="card">
+              <div className="n">{channel.youtubeViews ?? "—"}</div>
+              <div className="muted">Xem YouTube (không phải đơn)</div>
+            </div>
+          </div>
+          <p className="muted">
+            <a href={channel.links.shopee} target="_blank" rel="noreferrer">
+              Shopee
+            </a>
+            {" · "}
+            <a href={channel.links.lazada} target="_blank" rel="noreferrer">
+              Lazada
+            </a>
+            {" · "}
+            <a href={channel.links.googleAds} target="_blank" rel="noreferrer">
+              Google Ads
+            </a>
+            {" · "}
+            <a href={channel.links.youtube} target="_blank" rel="noreferrer">
+              YouTube
+            </a>
+            {" — Radar không tự kéo."}
+          </p>
+        </>
+      ) : null}
       <h2>Landing / shop (bạn dán)</h2>
       {dossier.shops.length === 0 ? (
         <p className="muted">Chưa có URL đích trên thẻ đã lưu.</p>

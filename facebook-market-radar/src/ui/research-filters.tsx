@@ -70,6 +70,10 @@ export function ResearchFilters({
           <option value="">Mọi loại</option>
           <option value="shopee">{LANDING_KIND_VI.shopee}</option>
           <option value="tiktok">{LANDING_KIND_VI.tiktok}</option>
+          <option value="lazada">{LANDING_KIND_VI.lazada}</option>
+          <option value="tiki">{LANDING_KIND_VI.tiki}</option>
+          <option value="sendo">{LANDING_KIND_VI.sendo}</option>
+          <option value="youtube">{LANDING_KIND_VI.youtube}</option>
           <option value="web">{LANDING_KIND_VI.web}</option>
         </select>
       </label>

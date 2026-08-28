@@ -29,13 +29,36 @@ import {
   type SavedAdLite,
   type SavedFilter,
 } from "../domain/saved-research";
+import {
+  buildChannelAnalysisRow,
+  heatEligibleSold,
+  normalizeChannelObservations,
+  sortChannelAnalysis,
+  type ChannelAnalysisRow,
+} from "../domain/channel-analysis";
+import {
+  buildPlatformDashboard,
+  parsePlatformTab,
+  type PlatformDashboard,
+  type PlatformTabId,
+} from "../domain/platform-dashboards";
+import {
+  buildPlatformBestsellerPage,
+  type PlatformBestsellerPage,
+} from "../domain/platform-bestsellers";
+import {
+  parseChannelMetricSource,
+  type ChannelMetricSource,
+  type ChannelSort,
+} from "../domain/sales-channels";
 import { scoreHeat } from "../domain/scoring";
+import { rankStrongProducts } from "../domain/strong-ads";
 import { parseAdLibrarySheet } from "../domain/sheet-import";
-import { buildClusterSignals, maxSold } from "../domain/signals";
+import { buildClusterSignals } from "../domain/signals";
 import { weekStartUtc } from "../domain/week";
 import { buildWeeklyReportMarkdown, type RankingRow } from "../domain/weekly-report";
 import { summarizeOwnInsights } from "../domain/own-insights";
-import type { IOwnAdsInsightsProvider } from "../domain/ports";
+import type { IOwnAdsInsightsProvider, NormalizedAd } from "../domain/ports";
 import type {
   IRadarRepository,
   StoredAd,
@@ -122,19 +145,11 @@ export class RadarService {
       lastSeenMs: nowMs,
       clusterSlug: cluster.slug,
     });
-    if (parsed.shopeeSold !== null) {
+    for (const observation of parsed.observations) {
       await this.repo.addSalesProxy(this.appId, {
         clusterSlug: cluster.slug,
-        source: "SHOPEE",
-        soldCount: parsed.shopeeSold,
-        observedMs: nowMs,
-      });
-    }
-    if (parsed.tiktokSold !== null) {
-      await this.repo.addSalesProxy(this.appId, {
-        clusterSlug: cluster.slug,
-        source: "TIKTOK",
-        soldCount: parsed.tiktokSold,
+        source: observation.source,
+        soldCount: observation.value,
         observedMs: nowMs,
       });
     }
@@ -168,8 +183,8 @@ export class RadarService {
 
     for (const cluster of clusters) {
       const clusterAds = ads.filter((ad) => ad.clusterSlug === cluster.slug);
-      const sold = maxSold(
-        proxies.filter((p) => p.clusterSlug === cluster.slug).map((p) => p.soldCount),
+      const sold = heatEligibleSold(
+        normalizeChannelObservations(proxies.filter((p) => p.clusterSlug === cluster.slug)),
       );
       const signals = buildClusterSignals(
         clusterAds.map((ad) => ({
@@ -355,6 +370,117 @@ export class RadarService {
       ...splitTrendLanes(rows),
       hooks: hookDigest(ads, nicheByCluster),
     };
+  }
+
+  async listStrongProducts(nowMs: number, nicheSlug?: string): Promise<ResearchRow[]> {
+    const rows = await this.listResearch(nowMs, { niche: nicheSlug });
+    return rankStrongProducts(rows);
+  }
+
+  async listChannelAnalysis(
+    nowMs: number,
+    sort: ChannelSort = "tong",
+    nicheSlug?: string,
+  ): Promise<ChannelAnalysisRow[]> {
+    const research = await this.listResearch(nowMs, { niche: nicheSlug });
+    const ads = await this.repo.listAds(this.appId);
+    const observations = normalizeChannelObservations(await this.repo.listSalesProxies(this.appId));
+    const landingByCluster = new Map<string, Array<string | null>>();
+    const platformsByCluster = new Map<string, string[]>();
+    const lastSeenByCluster = new Map<string, number>();
+    for (const ad of ads) {
+      const urls = landingByCluster.get(ad.clusterSlug) ?? [];
+      urls.push(ad.landingUrl);
+      landingByCluster.set(ad.clusterSlug, urls);
+      const platforms = platformsByCluster.get(ad.clusterSlug) ?? [];
+      platforms.push(...ad.platforms);
+      platformsByCluster.set(ad.clusterSlug, platforms);
+      lastSeenByCluster.set(
+        ad.clusterSlug,
+        Math.max(lastSeenByCluster.get(ad.clusterSlug) ?? 0, ad.lastSeenMs),
+      );
+    }
+    const rows = research.map((row) =>
+      buildChannelAnalysisRow(row, observations, landingByCluster.get(row.clusterSlug) ?? [], {
+        platforms: platformsByCluster.get(row.clusterSlug) ?? [],
+        lastSeenMs: lastSeenByCluster.get(row.clusterSlug) ?? row.lastSeenMs,
+      }),
+    );
+    return sortChannelAnalysis(rows, sort);
+  }
+
+  async listPlatformDashboard(
+    nowMs: number,
+    tab: string | PlatformTabId = "facebook",
+    nicheSlug?: string,
+  ): Promise<PlatformDashboard> {
+    const parsed = parsePlatformTab(typeof tab === "string" ? tab : tab);
+    const rows = await this.listChannelAnalysis(nowMs, "tong", nicheSlug);
+    const observations = normalizeChannelObservations(await this.repo.listSalesProxies(this.appId));
+    const titleBySlug = new Map(rows.map((row) => [row.clusterSlug, row.clusterTitle]));
+    return buildPlatformDashboard({
+      rows,
+      observations,
+      tab: parsed,
+      nowMs,
+      titleBySlug,
+    });
+  }
+
+  async listPlatformBestsellers(
+    nowMs: number,
+    tab: string | PlatformTabId = "shopee",
+    opts: { niche?: string; q?: string; trang?: number } = {},
+  ): Promise<PlatformBestsellerPage> {
+    const warehouse = await this.listChannelAnalysis(nowMs, "tong");
+    return buildPlatformBestsellerPage({
+      tab,
+      niche: opts.niche,
+      q: opts.q,
+      trang: opts.trang,
+      warehouse,
+    });
+  }
+
+  async getClusterChannelRow(slug: string, nowMs: number): Promise<ChannelAnalysisRow | null> {
+    const trimmed = slug.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const rows = await this.listChannelAnalysis(nowMs, "tong");
+    return rows.find((row) => row.clusterSlug === trimmed) ?? null;
+  }
+
+  async recordChannelObservation(
+    input: { clusterSlug: string; source: string; value: number },
+    nowMs: number,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<{ clusterSlug: string; source: ChannelMetricSource; value: number }> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    const source = parseChannelMetricSource(input.source);
+    if (!source) {
+      throw new Error("Nguồn chỉ số không hợp lệ");
+    }
+    if (!Number.isInteger(input.value) || input.value < 0 || input.value > 50_000_000) {
+      throw new Error("chỉ số kênh phải là số nguyên 0–50000000");
+    }
+    const slug = input.clusterSlug.trim();
+    if (!slug) {
+      throw new Error("clusterSlug bắt buộc");
+    }
+    const clusters = await this.repo.listClusters(this.appId);
+    if (!clusters.some((cluster) => cluster.slug === slug)) {
+      throw new Error("Sản phẩm chưa có trong kho — lưu ads trước");
+    }
+    await this.repo.addSalesProxy(this.appId, {
+      clusterSlug: slug,
+      source,
+      soldCount: input.value,
+      observedMs: nowMs,
+    });
+    await this.recompute(nowMs);
+    return { clusterSlug: slug, source, value: input.value };
   }
 
   async listPageWatches(): Promise<StoredPageWatch[]> {
@@ -704,6 +830,62 @@ export class RadarService {
       }
     }
     return { imported, skipped: parsed.skipped, failed, errors };
+  }
+
+  async importNormalizedAds(
+    ads: NormalizedAd[],
+    nowMs: number,
+    collectKey: string | null,
+    expectedKey: string | undefined,
+  ): Promise<{ imported: number; failed: number; errors: string[] }> {
+    assertCollectAuthorized(collectKey, expectedKey);
+    if (ads.length > 10_000) {
+      throw new Error("Tối đa 10000 ads mỗi lần nhập licensed");
+    }
+    const errors: string[] = [];
+    let imported = 0;
+    let failed = 0;
+    for (const ad of ads) {
+      try {
+        await this.collectManual(
+          {
+            snapshot: ad,
+            productTitle: ad.productHint ?? ad.title ?? ad.pageName,
+            nicheSlug: ad.nicheHint ?? undefined,
+          },
+          nowMs,
+          collectKey,
+          expectedKey,
+        );
+        imported += 1;
+      } catch (error) {
+        failed += 1;
+        errors.push(`${ad.libraryId}: ${error instanceof Error ? error.message : "Không lưu được"}`);
+      }
+    }
+    return { imported, failed, errors };
+  }
+
+  async warehouseStats(): Promise<{
+    adCount: number;
+    activeAdCount: number;
+    pageCount: number;
+    productCount: number;
+    nicheCount: number;
+  }> {
+    const [ads, pages, clusters] = await Promise.all([
+      this.repo.listAds(this.appId),
+      this.repo.listPages(this.appId),
+      this.repo.listClusters(this.appId),
+    ]);
+    const niches = new Set(clusters.map((cluster) => cluster.nicheSlug));
+    return {
+      adCount: ads.length,
+      activeAdCount: ads.filter((ad) => ad.isActive).length,
+      pageCount: pages.length,
+      productCount: clusters.length,
+      nicheCount: niches.size,
+    };
   }
 
   async weeklyReport(nowMs: number): Promise<string> {
