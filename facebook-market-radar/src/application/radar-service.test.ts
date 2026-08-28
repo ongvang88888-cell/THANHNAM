@@ -6,6 +6,7 @@ import {
   OwnAdsMarketingApiProvider,
 } from "../adapters/marketing-api-provider";
 import { UnauthorizedError } from "../domain/authz";
+import { scoreSalesProxy } from "../domain/scoring";
 import { RadarService } from "./radar-service";
 
 const now = Date.parse("2026-08-27T00:00:00.000Z");
@@ -169,6 +170,36 @@ describe("RadarService", () => {
     expect(ads.filter((ad) => ad.libraryId === "111000099")).toHaveLength(1);
   });
 
+  it("imports licensed snapshots into the warehouse without claiming competitor ROAS", async () => {
+    const service = await seededService();
+    const result = await service.importNormalizedAds(
+      [
+        {
+          libraryId: "licensed-1",
+          pageId: "900199",
+          pageName: "Licensed Shop",
+          body: "Serum niacinamide",
+          title: "Serum",
+          startDate: "2026-08-01",
+          isActive: true,
+          platforms: ["facebook"],
+          snapshotUrl: null,
+          landingUrl: "https://example.com/serum",
+          imageUrl: null,
+          productHint: "Serum licensed",
+          nicheHint: "my-pham",
+        },
+      ],
+      now,
+      null,
+      undefined,
+    );
+    expect(result.imported).toBe(1);
+    const stats = await service.warehouseStats();
+    expect(stats.adCount).toBeGreaterThanOrEqual(4);
+    expect(stats.productCount).toBeGreaterThanOrEqual(3);
+  });
+
   it("rejects collect when key is required", async () => {
     const service = new RadarService(new MemoryRadarRepository());
     await expect(
@@ -228,6 +259,13 @@ describe("RadarService", () => {
     expect(dossier?.officialSearchUrl).toContain("ads/library");
     const lanes = await service.listTrendLanes(now);
     expect(lanes.trending.length + lanes.fresh.length).toBeGreaterThan(0);
+    const strong = await service.listStrongProducts(now);
+    expect(strong.every((row) => row.scores.heat >= 40 || (row.scores.longevity >= 50 && row.activeAdCount >= 2))).toBe(
+      true,
+    );
+    expect(strong.every((row) => row.scores.estimated)).toBe(true);
+    const heats = strong.map((row) => row.scores.heat);
+    expect(heats).toEqual([...heats].sort((a, b) => b - a));
   });
 
   it("alerts when a watched page gets a newly saved card", async () => {
@@ -235,6 +273,89 @@ describe("RadarService", () => {
     await service.upsertPageWatch("900024", "TaiNghe Tot", null, now, null, undefined);
     const alerts = await service.listAlerts();
     expect(alerts.some((row) => row.type === "WATCHED_PAGE_NEW_AD" && row.pageId === "900024")).toBe(true);
+  });
+
+  it("keeps YouTube views out of HeatScore sales proxy", async () => {
+    const service = new RadarService(new MemoryRadarRepository());
+    await service.collectManual(
+      {
+        libraryId: "view-1",
+        pageId: "900301",
+        pageName: "View Shop",
+        productTitle: "Serum chỉ có view",
+        startDate: "2026-08-01",
+        nicheSlug: "my-pham",
+        youtubeViews: 90_000,
+        googleAdsSeen: 12,
+      },
+      now,
+      null,
+      undefined,
+    );
+    const rankings = await service.listRankings(now);
+    const row = rankings.find((item) => item.clusterTitle.includes("Serum chỉ có view"));
+    expect(row?.scores.salesProxy).toBe(0);
+    expect(row?.scores.estimated).toBe(true);
+  });
+
+  it("builds a multi-channel table from sold peaks and user-counted ads", async () => {
+    const service = await seededService();
+    await service.collectManual(
+      {
+        libraryId: "111000030",
+        pageId: "900030",
+        pageName: "Lazada Shop",
+        productTitle: "Đèn LED cảm ứng tủ bếp",
+        startDate: "2026-08-01",
+        lazadaSold: 400,
+        youtubeViews: 50_000,
+        googleAdsSeen: 5,
+        landingUrl: "https://www.lazada.vn/shop-den/p",
+      },
+      now,
+      null,
+      undefined,
+    );
+    const rows = await service.listChannelAnalysis(now, "sold");
+    const led = rows.find((row) => row.clusterTitle.includes("Đèn LED"));
+    expect(led?.sold.shopee).toBe(6300);
+    expect(led?.sold.lazada).toBe(400);
+    expect(led?.soldTotal).toBe(6700);
+    expect(led?.youtubeViews).toBe(50_000);
+    expect(led?.googleAdsSeen).toBe(5);
+    expect(led?.estimated).toBe(true);
+    expect(led?.facebookNationalDump).toBe(false);
+    expect(led?.landingKinds).toContain("lazada");
+    const heat = (await service.listRankings(now)).find((row) => row.clusterTitle.includes("Đèn LED"));
+    expect(heat?.scores.salesProxy).toBe(scoreSalesProxy(6300));
+    expect(heat?.scores.salesProxy).not.toBe(scoreSalesProxy(50_000));
+    const dash = await service.listPlatformDashboard(now, "lazada");
+    expect(dash.autoCrawl).toBe(false);
+    expect(dash.nationalDump).toBe(false);
+    expect(dash.tab.id).toBe("lazada");
+    expect(dash.ranked[0]?.sold.lazada).toBe(400);
+    expect(dash.coverage.find((row) => row.id === "lazada")?.productsWithData).toBeGreaterThan(0);
+    const youtube = await service.listPlatformDashboard(now, "youtube");
+    expect(youtube.withDataCount).toBeGreaterThan(0);
+    expect(youtube.ranked.some((row) => row.youtubeViews === 50_000)).toBe(true);
+  });
+
+  it("records a channel observation with collect-key authz", async () => {
+    const service = await seededService();
+    const rankings = await service.listRankings(now);
+    const slug = rankings[0]?.clusterSlug ?? "";
+    await expect(
+      service.recordChannelObservation({ clusterSlug: slug, source: "TIKI", value: 12 }, now, "wrong", "secret"),
+    ).rejects.toBeInstanceOf(UnauthorizedError);
+    const saved = await service.recordChannelObservation(
+      { clusterSlug: slug, source: "tiki", value: 12 },
+      now,
+      null,
+      undefined,
+    );
+    expect(saved.source).toBe("TIKI");
+    const analysis = await service.listChannelAnalysis(now, "tong");
+    expect(analysis.some((row) => row.sold.tiki === 12)).toBe(true);
   });
 
   it("pins boards and tags with collect-key authz", async () => {

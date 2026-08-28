@@ -1,9 +1,13 @@
-export const LANDING_KINDS = ["shopee", "tiktok", "web", "none"] as const;
+export const LANDING_KINDS = ["shopee", "tiktok", "lazada", "tiki", "sendo", "youtube", "web", "none"] as const;
 export type LandingKind = (typeof LANDING_KINDS)[number];
 
 export const LANDING_KIND_VI: Record<LandingKind, string> = {
   shopee: "Shopee",
   tiktok: "TikTok",
+  lazada: "Lazada",
+  tiki: "Tiki",
+  sendo: "Sendo",
+  youtube: "YouTube",
   web: "Web / landing",
   none: "Chưa có đích",
 };
@@ -45,6 +49,18 @@ export function classifyLanding(raw: string | null | undefined): LandingKind {
   ) {
     return "tiktok";
   }
+  if (host === "lazada.vn" || host.endsWith(".lazada.vn") || host === "lazada.com") {
+    return "lazada";
+  }
+  if (host === "tiki.vn" || host.endsWith(".tiki.vn")) {
+    return "tiki";
+  }
+  if (host === "sendo.vn" || host.endsWith(".sendo.vn")) {
+    return "sendo";
+  }
+  if (host === "youtube.com" || host.endsWith(".youtube.com") || host === "youtu.be") {
+    return "youtube";
+  }
   return "web";
 }
 
@@ -64,6 +80,14 @@ export function shopKey(raw: string | null | undefined): string | null {
   if (kind === "tiktok") {
     const handle = parts.find((part) => part.startsWith("@")) ?? parts[0];
     return handle ? `tiktok:${handle.toLowerCase()}` : `tiktok:${host}`;
+  }
+  if (kind === "lazada" || kind === "tiki" || kind === "sendo") {
+    const shop = parts[0];
+    return shop ? `${kind}:${shop.toLowerCase()}` : `${kind}:${host}`;
+  }
+  if (kind === "youtube") {
+    const handle = parts.find((part) => part.startsWith("@")) ?? parts[0];
+    return handle ? `youtube:${handle.toLowerCase()}` : `youtube:${host}`;
   }
   return `web:${host}`;
 }

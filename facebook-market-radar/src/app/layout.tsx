@@ -3,9 +3,9 @@ import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Radar thị trường Facebook (VN)",
+  title: "Radar ads & sàn VN",
   description:
-    "Thống kê ngành hàng và sản phẩm đang chạy quảng cáo Facebook bằng tín hiệu gián tiếp — không phải doanh số đối thủ.",
+    "Thống kê ads Facebook đã lưu và chỉ số sàn / Google / YouTube bạn nhập — tính lại liên tục từ kho, không crawl đối thủ.",
 };
 
 export default function RootLayout(props: { children: React.ReactNode }) {
@@ -14,14 +14,18 @@ export default function RootLayout(props: { children: React.ReactNode }) {
       <body>
         <header className="nav">
           <div className="inner">
-            <strong>Radar FB Việt Nam</strong>
+            <strong>Radar ads &amp; sàn VN</strong>
             <nav>
-              <Link href="/">Xếp hạng sản phẩm</Link>
+              <Link href="/">Trang chủ</Link>
+              <Link href="/kenh/shopee">Sàn / kênh</Link>
+              <Link href="/manh">Ads mạnh nhất</Link>
+              <Link href="/tong-hop">Tổng hợp kênh</Link>
               <Link href="/xu-huong">Xu hướng</Link>
               <Link href="/nganh">Ngành chạy mạnh</Link>
               <Link href="/theo-doi">Theo dõi</Link>
               <Link href="/bo-suu-tap">Bộ sưu tập</Link>
               <Link href="/quet">Quét cành</Link>
+              <Link href="/nguon">Nguồn dữ liệu</Link>
               <Link href="/collect">Lưu quảng cáo</Link>
               <Link href="/ads">Quảng cáo đã lưu</Link>
               <Link href="/alerts">Cảnh báo</Link>
