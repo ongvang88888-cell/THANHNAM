@@ -36,12 +36,12 @@ export default async function HomePage({ searchParams }: Props) {
         số đã bán công khai ngoài Facebook. Giá cạnh tên là ước lượng (bạn nhập / nội dung ads / khoảng
         ngành) — không crawl sàn.
       </div>
-      <form className="watch-search" action="/theo-doi" method="get">
+      <form className="watch-search" action="/quet" method="get">
         <label>
-          Gõ tên sản phẩm — xem đang chạy bao nhiêu bài ads
-          <input name="ten" placeholder="Serum Niacinamide, Bỉm quần, Đèn LED…" />
+          Tìm bài đang chạy theo tên hoặc từ khóa trong nội dung ads
+          <input name="ten" placeholder="Serum Niacinamide, kem chống nắng, Đèn LED…" />
         </label>
-        <button type="submit">Soi ads</button>
+        <button type="submit">Tìm bài đang chạy</button>
       </form>
       <div className="cards">
         <div className="card">

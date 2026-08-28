@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 import { ProductCell } from "@/ui/product-cell";
 import { collectJsonHeaders } from "@/ui/collect-headers";
 import { CollectKeyField } from "@/ui/collect-key-field";
+import { LibrarySearchLinks } from "@/ui/library-search-links";
 import { adRunSummary, type ProductAdAnalysis } from "@/domain/product-watch";
+import type { ScanLookup } from "@/domain/ad-library-scan";
 
 type WatchRow = {
   slug: string;
@@ -26,7 +28,23 @@ function intensityClass(intensity: ProductAdAnalysis["intensity"]): string {
   return "badge muted";
 }
 
-function AnalysisCard({ analysis }: { analysis: ProductAdAnalysis }) {
+function viaLabel(via: ProductAdAnalysis["matches"][number]["matchVia"]): string {
+  if (via === "copy") {
+    return "Khớp nội dung ads";
+  }
+  if (via === "both") {
+    return "Khớp tên + nội dung";
+  }
+  return "Khớp tên";
+}
+
+function AnalysisCard({
+  analysis,
+  variants,
+}: {
+  analysis: ProductAdAnalysis;
+  variants?: Array<{ query: string; libraryUrl: string }>;
+}) {
   return (
     <div className="card watch-result">
       <div className="watch-result-head">
@@ -35,8 +53,11 @@ function AnalysisCard({ analysis }: { analysis: ProductAdAnalysis }) {
       </div>
       <p className="muted">
         {adRunSummary(analysis.activeAdCount, analysis.distinctPageCount, analysis.totalAdCount)}
-        {analysis.clusterCount > 0 ? ` · khớp ${analysis.clusterCount} cụm sản phẩm` : " · chưa khớp cụm đã lưu"}
+        {analysis.clusterCount > 0
+          ? ` · khớp ${analysis.clusterCount} cụm (tên hoặc từ khóa trong bài)`
+          : " · chưa khớp dữ liệu đã lưu"}
       </p>
+      <LibrarySearchLinks query={analysis.query} variants={variants} />
       {analysis.price ? (
         <p>
           Giá ước lượng: <strong>{analysis.price.label}</strong>
@@ -48,7 +69,7 @@ function AnalysisCard({ analysis }: { analysis: ProductAdAnalysis }) {
           <thead>
             <tr>
               <th>Sản phẩm khớp</th>
-              <th>Độ khớp</th>
+              <th>Cách khớp</th>
               <th>Bài đang chạy</th>
             </tr>
           </thead>
@@ -62,8 +83,12 @@ function AnalysisCard({ analysis }: { analysis: ProductAdAnalysis }) {
                     price={row.price}
                     adSummary={adRunSummary(row.activeAdCount, row.distinctPageCount, row.totalAdCount)}
                   />
+                  {row.copySnippet ? <div className="muted">“…{row.copySnippet}…”</div> : null}
                 </td>
-                <td>{Math.round(row.matchScore * 100)}%</td>
+                <td>
+                  <span className="badge">{viaLabel(row.matchVia)}</span>
+                  <div className="muted">{Math.round(row.matchScore * 100)}%</div>
+                </td>
                 <td>
                   {row.activeAdCount} / {row.distinctPageCount} trang
                 </td>
@@ -72,7 +97,9 @@ function AnalysisCard({ analysis }: { analysis: ProductAdAnalysis }) {
           </tbody>
         </table>
       ) : (
-        <p className="muted">Chưa thấy quảng cáo đã lưu khớp tên này. Lưu thêm thẻ Ad Library rồi phân tích lại.</p>
+        <p className="muted">
+          Chưa thấy quảng cáo đã lưu khớp tên hoặc từ khóa trong bài. Mở Thư viện phía trên rồi lưu thẻ.
+        </p>
       )}
     </div>
   );
@@ -81,14 +108,17 @@ function AnalysisCard({ analysis }: { analysis: ProductAdAnalysis }) {
 export function WatchPanel({
   initialQuery,
   initialAnalysis,
+  initialVariants = [],
   initialWatches,
 }: {
   initialQuery: string;
   initialAnalysis: ProductAdAnalysis | null;
+  initialVariants?: Array<{ query: string; libraryUrl: string }>;
   initialWatches: WatchRow[];
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [analysis, setAnalysis] = useState<ProductAdAnalysis | null>(initialAnalysis);
+  const [variants, setVariants] = useState<Array<{ query: string; libraryUrl: string }>>(initialVariants);
   const [watches, setWatches] = useState(initialWatches);
   const [note, setNote] = useState("");
   const [pending, setPending] = useState(false);
@@ -107,13 +137,14 @@ export function WatchPanel({
     setError(null);
     setMessage(null);
     const response = await fetch(`/api/theo-doi?ten=${encodeURIComponent(ten)}`);
-    const json = (await response.json()) as { analysis?: ProductAdAnalysis; error?: string };
+    const json = (await response.json()) as ScanLookup & { error?: string };
     setPending(false);
     if (!response.ok || !json.analysis) {
       setError(json.error ?? "Không phân tích được");
       return;
     }
     setAnalysis(json.analysis);
+    setVariants(json.variants ?? []);
     const url = new URL(window.location.href);
     url.searchParams.set("ten", ten);
     window.history.replaceState(null, "", url.toString());
@@ -178,15 +209,15 @@ export function WatchPanel({
         }}
       >
         <label>
-          Tên sản phẩm cần soi ads
+          Tên sản phẩm hoặc từ khóa trong bài ads
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Ví dụ: Serum Niacinamide, Bỉm quần, Đèn LED"
+            placeholder="Ví dụ: Serum Niacinamide, kem chống nắng, Đèn LED"
           />
         </label>
         <button type="submit" disabled={pending}>
-          {pending ? "Đang soi…" : "Phân tích ads đang chạy"}
+          {pending ? "Đang soi…" : "Tìm bài đang chạy"}
         </button>
       </form>
       <CollectKeyField />
@@ -201,7 +232,7 @@ export function WatchPanel({
       </div>
       {error ? <p className="err">{error}</p> : null}
       {message ? <p className="ok">{message}</p> : null}
-      {analysis ? <AnalysisCard analysis={analysis} /> : null}
+      {analysis ? <AnalysisCard analysis={analysis} variants={variants} /> : null}
       {analysis && savedSlugs.has(analysis.slug) ? (
         <p className="muted">Tên này đã nằm trong danh sách theo dõi.</p>
       ) : null}

@@ -93,7 +93,12 @@ button, .btn {
   font-weight: 700;
   cursor: pointer;
 }
-button.secondary { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+button.secondary,
+.btn.secondary {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
 .err { color: var(--danger); }
 .ok { color: var(--accent); }
 pre.report {

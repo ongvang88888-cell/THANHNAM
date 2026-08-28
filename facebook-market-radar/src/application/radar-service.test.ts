@@ -125,6 +125,34 @@ describe("RadarService", () => {
     expect(plan.nextBatch.every((row) => !row.covered)).toBe(true);
     const led = plan.branches.find((row) => row.query.toLowerCase().includes("đèn led cảm ứng"));
     expect(led?.covered).toBe(true);
+    expect(plan.nameVariants.length + plan.copyKeywords.length).toBeGreaterThan(0);
+    expect(plan.moreRunningBatch.length).toBeGreaterThan(0);
+    expect(plan.moreRunningBatch.every((row) => row.libraryUrl.includes("ads/library"))).toBe(true);
+  });
+
+  it("finds running ads by product name and by keywords in ad copy", async () => {
+    const service = await seededService();
+    const byName = await service.lookupScan("Đèn LED");
+    expect(byName.libraryUrl).toContain("facebook.com/ads/library");
+    expect(byName.analysis.activeAdCount).toBe(2);
+    expect(byName.variants.length).toBeGreaterThan(0);
+    await service.collectManual(
+      {
+        libraryId: "111000088",
+        pageId: "900088",
+        pageName: "Copy Shop",
+        productTitle: "Glow Night kem mặt",
+        startDate: "2026-08-01",
+        nicheSlug: "my-pham",
+        body: "Kem chống nắng SPF50 cho da dầu — pin sáng 3 tháng không liên quan",
+      },
+      now,
+      null,
+      undefined,
+    );
+    const byCopy = await service.lookupScan("kem chống nắng");
+    expect(byCopy.analysis.matches.some((row) => row.matchVia === "copy" || row.matchVia === "both")).toBe(true);
+    expect(byCopy.analysis.activeAdCount).toBeGreaterThan(0);
   });
 
   it("imports an Ad Library sheet idempotently", async () => {

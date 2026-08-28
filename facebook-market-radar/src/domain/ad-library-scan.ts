@@ -1,11 +1,13 @@
 import { buildAdLibrarySearchUrl } from "./ad-library-url";
 import { normalizeTitle, slugifyTitle, tokenize } from "./clustering";
 import { buildIndustryStats, type IndustryStat } from "./industry-stats";
-import { LOCKED_NICHES, nicheGroup, type NicheDef } from "./niches";
+import { LOCKED_NICHES, nicheGroup, nicheName, type NicheDef } from "./niches";
+import type { ProductAdAnalysis } from "./product-watch";
 import { SCAN_BRANCHES } from "./scan-branches";
+import { extractCopyPhrases, nameVariantQueries } from "./scan-phrases";
 import type { RankingRow } from "./weekly-report";
 
-export type ScanBranchKind = "catalog" | "running";
+export type ScanBranchKind = "catalog" | "running" | "copy" | "name-variant";
 
 export type ScanBranch = {
   id: string;
@@ -21,14 +23,31 @@ export type ScanBranch = {
   priority: number;
 };
 
+export type ScanAdInput = {
+  nicheSlug: string;
+  title: string | null;
+  body: string | null;
+  isActive: boolean;
+};
+
 export type ScanPlan = {
   branches: ScanBranch[];
   runningProducts: ScanBranch[];
+  nameVariants: ScanBranch[];
+  copyKeywords: ScanBranch[];
+  moreRunningBatch: ScanBranch[];
   totalBranches: number;
   uncoveredCount: number;
   coveredCount: number;
   emptyNicheCount: number;
   nextBatch: ScanBranch[];
+};
+
+export type ScanLookup = {
+  query: string;
+  libraryUrl: string;
+  variants: ScanBranch[];
+  analysis: ProductAdAnalysis;
 };
 
 export function scanQueriesForNiche(niche: NicheDef): string[] {
@@ -99,6 +118,7 @@ export function buildScanPlan(
   extraTexts: readonly string[] = [],
   catalog: readonly NicheDef[] = LOCKED_NICHES,
   nextBatchSize = 20,
+  ads: readonly ScanAdInput[] = [],
 ): ScanPlan {
   const industries = buildIndustryStats(rankings, catalog);
   const byNiche = new Map<string, IndustryStat>(industries.map((row) => [row.nicheSlug, row]));
@@ -137,14 +157,50 @@ export function buildScanPlan(
   branches.sort(compareScanBranches);
 
   const uncoveredCount = branches.filter((row) => !row.covered).length;
+  const catalogKeys = new Set(branches.map((row) => normalizeTitle(row.query)));
+  const runningProducts = runningProductBranches(rankings);
+  const nameVariants = nameVariantBranches(rankings, catalogKeys);
+  const copyKeywords = copyKeywordBranches(ads, catalogKeys);
+  const moreRunningBatch = dedupeBranches([...nameVariants, ...copyKeywords, ...runningProducts])
+    .sort(compareScanBranches)
+    .slice(0, nextBatchSize);
   return {
     branches,
-    runningProducts: runningProductBranches(rankings),
+    runningProducts,
+    nameVariants,
+    copyKeywords,
+    moreRunningBatch,
     totalBranches: branches.length,
     uncoveredCount,
     coveredCount: branches.length - uncoveredCount,
     emptyNicheCount: industries.filter((row) => !row.hasData).length,
     nextBatch: branches.filter((row) => !row.covered).slice(0, nextBatchSize),
+  };
+}
+
+export function buildScanLookup(query: string, analysis: ProductAdAnalysis): ScanLookup {
+  const trimmed = query.trim();
+  const nicheSlug = analysis.matches[0]?.nicheSlug ?? "khac";
+  const variants = nameVariantQueries(trimmed).map((phrase, index) =>
+    makeBranch({
+      id: `lookup:${slugifyTitle(phrase)}`,
+      kind: "name-variant",
+      nicheSlug,
+      query: phrase,
+      covered: textsMatchScanQuery(phrase, [
+        analysis.query,
+        ...analysis.matches.map((row) => row.clusterTitle),
+      ]),
+      matchedProductCount: analysis.matches.filter((row) => textsMatchScanQuery(phrase, [row.clusterTitle])).length,
+      nicheHasData: analysis.matches.length > 0,
+      priority: 180 - index * 5,
+    }),
+  );
+  return {
+    query: trimmed,
+    libraryUrl: buildAdLibrarySearchUrl(trimmed),
+    variants,
+    analysis,
   };
 }
 
@@ -180,6 +236,135 @@ export function runningProductBranches(rankings: RankingRow[]): ScanBranch[] {
     });
   }
   return out.sort(compareScanBranches);
+}
+
+export function nameVariantBranches(
+  rankings: RankingRow[],
+  catalogKeys: ReadonlySet<string> = new Set(),
+): ScanBranch[] {
+  const out: ScanBranch[] = [];
+  const seen = new Set<string>();
+  for (const row of rankings) {
+    if (row.activeAdCount <= 0) {
+      continue;
+    }
+    const full = normalizeTitle(row.clusterTitle);
+    for (const phrase of nameVariantQueries(row.clusterTitle)) {
+      const key = normalizeTitle(phrase);
+      if (key === full || catalogKeys.has(key) || seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      out.push(
+        makeBranch({
+          id: `name-variant:${row.clusterSlug}:${slugifyTitle(phrase)}`,
+          kind: "name-variant",
+          nicheSlug: row.nicheSlug,
+          query: phrase,
+          covered: true,
+          matchedProductCount: 1,
+          nicheHasData: true,
+          priority: 40 + Math.min(Math.max(row.scores.heat, 0), 80),
+        }),
+      );
+    }
+  }
+  return out.sort(compareScanBranches);
+}
+
+export function copyKeywordBranches(
+  ads: readonly ScanAdInput[],
+  catalogKeys: ReadonlySet<string> = new Set(),
+): ScanBranch[] {
+  const counts = new Map<string, { query: string; nicheSlug: string; active: number }>();
+  for (const ad of ads) {
+    if (!ad.isActive) {
+      continue;
+    }
+    const phrases = [
+      ...extractCopyPhrases(ad.body ?? ""),
+      ...extractCopyPhrases(ad.title ?? ""),
+    ];
+    for (const phrase of phrases) {
+      const key = normalizeTitle(phrase);
+      if (catalogKeys.has(key)) {
+        continue;
+      }
+      const current = counts.get(key);
+      if (current) {
+        current.active += 1;
+        continue;
+      }
+      counts.set(key, { query: phrase, nicheSlug: ad.nicheSlug, active: 1 });
+    }
+  }
+  return [...counts.values()]
+    .map((row) =>
+      makeBranch({
+        id: `copy:${row.nicheSlug}:${slugifyTitle(row.query)}`,
+        kind: "copy",
+        nicheSlug: row.nicheSlug,
+        query: row.query,
+        covered: true,
+        matchedProductCount: row.active,
+        nicheHasData: true,
+        priority: 120 + Math.min(row.active * 8, 40),
+      }),
+    )
+    .sort(compareScanBranches)
+    .slice(0, 80);
+}
+
+export function scanBranchKindLabel(kind: ScanBranchKind): string {
+  if (kind === "running") {
+    return "Tên sản phẩm đang chạy";
+  }
+  if (kind === "copy") {
+    return "Từ khóa trong bài ads";
+  }
+  if (kind === "name-variant") {
+    return "Biến thể tên";
+  }
+  return "Cành catalog";
+}
+
+function makeBranch(input: {
+  id: string;
+  kind: ScanBranchKind;
+  nicheSlug: string;
+  query: string;
+  covered: boolean;
+  matchedProductCount: number;
+  nicheHasData: boolean;
+  priority: number;
+}): ScanBranch {
+  return {
+    id: input.id,
+    kind: input.kind,
+    nicheSlug: input.nicheSlug,
+    nicheName: nicheName(input.nicheSlug),
+    group: nicheGroup(input.nicheSlug),
+    query: input.query,
+    libraryUrl: buildAdLibrarySearchUrl(input.query),
+    covered: input.covered,
+    matchedProductCount: input.matchedProductCount,
+    nicheHasData: input.nicheHasData,
+    priority: input.priority,
+  };
+}
+
+function dedupeBranches(rows: ScanBranch[]): ScanBranch[] {
+  const seen = new Set<string>();
+  const out: ScanBranch[] = [];
+  for (const row of rows) {
+    const key = normalizeTitle(row.query);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
 }
 
 export function compareScanBranches(a: ScanBranch, b: ScanBranch): number {

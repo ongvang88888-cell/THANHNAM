@@ -15,8 +15,15 @@ export async function GET(request: Request) {
   if (ten.length < 2) {
     return NextResponse.json({ error: "Nhập tên sản phẩm (từ 2 ký tự)" }, { status: 400 });
   }
-  const analysis = await getRadarService().analyzeProductName(ten);
-  return NextResponse.json({ analysis });
+  try {
+    const lookup = await getRadarService().lookupScan(ten);
+    return NextResponse.json(lookup);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Không phân tích được" },
+      { status: 400 },
+    );
+  }
 }
 
 export async function POST(request: Request) {

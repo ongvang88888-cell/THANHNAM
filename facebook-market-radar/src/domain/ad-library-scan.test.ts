@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { buildAdLibrarySearchUrl } from "./ad-library-url";
 import {
+  buildScanLookup,
   buildScanPlan,
   catalogScanQueryCount,
+  copyKeywordBranches,
   isUsefulScanQuery,
+  nameVariantBranches,
   runningProductBranches,
   scanQueriesForNiche,
   textsMatchScanQuery,
@@ -113,5 +116,44 @@ describe("ad library scan plan", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.kind).toBe("running");
     expect(rows[0]?.libraryUrl).toContain("q=");
+  });
+
+  it("adds name slices and copy keywords to find more running ads", () => {
+    const rankings = [ranking({ clusterSlug: "den-led", nicheSlug: "gadget" })];
+    const variants = nameVariantBranches(rankings);
+    expect(variants.some((row) => row.kind === "name-variant")).toBe(true);
+    expect(variants.every((row) => row.libraryUrl.includes("country=VN"))).toBe(true);
+    const copies = copyKeywordBranches([
+      {
+        nicheSlug: "my-pham",
+        title: null,
+        body: "Kem chống nắng SPF50 cho da dầu, inbox Zalo 249.000đ",
+        isActive: true,
+      },
+    ]);
+    expect(copies.some((row) => row.query.includes("kem chống nắng"))).toBe(true);
+    const plan = buildScanPlan(rankings, ["Đèn LED cảm ứng tủ bếp"], undefined, 20, [
+      {
+        nicheSlug: "gadget",
+        title: "Đèn LED cảm ứng",
+        body: "Đèn LED cảm ứng tủ bếp pin 3 tháng",
+        isActive: true,
+      },
+    ]);
+    expect(plan.moreRunningBatch.length).toBeGreaterThan(0);
+    const lookup = buildScanLookup("Đèn LED", {
+      query: "Đèn LED",
+      slug: "den-led",
+      matches: [],
+      activeAdCount: 0,
+      totalAdCount: 0,
+      distinctPageCount: 0,
+      clusterCount: 0,
+      intensity: "chua-co",
+      intensityLabel: "Chưa thấy",
+      price: null,
+    });
+    expect(lookup.libraryUrl).toContain("q=");
+    expect(lookup.variants.length).toBeGreaterThan(0);
   });
 });

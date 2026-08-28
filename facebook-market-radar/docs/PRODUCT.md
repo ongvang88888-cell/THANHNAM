@@ -27,9 +27,9 @@ Không pretends đây là giá live hay giá đối thủ chính xác.
 
 ## Theo dõi tên sản phẩm
 
-User ghi một tên → Radar khớp cụm đã lưu → đếm **bài đang chạy / số trang / bài đã lưu** và gắn nhãn ít / vừa / nhiều. Chỉ trên dữ liệu đã lưu, không phải tổng ads Facebook.
+User ghi một tên **hoặc từ khóa trong nội dung ads** → Radar khớp cụm + title/body đã lưu → đếm **bài đang chạy / số trang / bài đã lưu**. Đồng thời sinh URL Thư viện (VN, đang chạy) và biến thể tên để bắt thêm thẻ. Chỉ trên dữ liệu đã lưu + search chính thức — không phải tổng ads Facebook.
 
-Danh mục khóa: **26 ngành / 13 nhóm**. “Quét đầy đủ” = hàng đợi **cành từ khóa** (`/quet`) + độ phủ danh mục để user tự mở Thư viện (VN, đang chạy) — không scrape Facebook.
+Danh mục khóa: **26 ngành / 13 nhóm**. “Quét đầy đủ” = hàng đợi **cành từ khóa** (`/quet`) + biến thể tên sản phẩm đang chạy + cụm rút từ bài ads đã lưu. User tự mở Thư viện — không scrape Facebook.
 
 ## Thu thập hợp lệ
 

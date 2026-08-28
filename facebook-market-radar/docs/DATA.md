@@ -41,6 +41,10 @@ Chỉ parse query string user dán:
 
 `src/domain/ad-library-scan.ts` + `SCAN_BRANCHES`: gộp `searchKeywords`, keyword catalog hữu ích, và nhánh tên sản phẩm. Cành “đã phủ” khi title/body ads đã lưu khớp query. Ưu tiên ngành trống.
 
-`GET /api/quet` trả plan. `POST /api/collect/sheet` nhập CSV (tối đa 200 dòng), idempotent theo `libraryId`.
+`GET /api/quet` trả plan (catalog + `runningProducts` + `nameVariants` + `copyKeywords`).
+`GET /api/quet/tim?q=` và `GET /api/theo-doi?ten=` tìm bài đã lưu theo tên / từ khóa trong body, kèm URL Thư viện.
+`POST /api/collect/sheet` nhập CSV (tối đa 200 dòng), idempotent theo `libraryId`.
+
+Cụm copy lấy từ title/body ads active (2–3 từ, bỏ stopword / giá). Server không HTTP GET Facebook.
 
 Server không HTTP GET tới Facebook khi user dán URL.

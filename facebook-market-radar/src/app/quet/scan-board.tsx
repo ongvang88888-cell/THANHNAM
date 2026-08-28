@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { ScanBranch, ScanPlan } from "@/domain/ad-library-scan";
+import { scanBranchKindLabel, type ScanBranch, type ScanPlan } from "@/domain/ad-library-scan";
 import { NICHE_GROUPS } from "@/domain/niches";
 import { SheetImportForm } from "../collect/sheet-import";
 
@@ -58,6 +58,7 @@ function BranchRow({
       </td>
       <td>
         <strong>{row.query}</strong>
+        <div className="muted">{scanBranchKindLabel(row.kind)}</div>
         {opened ? <div className="muted">Đã mở trên máy này</div> : null}
       </td>
       <td>{row.nicheName}</td>
@@ -134,17 +135,30 @@ export function ScanBoard({
     return plan.nextBatch;
   }, [filtered, group, niche, onlyEmptyNiche, plan.nextBatch, query]);
 
-  const running = useMemo(() => {
-    return plan.runningProducts.filter((row) => {
-      if (group && row.group !== group) {
-        return false;
-      }
-      if (niche && row.nicheSlug !== niche) {
-        return false;
-      }
-      return true;
-    });
-  }, [group, niche, plan.runningProducts]);
+  function inScope(row: ScanBranch): boolean {
+    if (group && row.group !== group) {
+      return false;
+    }
+    if (niche && row.nicheSlug !== niche) {
+      return false;
+    }
+    return true;
+  }
+
+  const running = useMemo(() => plan.runningProducts.filter(inScope), [group, niche, plan.runningProducts]);
+  const moreRunning = useMemo(() => {
+    const scoped = plan.moreRunningBatch.filter(inScope);
+    if (group || niche) {
+      return [
+        ...plan.nameVariants.filter(inScope),
+        ...plan.copyKeywords.filter(inScope),
+        ...plan.runningProducts.filter(inScope),
+      ].slice(0, 20);
+    }
+    return scoped;
+  }, [group, niche, plan.copyKeywords, plan.moreRunningBatch, plan.nameVariants, plan.runningProducts]);
+  const copies = useMemo(() => plan.copyKeywords.filter(inScope), [group, niche, plan.copyKeywords]);
+  const variants = useMemo(() => plan.nameVariants.filter(inScope), [group, niche, plan.nameVariants]);
 
   async function copyBatch() {
     const text = batch.map((row) => row.libraryUrl).join("\n");
@@ -240,6 +254,33 @@ export function ScanBoard({
         </table>
       )}
 
+      <h2>Lô tìm thêm bài đang chạy — {moreRunning.length}</h2>
+      <p className="muted">
+        Biến thể tên sản phẩm + từ khóa rút từ nội dung ads đã lưu. Mở Thư viện để bắt thêm thẻ cùng tên
+        hoặc cùng hook trong bài viết.
+      </p>
+      {moreRunning.length === 0 ? (
+        <p className="muted">Chưa có tên / nội dung ads để sinh thêm cành. Lưu vài thẻ rồi quay lại.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Tên / từ khóa</th>
+              <th>Ngành</th>
+              <th>Nhóm</th>
+              <th>Phủ</th>
+              <th>SP khớp</th>
+            </tr>
+          </thead>
+          <tbody>
+            {moreRunning.map((row) => (
+              <BranchRow key={row.id} row={row} opened={Boolean(opened[row.id])} onOpen={markOpened} />
+            ))}
+          </tbody>
+        </table>
+      )}
+
       <h2>Sản phẩm đang chạy ads — mở lại Thư viện</h2>
       <p className="muted">
         Tên cụm bạn đã lưu, đang có bài active. Mở search cùng tên để bắt thêm thẻ / page khác. Không
@@ -267,7 +308,54 @@ export function ScanBoard({
         </table>
       )}
 
-      <h2>Toàn bộ hàng đợi ({filtered.length}/{plan.totalBranches})</h2>
+      <h2>Từ khóa trong bài ads đã lưu ({copies.length})</h2>
+      <p className="muted">Cụm 2–3 từ lấy từ title/body ads active đã lưu — không scrape Facebook.</p>
+      {copies.length === 0 ? (
+        <p className="muted">Chưa có nội dung ads đủ để rút từ khóa, hoặc mọi cụm đã nằm trong catalog.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Từ khóa trong bài</th>
+              <th>Ngành</th>
+              <th>Nhóm</th>
+              <th></th>
+              <th>Bài chứa cụm</th>
+            </tr>
+          </thead>
+          <tbody>
+            {copies.slice(0, 60).map((row) => (
+              <BranchRow key={row.id} row={row} opened={Boolean(opened[row.id])} onOpen={markOpened} />
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <h2>Biến thể tên sản phẩm đang chạy ({variants.length})</h2>
+      {variants.length === 0 ? (
+        <p className="muted">Chưa có sản phẩm đang chạy để tách tên.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Biến thể tên</th>
+              <th>Ngành</th>
+              <th>Nhóm</th>
+              <th></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {variants.slice(0, 60).map((row) => (
+              <BranchRow key={row.id} row={row} opened={Boolean(opened[row.id])} onOpen={markOpened} />
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <h2>Toàn bộ hàng đợi catalog ({filtered.length}/{plan.totalBranches})</h2>
       <table>
         <thead>
           <tr>

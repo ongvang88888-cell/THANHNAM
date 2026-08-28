@@ -1,5 +1,5 @@
 import { detectAlerts, creativeHash, type AlertDraft } from "../domain/alerts";
-import { buildScanPlan, type ScanPlan } from "../domain/ad-library-scan";
+import { buildScanLookup, buildScanPlan, type ScanLookup, type ScanPlan } from "../domain/ad-library-scan";
 import { assertCollectAuthorized } from "../domain/authz";
 import { draftCluster, shouldMergeClusters, slugifyTitle } from "../domain/clustering";
 import { validateCollectManual, type CollectManualInput } from "../domain/collect-input";
@@ -318,11 +318,14 @@ export class RadarService {
 
   async scanPlan(nowMs: number, nextBatchSize = 20): Promise<ScanPlan> {
     const rankings = await this.listRankings(nowMs);
+    const clusters = await this.repo.listClusters(this.appId);
+    const ads = await this.repo.listAds(this.appId);
     const extraTexts: string[] = [];
-    for (const cluster of await this.repo.listClusters(this.appId)) {
+    const nicheBySlug = new Map(clusters.map((cluster) => [cluster.slug, cluster.nicheSlug]));
+    for (const cluster of clusters) {
       extraTexts.push(cluster.title);
     }
-    for (const ad of await this.repo.listAds(this.appId)) {
+    for (const ad of ads) {
       if (ad.title) {
         extraTexts.push(ad.title);
       }
@@ -333,7 +336,27 @@ export class RadarService {
     for (const watch of await this.repo.listWatches(this.appId)) {
       extraTexts.push(watch.name);
     }
-    return buildScanPlan(rankings, extraTexts, undefined, nextBatchSize);
+    return buildScanPlan(
+      rankings,
+      extraTexts,
+      undefined,
+      nextBatchSize,
+      ads.map((ad) => ({
+        nicheSlug: nicheBySlug.get(ad.clusterSlug) ?? "khac",
+        title: ad.title,
+        body: ad.body,
+        isActive: ad.isActive,
+      })),
+    );
+  }
+
+  async lookupScan(query: string): Promise<ScanLookup> {
+    const trimmed = query.trim();
+    if (trimmed.length < 2 || trimmed.length > 200) {
+      throw new Error("Tên / từ khóa phải từ 2–200 ký tự");
+    }
+    const analysis = await this.analyzeProductName(trimmed);
+    return buildScanLookup(trimmed, analysis);
   }
 
   async collectSheet(

@@ -39,6 +39,29 @@ describe("product watch", () => {
     expect(analysis.distinctPageCount).toBe(2);
     expect(analysis.intensity).toBe("vua");
     expect(analysis.price?.midVnd).toBeGreaterThan(0);
+    expect(analysis.matches[0]?.matchVia).toBe("name");
+  });
+
+  it("matches a keyword that only appears in ad copy", () => {
+    const analysis = analyzeProductName("kem chống nắng", [
+      {
+        slug: "glow-night",
+        title: "Glow Night kem mặt",
+        nicheSlug: "my-pham",
+        ads: [
+          {
+            isActive: true,
+            pageId: "3",
+            listingPriceVnd: 249_000,
+            body: "Kem chống nắng SPF50 — chỉ 249.000đ hôm nay",
+          },
+        ],
+      },
+    ]);
+    expect(analysis.clusterCount).toBe(1);
+    expect(analysis.activeAdCount).toBe(1);
+    expect(analysis.matches[0]?.matchVia).toBe("copy");
+    expect(analysis.matches[0]?.copySnippet).toContain("Kem chống nắng");
   });
 
   it("summarizes running ads beside the product name", () => {

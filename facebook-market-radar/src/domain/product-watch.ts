@@ -1,5 +1,7 @@
+import { textsMatchScanQuery } from "./ad-library-scan";
 import { jaccard, normalizeTitle, slugifyTitle, tokenize } from "./clustering";
 import { estimateProductPrice, type PriceEstimate } from "./price";
+import { snippetAround } from "./scan-phrases";
 
 export const AD_INTENSITIES = ["chua-co", "it", "vua", "nhieu"] as const;
 export type AdIntensity = (typeof AD_INTENSITIES)[number];
@@ -9,6 +11,8 @@ export type ProductWatchMatch = {
   clusterTitle: string;
   nicheSlug: string;
   matchScore: number;
+  matchVia: "name" | "copy" | "both";
+  copySnippet: string | null;
   activeAdCount: number;
   totalAdCount: number;
   distinctPageCount: number;
@@ -97,12 +101,38 @@ export function analyzeProductName(
   threshold = 0.34,
 ): ProductAdAnalysis {
   const trimmed = query.trim();
+  const specific = tokenize(trimmed).size >= 2 || normalizeTitle(trimmed).length >= 8;
   const matches: ProductWatchMatch[] = [];
   for (const cluster of clusters) {
-    const score = nameMatchScore(trimmed, cluster.title);
+    const nameScore = nameMatchScore(trimmed, cluster.title);
+    let copyScore = 0;
+    let copySnippet: string | null = null;
+    for (const ad of cluster.ads) {
+      for (const text of [ad.title, ad.body]) {
+        if (!text) {
+          continue;
+        }
+        if (specific && textsMatchScanQuery(trimmed, [text])) {
+          copyScore = Math.max(copyScore, 0.78);
+          copySnippet = copySnippet ?? snippetAround(text, trimmed);
+        }
+        const scored = nameMatchScore(trimmed, text);
+        if (scored >= threshold) {
+          copyScore = Math.max(copyScore, Math.round(scored * 90) / 100);
+          copySnippet = copySnippet ?? snippetAround(text, trimmed);
+        }
+      }
+    }
+    const score = Math.max(nameScore, copyScore);
     if (score < threshold) {
       continue;
     }
+    const via =
+      nameScore >= threshold && copyScore >= threshold
+        ? "both"
+        : nameScore >= copyScore
+          ? "name"
+          : "copy";
     const active = cluster.ads.filter((ad) => ad.isActive);
     const pages = new Set(active.map((ad) => ad.pageId));
     matches.push({
@@ -110,6 +140,8 @@ export function analyzeProductName(
       clusterTitle: cluster.title,
       nicheSlug: cluster.nicheSlug,
       matchScore: Math.round(score * 100) / 100,
+      matchVia: via,
+      copySnippet,
       activeAdCount: active.length,
       totalAdCount: cluster.ads.length,
       distinctPageCount: pages.size,

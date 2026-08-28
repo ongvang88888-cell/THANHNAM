@@ -9,20 +9,25 @@ export default async function WatchPage({ searchParams }: Props) {
   const { ten } = await searchParams;
   const query = ten?.trim() ?? "";
   const service = getRadarService();
-  const analysis = query.length >= 2 ? await service.analyzeProductName(query) : null;
+  const lookup = query.length >= 2 ? await service.lookupScan(query) : null;
   const watches = await service.listWatchesWithAnalysis();
   return (
     <>
       <h1>Theo dõi sản phẩm — soi ads đang chạy</h1>
       <p className="muted">
-        Ghi tên sản phẩm rồi đối chiếu với quảng cáo bạn đã lưu. Không phải số chạy ads toàn thị trường
-        Facebook — chỉ đếm bài trong dữ liệu Radar.
+        Ghi tên sản phẩm hoặc từ khóa trong nội dung ads, đối chiếu dữ liệu đã lưu, rồi mở Thư viện để
+        bắt thêm bài đang chạy. Không phải số chạy ads toàn thị trường Facebook.
       </p>
       <div className="banner">
         Giá cạnh tên là ước lượng: giá bạn nhập khi lưu thẻ, số VND đọc từ nội dung ads, và khoảng giá
         phổ biến cùng loại trên sàn VN. Không crawl Shopee/TikTok/Facebook.
       </div>
-      <WatchPanel initialQuery={query} initialAnalysis={analysis} initialWatches={watches} />
+      <WatchPanel
+        initialQuery={query}
+        initialAnalysis={lookup?.analysis ?? null}
+        initialVariants={lookup?.variants ?? []}
+        initialWatches={watches}
+      />
     </>
   );
 }
