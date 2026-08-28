@@ -11,9 +11,13 @@ function formatMinor(value: number | null): string {
 }
 
 export default async function OwnAdsPage() {
-  const { rows, totals } = await getRadarService().ownInsightsSummary();
+  const service = getRadarService();
+  const { rows, totals } = await service.ownInsightsSummary();
+  const shopItems = await service.listOwnShopItems();
+  const caps = service.platformStatsCapabilities();
   return (
     <>
+      <p className="eyebrow">My Ads</p>
       <h1>Tài khoản của tôi</h1>
       <div className="banner">
         Số liệu này đến từ Marketing API (hoặc dữ liệu mẫu nội bộ). Không trộn vào điểm nóng thị trường.
@@ -37,6 +41,40 @@ export default async function OwnAdsPage() {
         {totals.estimated ? "có" : "không"}.
       </p>
       <OwnAdsSync />
+      <h2>Shop Open API của tôi</h2>
+      <p className="muted">
+        Shopee {caps.shopeeShop ? "đã khóa" : "chưa khóa"} · Lazada {caps.lazadaShop ? "đã khóa" : "chưa khóa"} ·
+        TikTok Shop {caps.tiktokShop ? "đã khóa" : "chưa khóa"}. Số này không vào /kenh thị trường. Đồng bộ từ
+        nút API trên <a href="/kenh/shopee">/kenh</a>.
+      </p>
+      {shopItems.length === 0 ? (
+        <p className="muted">Chưa có SKU shop. Cấu hình partner env rồi bấm Lấy thống kê API.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>Sàn</th>
+              <th>Shop</th>
+              <th>SKU</th>
+              <th>Tên</th>
+              <th>Sold (shop tôi)</th>
+              <th>Ngày</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shopItems.map((item) => (
+              <tr key={`${item.platform}-${item.shopId}-${item.itemId}-${item.date}`}>
+                <td>{item.platform}</td>
+                <td>{item.shopId}</td>
+                <td>{item.itemId}</td>
+                <td>{item.itemName}</td>
+                <td>{item.soldCount}</td>
+                <td>{item.date}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
       <table>
         <thead>
           <tr>

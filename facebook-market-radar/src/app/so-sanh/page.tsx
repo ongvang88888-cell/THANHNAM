@@ -36,6 +36,7 @@ export default async function ComparePage({ searchParams }: Props) {
   const compared = a && b ? await getRadarService().compareProducts(a, b, Date.now()) : { left: null, right: null };
   return (
     <>
+      <p className="eyebrow">Compare</p>
       <h1>So sánh hai sản phẩm đã lưu</h1>
       <p className="muted">Chọn hai cụm từ dữ liệu bạn lưu — không phải A/B Facebook Ads Manager.</p>
       <form className="research-filters" action="/so-sanh" method="get">

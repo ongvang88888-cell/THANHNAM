@@ -9,6 +9,7 @@ export default async function BoardsPage() {
   const items = await service.listBoardItems();
   return (
     <>
+      <p className="eyebrow">Collection</p>
       <h1>Bộ sưu tập creative</h1>
       <div className="banner">
         Swipe file trên thẻ <strong>bạn đã lưu</strong> — gắn góc (giá, UGC, trước-sau…). Không phải kho ads

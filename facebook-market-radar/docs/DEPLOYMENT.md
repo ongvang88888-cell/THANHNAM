@@ -39,6 +39,8 @@ PORT=3100
 
 `META_*` để trống trừ khi user tự kết nối Marketing API (ads của chính họ — không trộn vào HeatScore thị trường).
 
+`FMR_LICENSED_FEED_URL` chỉ trỏ API vendor đã mua (https). App từ chối host Facebook/Instagram/Meta. Token licensed không log.
+
 Ghi quảng cáo (`POST /api/collect`, `POST /api/theo-doi`) cần header `x-fmr-key` trùng `FMR_COLLECT_KEY`.
 
 ## systemd (mẫu)
